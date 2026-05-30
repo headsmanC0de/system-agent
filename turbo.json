@@ -5,17 +5,47 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", "out/**", ".next/**", "!.next/cache/**"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^build"],
+      "outputs": []
     },
-    "check-types": {
-      "dependsOn": ["^check-types"]
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**", "test-results/**"]
+    },
+    "clean": {
+      "cache": false
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    }
+  },
+  "boundary": {
+    "tags": {
+      "config": ["config"],
+      "types": ["types"],
+      "ui": ["ui"],
+      "hooks": ["hooks"],
+      "desktop": ["app"]
+    },
+    "rules": {
+      "config": { "dependsOn": [] },
+      "types": { "dependsOn": ["config"] },
+      "ui": { "dependsOn": ["config", "types"] },
+      "hooks": { "dependsOn": ["config", "types"] },
+      "app": { "dependsOn": ["types", "ui", "hooks"] }
     }
   }
 }

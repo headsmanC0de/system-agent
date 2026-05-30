@@ -1,0 +1,140 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Moonrock OS logo" [ref=e8]
+        - generic [ref=e30]:
+          - generic [ref=e31]: Moonrock OS
+          - generic [ref=e32]: System Manager
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+    - navigation [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: Overview
+        - generic [ref=e39]:
+          - button "Dashboard" [ref=e40] [cursor=pointer]:
+            - img [ref=e42]
+            - text: Dashboard
+          - button "Projects" [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+            - text: Projects
+          - button "Packages" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - text: Packages
+          - button "Hardware" [ref=e60] [cursor=pointer]:
+            - img [ref=e62]
+            - text: Hardware
+          - button "GPU" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+            - text: GPU
+      - generic [ref=e69]:
+        - generic [ref=e70]: System
+        - generic [ref=e71]:
+          - button "Snapshots" [ref=e72] [cursor=pointer]:
+            - img [ref=e74]
+            - text: Snapshots
+          - button "Services" [active] [ref=e77] [cursor=pointer]:
+            - img [ref=e79]
+            - text: Services
+          - button "Autostart" [ref=e82] [cursor=pointer]:
+            - img [ref=e84]
+            - text: Autostart
+          - button "Cron & Timers" [ref=e86] [cursor=pointer]:
+            - img [ref=e88]
+            - text: Cron & Timers
+      - generic [ref=e91]:
+        - generic [ref=e92]: Peripherals
+        - generic [ref=e93]:
+          - button "Disks" [ref=e94] [cursor=pointer]:
+            - img [ref=e96]
+            - text: Disks
+          - button "Network" [ref=e98] [cursor=pointer]:
+            - img [ref=e100]
+            - text: Network
+          - button "Battery & BT" [ref=e104] [cursor=pointer]:
+            - img [ref=e106]
+            - text: Battery & BT
+          - button "RGB" [ref=e108] [cursor=pointer]:
+            - img [ref=e110]
+            - text: RGB
+          - button "Logs" [ref=e112] [cursor=pointer]:
+            - img [ref=e114]
+            - text: Logs
+      - generic [ref=e117]:
+        - generic [ref=e118]: Assistant
+        - generic [ref=e119]:
+          - button "Agent Chat" [ref=e120] [cursor=pointer]:
+            - img [ref=e122]
+            - text: Agent Chat
+          - button "Passwords" [ref=e125] [cursor=pointer]:
+            - img [ref=e127]
+            - text: Passwords
+          - button "Docs" [ref=e131] [cursor=pointer]:
+            - img [ref=e133]
+            - text: Docs
+          - button "Settings" [ref=e135] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Settings
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e142]: 17:44
+        - generic [ref=e143]: Arch Linux
+      - button "Switch to light mode" [ref=e144] [cursor=pointer]:
+        - img [ref=e145]
+  - generic [ref=e151]:
+    - banner [ref=e152]:
+      - heading "System Services" [level=2] [ref=e691]
+      - generic [ref=e155]: 29 трав. 2026 р.
+    - main [ref=e156]:
+      - generic [ref=e692]:
+        - heading "Services" [level=1] [ref=e694]
+        - generic [ref=e695]:
+          - generic [ref=e696]: Failed Services (1)
+          - generic [ref=e698]:
+            - generic [ref=e699]: openrgb.serviceexit-code
+            - generic [ref=e700]:
+              - button "restart" [ref=e701] [cursor=pointer]
+              - button "reset" [ref=e702] [cursor=pointer]
+        - generic [ref=e703]:
+          - img [ref=e704]
+          - textbox "Search services..." [ref=e707]
+        - generic [ref=e708]:
+          - generic [ref=e709]:
+            - generic [ref=e710]: "4"
+            - generic [ref=e711]: Running
+          - generic [ref=e712]:
+            - generic [ref=e713]: "1"
+            - generic [ref=e714]: Failed
+        - generic [ref=e716]:
+          - generic [ref=e717]:
+            - generic [ref=e718]:
+              - generic [ref=e719]: Running
+              - generic [ref=e720]: docker.service
+              - generic [ref=e721]: running
+            - generic [ref=e722]:
+              - button "restart" [ref=e723] [cursor=pointer]
+              - button "stop" [ref=e724] [cursor=pointer]
+          - generic [ref=e725]:
+            - generic [ref=e726]:
+              - generic [ref=e727]: Running
+              - generic [ref=e728]: NetworkManager.service
+              - generic [ref=e729]: running
+            - generic [ref=e730]:
+              - button "restart" [ref=e731] [cursor=pointer]
+              - button "stop" [ref=e732] [cursor=pointer]
+          - generic [ref=e733]:
+            - generic [ref=e734]:
+              - generic [ref=e735]: Running
+              - generic [ref=e736]: sshd.service
+              - generic [ref=e737]: running
+            - generic [ref=e738]:
+              - button "restart" [ref=e739] [cursor=pointer]
+              - button "stop" [ref=e740] [cursor=pointer]
+          - generic [ref=e741]:
+            - generic [ref=e742]:
+              - generic [ref=e743]: Running
+              - generic [ref=e744]: pipewire.service
+              - generic [ref=e745]: running
+            - generic [ref=e746]:
+              - button "restart" [ref=e747] [cursor=pointer]
+              - button "stop" [ref=e748] [cursor=pointer]

@@ -1,0 +1,186 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Moonrock OS logo" [ref=e8]
+        - generic [ref=e30]:
+          - generic [ref=e31]: Moonrock OS
+          - generic [ref=e32]: System Manager
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+    - navigation [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: Overview
+        - generic [ref=e39]:
+          - button "Dashboard" [ref=e40] [cursor=pointer]:
+            - img [ref=e42]
+            - text: Dashboard
+          - button "Projects" [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+            - text: Projects
+          - button "Packages" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - text: Packages
+          - button "Hardware" [ref=e60] [cursor=pointer]:
+            - img [ref=e62]
+            - text: Hardware
+          - button "GPU" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+            - text: GPU
+      - generic [ref=e69]:
+        - generic [ref=e70]: System
+        - generic [ref=e71]:
+          - button "Snapshots" [ref=e72] [cursor=pointer]:
+            - img [ref=e74]
+            - text: Snapshots
+          - button "Services" [ref=e77] [cursor=pointer]:
+            - img [ref=e79]
+            - text: Services
+          - button "Autostart" [ref=e82] [cursor=pointer]:
+            - img [ref=e84]
+            - text: Autostart
+          - button "Cron & Timers" [ref=e86] [cursor=pointer]:
+            - img [ref=e88]
+            - text: Cron & Timers
+      - generic [ref=e91]:
+        - generic [ref=e92]: Peripherals
+        - generic [ref=e93]:
+          - button "Disks" [ref=e94] [cursor=pointer]:
+            - img [ref=e96]
+            - text: Disks
+          - button "Network" [ref=e98] [cursor=pointer]:
+            - img [ref=e100]
+            - text: Network
+          - button "Battery & BT" [ref=e104] [cursor=pointer]:
+            - img [ref=e106]
+            - text: Battery & BT
+          - button "RGB" [ref=e108] [cursor=pointer]:
+            - img [ref=e110]
+            - text: RGB
+          - button "Logs" [ref=e112] [cursor=pointer]:
+            - img [ref=e114]
+            - text: Logs
+      - generic [ref=e117]:
+        - generic [ref=e118]: Assistant
+        - generic [ref=e119]:
+          - button "Agent Chat" [ref=e120] [cursor=pointer]:
+            - img [ref=e122]
+            - text: Agent Chat
+          - button "Passwords" [ref=e125] [cursor=pointer]:
+            - img [ref=e127]
+            - text: Passwords
+          - button "Docs" [ref=e131] [cursor=pointer]:
+            - img [ref=e133]
+            - text: Docs
+          - button "Settings" [ref=e135] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Settings
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e142]: 17:42
+        - generic [ref=e143]: Arch Linux
+      - button "Switch to light mode" [ref=e144] [cursor=pointer]:
+        - img [ref=e145]
+  - generic [ref=e151]:
+    - banner [ref=e152]:
+      - heading "Dashboard" [level=2] [ref=e153]
+      - generic [ref=e155]: 29 трав. 2026 р.
+    - main [ref=e156]:
+      - generic [ref=e158]:
+        - heading "Dashboard" [level=1] [ref=e160]
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - img [ref=e165]
+              - generic [ref=e168]: Hostname
+            - generic [ref=e169]: archlinux
+            - generic [ref=e170]: x86_64
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - img [ref=e174]
+              - generic [ref=e176]: Kernel
+            - generic [ref=e177]: 6.12.7-arch1-1
+            - generic [ref=e178]: "Uptime: up 3 days, 14:22"
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - img [ref=e182]
+              - generic [ref=e185]: CPU
+            - generic [ref=e186]: 16 cores
+            - generic [ref=e187]: "Load: 0.42, 0.38, 0.35"
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - img [ref=e191]
+              - generic [ref=e193]: Disk
+            - generic [ref=e194]: 180G
+            - generic [ref=e195]: of 500G
+        - generic [ref=e196]:
+          - generic [ref=e198]:
+            - img [ref=e199]
+            - generic [ref=e202]: CPU Usage
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - img [ref=e210]
+              - generic [ref=e212]: Memory
+            - generic [ref=e217]: 18.0 GB / 62.9 GB
+        - generic [ref=e218]:
+          - generic [ref=e219]:
+            - generic [ref=e220]:
+              - img [ref=e221]
+              - generic [ref=e223]: Top Processes
+            - generic [ref=e224]: by memory • live
+          - table [ref=e225]:
+            - rowgroup [ref=e226]:
+              - row "PID User CPU% MEM% RSS Command" [ref=e227]:
+                - columnheader "PID" [ref=e228]
+                - columnheader "User" [ref=e229]
+                - columnheader "CPU%" [ref=e230]
+                - columnheader "MEM%" [ref=e231]
+                - columnheader "RSS" [ref=e232]
+                - columnheader "Command" [ref=e233]
+                - columnheader [ref=e234]
+            - rowgroup [ref=e235]:
+              - row "1234 user 12.5 8.3 512M firefox kill" [ref=e236]:
+                - cell "1234" [ref=e237]
+                - cell "user" [ref=e238]
+                - cell "12.5" [ref=e239]
+                - cell "8.3" [ref=e240]
+                - cell "512M" [ref=e241]
+                - cell "firefox" [ref=e242]
+                - cell "kill" [ref=e243]:
+                  - button "kill" [ref=e244] [cursor=pointer]
+              - row "2345 user 8.2 5.1 320M code kill" [ref=e245]:
+                - cell "2345" [ref=e246]
+                - cell "user" [ref=e247]
+                - cell "8.2" [ref=e248]
+                - cell "5.1" [ref=e249]
+                - cell "320M" [ref=e250]
+                - cell "code" [ref=e251]
+                - cell "kill" [ref=e252]:
+                  - button "kill" [ref=e253] [cursor=pointer]
+              - row "3456 user 4.7 3.2 200M discord kill" [ref=e254]:
+                - cell "3456" [ref=e255]
+                - cell "user" [ref=e256]
+                - cell "4.7" [ref=e257]
+                - cell "3.2" [ref=e258]
+                - cell "200M" [ref=e259]
+                - cell "discord" [ref=e260]
+                - cell "kill" [ref=e261]:
+                  - button "kill" [ref=e262] [cursor=pointer]
+              - row "4567 user 2.1 1.8 113M spotify kill" [ref=e263]:
+                - cell "4567" [ref=e264]
+                - cell "user" [ref=e265]
+                - cell "2.1" [ref=e266]
+                - cell "1.8" [ref=e267]
+                - cell "113M" [ref=e268]
+                - cell "spotify" [ref=e269]
+                - cell "kill" [ref=e270]:
+                  - button "kill" [ref=e271] [cursor=pointer]
+              - row "5678 user 1.5 0.9 56M alacritty kill" [ref=e272]:
+                - cell "5678" [ref=e273]
+                - cell "user" [ref=e274]
+                - cell "1.5" [ref=e275]
+                - cell "0.9" [ref=e276]
+                - cell "56M" [ref=e277]
+                - cell "alacritty" [ref=e278]
+                - cell "kill" [ref=e279]:
+                  - button "kill" [ref=e280] [cursor=pointer]

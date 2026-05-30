@@ -1,0 +1,10 @@
+{
+  "name": "@project/config",
+  "version": "0.1.0",
+  "private": true,
+  "turborepo": { "tags": ["config"] },
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.app.json"
+  ]
+}

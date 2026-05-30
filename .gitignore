@@ -7,6 +7,7 @@ node_modules
 
 # testing
 coverage
+test-results
 
 # next.js
 .next/
@@ -34,3 +35,10 @@ yarn-error.log*
 
 # ui
 dist/
+
+# playwright
+.playwright-mcp/
+
+# screenshots
+*.png
+!packages/ui/src/**/*.png

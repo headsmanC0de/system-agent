@@ -1,0 +1,67 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["KANBAN.md", "apps/desktop/AGENTS.md"],
+  "lsp": {
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx"]
+    },
+    "tailwindcss": {
+      "command": ["tailwindcss-language-server", "--stdio"],
+      "extensions": [".css", ".tsx"]
+    }
+  },
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/headsmanc0de/Documents/projects/linux-helper"],
+      "enabled": true
+    },
+    "zai-mcp-server": {
+      "type": "local",
+      "command": ["npx", "-y", "@z_ai/mcp-server"],
+      "enabled": true,
+      "env": {
+        "Z_AI_API_KEY": "7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8",
+        "Z_AI_MODE": "ZAI"
+      }
+    },
+    "web-search-prime": {
+      "type": "remote",
+      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+      }
+    },
+    "web-reader": {
+      "type": "remote",
+      "url": "https://api.z.ai/api/mcp/web_reader/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+      }
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest"],
+      "enabled": true
+    },
+    "zread": {
+      "type": "remote",
+      "url": "https://api.z.ai/api/mcp/zread/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+      }
+    }
+  },
+  "tool_output": {
+    "max_lines": 500,
+    "max_bytes": 131072
+  },
+  "compaction": {
+    "auto": true,
+    "tail_turns": 4
+  }
+}

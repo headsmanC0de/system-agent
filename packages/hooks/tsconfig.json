@@ -1,7 +1,8 @@
 {
   "extends": "@project/config/tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "outDir": "./dist"
   },
   "include": ["src"]

@@ -1,0 +1,132 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Moonrock OS logo" [ref=e8]
+        - generic [ref=e30]:
+          - generic [ref=e31]: Moonrock OS
+          - generic [ref=e32]: System Manager
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+    - navigation [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: Overview
+        - generic [ref=e39]:
+          - button "Dashboard" [ref=e40] [cursor=pointer]:
+            - img [ref=e42]
+            - text: Dashboard
+          - button "Projects" [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+            - text: Projects
+          - button "Packages" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - text: Packages
+          - button "Hardware" [ref=e60] [cursor=pointer]:
+            - img [ref=e62]
+            - text: Hardware
+          - button "GPU" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+            - text: GPU
+      - generic [ref=e69]:
+        - generic [ref=e70]: System
+        - generic [ref=e71]:
+          - button "Snapshots" [ref=e72] [cursor=pointer]:
+            - img [ref=e74]
+            - text: Snapshots
+          - button "Services" [ref=e77] [cursor=pointer]:
+            - img [ref=e79]
+            - text: Services
+          - button "Autostart" [ref=e82] [cursor=pointer]:
+            - img [ref=e84]
+            - text: Autostart
+          - button "Cron & Timers" [ref=e86] [cursor=pointer]:
+            - img [ref=e88]
+            - text: Cron & Timers
+      - generic [ref=e91]:
+        - generic [ref=e92]: Peripherals
+        - generic [ref=e93]:
+          - button "Disks" [ref=e94] [cursor=pointer]:
+            - img [ref=e96]
+            - text: Disks
+          - button "Network" [active] [ref=e98] [cursor=pointer]:
+            - img [ref=e100]
+            - text: Network
+          - button "Battery & BT" [ref=e104] [cursor=pointer]:
+            - img [ref=e106]
+            - text: Battery & BT
+          - button "RGB" [ref=e108] [cursor=pointer]:
+            - img [ref=e110]
+            - text: RGB
+          - button "Logs" [ref=e112] [cursor=pointer]:
+            - img [ref=e114]
+            - text: Logs
+      - generic [ref=e117]:
+        - generic [ref=e118]: Assistant
+        - generic [ref=e119]:
+          - button "Agent Chat" [ref=e120] [cursor=pointer]:
+            - img [ref=e122]
+            - text: Agent Chat
+          - button "Passwords" [ref=e125] [cursor=pointer]:
+            - img [ref=e127]
+            - text: Passwords
+          - button "Docs" [ref=e131] [cursor=pointer]:
+            - img [ref=e133]
+            - text: Docs
+          - button "Settings" [ref=e135] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Settings
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e142]: 17:45
+        - generic [ref=e143]: Arch Linux
+      - button "Switch to light mode" [ref=e144] [cursor=pointer]:
+        - img [ref=e145]
+  - generic [ref=e151]:
+    - banner [ref=e152]:
+      - heading "Network Connections" [level=2] [ref=e810]
+      - generic [ref=e155]: 29 трав. 2026 р.
+    - main [ref=e156]:
+      - generic [ref=e811]:
+        - heading "Network" [level=1] [ref=e813]
+        - generic [ref=e814]:
+          - generic [ref=e815]:
+            - generic [ref=e816]: "3"
+            - generic [ref=e817]: Total Connections
+          - generic [ref=e818]:
+            - generic [ref=e819]: "0"
+            - generic [ref=e820]: Listening
+          - generic [ref=e821]:
+            - generic [ref=e822]: "2"
+            - generic [ref=e823]: Established
+        - generic [ref=e824]:
+          - generic [ref=e825]: Connections
+          - table [ref=e827]:
+            - rowgroup [ref=e828]:
+              - row "Proto State Local Remote Process" [ref=e829]:
+                - columnheader "Proto" [ref=e830]
+                - columnheader "State" [ref=e831]
+                - columnheader "Local" [ref=e832]
+                - columnheader "Remote" [ref=e833]
+                - columnheader "Process" [ref=e834]
+            - rowgroup [ref=e835]:
+              - row "tcp ESTAB 192.168.8.10:443 151.101.1.69:443 firefox" [ref=e836]:
+                - cell "tcp" [ref=e837]
+                - cell "ESTAB" [ref=e838]:
+                  - generic [ref=e839]: ESTAB
+                - cell "192.168.8.10:443" [ref=e840]
+                - cell "151.101.1.69:443" [ref=e841]
+                - cell "firefox" [ref=e842]
+              - row "tcp ESTAB 192.168.8.10:5228 142.250.80.46:443 code" [ref=e843]:
+                - cell "tcp" [ref=e844]
+                - cell "ESTAB" [ref=e845]:
+                  - generic [ref=e846]: ESTAB
+                - cell "192.168.8.10:5228" [ref=e847]
+                - cell "142.250.80.46:443" [ref=e848]
+                - cell "code" [ref=e849]
+              - row "udp UNCONN 0.0.0.0:5353 *:* avahi-daemon" [ref=e850]:
+                - cell "udp" [ref=e851]
+                - cell "UNCONN" [ref=e852]:
+                  - generic [ref=e853]: UNCONN
+                - cell "0.0.0.0:5353" [ref=e854]
+                - cell "*:*" [ref=e855]
+                - cell "avahi-daemon" [ref=e856]

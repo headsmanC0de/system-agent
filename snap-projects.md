@@ -1,0 +1,253 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Moonrock OS logo" [ref=e8]
+        - generic [ref=e30]:
+          - generic [ref=e31]: Moonrock OS
+          - generic [ref=e32]: System Manager
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+    - navigation [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: Overview
+        - generic [ref=e39]:
+          - button "Dashboard" [ref=e40] [cursor=pointer]:
+            - img [ref=e42]
+            - text: Dashboard
+          - button "Projects" [active] [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+            - text: Projects
+          - button "Packages" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - text: Packages
+          - button "Hardware" [ref=e60] [cursor=pointer]:
+            - img [ref=e62]
+            - text: Hardware
+          - button "GPU" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+            - text: GPU
+      - generic [ref=e69]:
+        - generic [ref=e70]: System
+        - generic [ref=e71]:
+          - button "Snapshots" [ref=e72] [cursor=pointer]:
+            - img [ref=e74]
+            - text: Snapshots
+          - button "Services" [ref=e77] [cursor=pointer]:
+            - img [ref=e79]
+            - text: Services
+          - button "Autostart" [ref=e82] [cursor=pointer]:
+            - img [ref=e84]
+            - text: Autostart
+          - button "Cron & Timers" [ref=e86] [cursor=pointer]:
+            - img [ref=e88]
+            - text: Cron & Timers
+      - generic [ref=e91]:
+        - generic [ref=e92]: Peripherals
+        - generic [ref=e93]:
+          - button "Disks" [ref=e94] [cursor=pointer]:
+            - img [ref=e96]
+            - text: Disks
+          - button "Network" [ref=e98] [cursor=pointer]:
+            - img [ref=e100]
+            - text: Network
+          - button "Battery & BT" [ref=e104] [cursor=pointer]:
+            - img [ref=e106]
+            - text: Battery & BT
+          - button "RGB" [ref=e108] [cursor=pointer]:
+            - img [ref=e110]
+            - text: RGB
+          - button "Logs" [ref=e112] [cursor=pointer]:
+            - img [ref=e114]
+            - text: Logs
+      - generic [ref=e117]:
+        - generic [ref=e118]: Assistant
+        - generic [ref=e119]:
+          - button "Agent Chat" [ref=e120] [cursor=pointer]:
+            - img [ref=e122]
+            - text: Agent Chat
+          - button "Passwords" [ref=e125] [cursor=pointer]:
+            - img [ref=e127]
+            - text: Passwords
+          - button "Docs" [ref=e131] [cursor=pointer]:
+            - img [ref=e133]
+            - text: Docs
+          - button "Settings" [ref=e135] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Settings
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e142]: 17:43
+        - generic [ref=e143]: Arch Linux
+      - button "Switch to light mode" [ref=e144] [cursor=pointer]:
+        - img [ref=e145]
+  - generic [ref=e151]:
+    - banner [ref=e152]:
+      - heading "Projects" [level=2] [ref=e281]
+      - generic [ref=e155]: 29 трав. 2026 р.
+    - main [ref=e156]:
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - generic [ref=e285]:
+            - heading "Projects" [level=1] [ref=e286]
+            - button [ref=e288] [cursor=pointer]:
+              - img [ref=e289]
+          - generic [ref=e290]:
+            - generic [ref=e291]:
+              - generic [ref=e292]: "1"
+              - generic [ref=e293]: Projects
+            - generic [ref=e294]:
+              - generic [ref=e295]: "9"
+              - generic [ref=e296]: Outdated
+            - generic [ref=e297]:
+              - generic [ref=e298]: "92"
+              - generic [ref=e299]: Avg Health
+          - generic [ref=e300]:
+            - button "Health score 0% 0 ★ Moonrock System archlinux 0 outdated" [ref=e301] [cursor=pointer]:
+              - generic [ref=e302]:
+                - img "Health score 0%" [ref=e303]
+                - generic [ref=e306]: "0"
+              - generic [ref=e307]:
+                - generic [ref=e308]:
+                  - generic [ref=e309]: ★
+                  - text: Moonrock System
+                - generic [ref=e310]: archlinux
+                - generic [ref=e312]: 0 outdated
+            - button "Health score 92% 92 Project /home/headsmanc0de/Documents/projects/linux-helper turborepo node 5 outdated Check outdated" [ref=e313] [cursor=pointer]:
+              - generic [ref=e314]:
+                - img "Health score 92%" [ref=e315]
+                - generic [ref=e318]: "92"
+              - generic [ref=e319]:
+                - generic [ref=e320]: Project
+                - generic [ref=e321]: /home/headsmanc0de/Documents/projects/linux-helper
+                - generic [ref=e322]:
+                  - generic [ref=e323]: turborepo
+                  - generic [ref=e324]: node
+                  - generic [ref=e325]: 5 outdated
+                - button "Check outdated" [ref=e326]
+        - generic [ref=e327]:
+          - generic [ref=e328]:
+            - generic [ref=e329]:
+              - heading "Project" [level=2] [ref=e330]
+              - generic [ref=e331]: /home/headsmanc0de/Documents/projects/linux-helper
+            - generic [ref=e332]:
+              - generic [ref=e333]: "Last scanned: 29.05.2026, 14:09:29"
+              - button [ref=e334] [cursor=pointer]:
+                - img [ref=e335]
+              - button [ref=e340] [cursor=pointer]:
+                - img [ref=e341]
+          - generic [ref=e344]:
+            - button "Production Readiness" [ref=e345] [cursor=pointer]
+            - button "Dependencies" [ref=e346] [cursor=pointer]
+            - button "Workspaces" [ref=e347] [cursor=pointer]
+          - generic [ref=e348]:
+            - generic [ref=e349]:
+              - generic [ref=e350]:
+                - heading "Overall Readiness" [level=3] [ref=e351]
+                - generic [ref=e352]: 87%
+              - generic [ref=e355]:
+                - generic [ref=e356]: 13 pass
+                - generic [ref=e357]: 1 warn
+                - generic [ref=e358]: 0 fail
+                - generic [ref=e359]: 1 pending
+            - generic [ref=e361]:
+              - generic [ref=e362]:
+                - img [ref=e364]
+                - generic [ref=e367]: CI/CD Pipeline
+                - generic [ref=e368]: 5/5
+              - generic [ref=e369]:
+                - generic [ref=e370]:
+                  - img [ref=e372]
+                  - generic [ref=e375]:
+                    - generic [ref=e376]: Turborepo Remote Cache
+                    - generic [ref=e377]: Connected to remote cache
+                - generic [ref=e378]:
+                  - img [ref=e380]
+                  - generic [ref=e383]:
+                    - generic [ref=e384]: Build (turbo run build)
+                    - generic [ref=e385]: All 3 targets built clean in 4.2s
+                - generic [ref=e386]:
+                  - img [ref=e388]
+                  - generic [ref=e391]:
+                    - generic [ref=e392]: Tests (playwright)
+                    - generic [ref=e393]: 101/101 passed (1.3m)
+                - generic [ref=e394]:
+                  - img [ref=e396]
+                  - generic [ref=e399]:
+                    - generic [ref=e400]: Lint (eslint)
+                    - generic [ref=e401]: 0 errors, 0 warnings
+                - generic [ref=e402]:
+                  - img [ref=e404]
+                  - generic [ref=e407]:
+                    - generic [ref=e408]: TypeCheck (tsc --noEmit)
+                    - generic [ref=e409]: 0 errors
+            - generic [ref=e411]:
+              - generic [ref=e412]:
+                - img [ref=e414]
+                - generic [ref=e417]: Code Quality
+                - generic [ref=e418]: 2/4
+              - generic [ref=e419]:
+                - generic [ref=e420]:
+                  - img [ref=e422]
+                  - generic [ref=e425]:
+                    - generic [ref=e426]: TypeScript strict mode
+                    - generic [ref=e427]: "strict: true in tsconfig"
+                - generic [ref=e428]:
+                  - img [ref=e430]
+                  - generic [ref=e432]:
+                    - generic [ref=e433]: No implicit any
+                    - generic [ref=e434]: "3 occurrences of `any` in api.ts"
+                    - generic [ref=e435]: "Fix: Replace `any` with proper types"
+                - generic [ref=e436]:
+                  - img [ref=e438]
+                  - generic [ref=e441]:
+                    - generic [ref=e442]: Test coverage > 80%
+                    - generic [ref=e443]: Coverage report not generated yet
+                    - generic [ref=e444]: "Fix: Add --coverage flag to test runner"
+                - generic [ref=e445]:
+                  - img [ref=e447]
+                  - generic [ref=e450]:
+                    - generic [ref=e451]: No console.log in production
+                    - generic [ref=e452]: 0 console statements in src/
+            - generic [ref=e454]:
+              - generic [ref=e455]:
+                - img [ref=e457]
+                - generic [ref=e459]: Security
+                - generic [ref=e460]: 2/2
+              - generic [ref=e461]:
+                - generic [ref=e462]:
+                  - img [ref=e464]
+                  - generic [ref=e467]:
+                    - generic [ref=e468]: npm audit — 0 vulnerabilities
+                    - generic [ref=e469]: 0 critical, 0 high, 0 moderate
+                - generic [ref=e470]:
+                  - img [ref=e472]
+                  - generic [ref=e475]:
+                    - generic [ref=e476]: No secrets in codebase
+                    - generic [ref=e477]: No API keys or tokens detected
+            - generic [ref=e479]:
+              - generic [ref=e480]:
+                - img [ref=e482]
+                - generic [ref=e486]: Dependencies
+                - generic [ref=e487]: 4/4
+              - generic [ref=e488]:
+                - generic [ref=e489]:
+                  - img [ref=e491]
+                  - generic [ref=e494]:
+                    - generic [ref=e495]: Lockfile present & up to date
+                    - generic [ref=e496]: package-lock.json synced
+                - generic [ref=e497]:
+                  - img [ref=e499]
+                  - generic [ref=e502]:
+                    - generic [ref=e503]: No major version updates pending
+                    - generic [ref=e504]: All deps within major version
+                - generic [ref=e505]:
+                  - img [ref=e507]
+                  - generic [ref=e510]:
+                    - generic [ref=e511]: No orphaned packages
+                    - generic [ref=e512]: 0 orphaned packages found
+                - generic [ref=e513]:
+                  - img [ref=e515]
+                  - generic [ref=e518]:
+                    - generic [ref=e519]: License compliance
+                    - generic [ref=e520]: All deps use permissive licenses
