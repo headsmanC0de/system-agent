@@ -26,6 +26,7 @@ import {
 import { useEffect, useState } from "react";
 import { BRAND_NAME } from "./lib/branding";
 import BrandLogo from "./components/brand-logo";
+import PoweredByBadge from "./components/powered-by-badge";
 import type { ThemeMode } from "./lib/theme";
 import { applyMode, getStoredMode, initTheme } from "./lib/theme";
 import { AutostartPage } from "./pages/Autostart";
@@ -218,7 +219,7 @@ export function App() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t border-border px-3 py-3">
+        <div className="border-t border-border px-3 py-3 flex flex-col gap-2">
           {!collapsed ? (
             <div className="flex items-center justify-between gap-2">
               <div className="flex flex-col gap-1">
@@ -230,7 +231,7 @@ export function App() {
               <button
                 onClick={toggleMode}
                 className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                title={mode === "dark" ? "Switch to light mode" : "Switch to light mode"}
               >
                 {mode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
               </button>
@@ -249,6 +250,7 @@ export function App() {
               </span>
             </div>
           )}
+          {!collapsed && <PoweredByBadge />}
         </div>
       </aside>
 
