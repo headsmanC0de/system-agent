@@ -1,6 +1,13 @@
 {
-  "name": "project",
+  "name": "linux-agent",
   "private": true,
+  "author": "moonrock-software",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moonrock-software/linux-agent.git"
+  },
+  "homepage": "https://linux-agent.moonrock.dev",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

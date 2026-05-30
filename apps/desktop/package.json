@@ -2,6 +2,8 @@
   "name": "@project/desktop",
   "private": true,
   "version": "0.1.0",
+  "author": "moonrock-software",
+  "license": "UNLICENSED",
   "type": "module",
   "main": "./out/main/main.js",
   "scripts": {

@@ -1,7 +1,7 @@
 import { Check, Cpu, Eye, EyeOff, Info, Key, Moon, Palette, Plus, Sun } from "lucide-react";
 import { useState } from "react";
 import { Badge, Card } from "../components/ui";
-import { BRAND_NAME } from "../lib/branding";
+import { BRAND_COPYRIGHT, BRAND_NAME, BRAND_URL, ORG_NAME, ORG_URL } from "../lib/branding";
 import { type ChatConfig, getAvailableModels, getChatConfig, PROVIDERS, saveChatConfig } from "../lib/chat";
 import {
   applyMode,
@@ -334,7 +334,15 @@ export function SettingsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>License</span>
-                  <span className="font-mono">MIT</span>
+                  <span className="font-mono">Private</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Organization</span>
+                  <a href={ORG_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">{ORG_NAME}</a>
+                </div>
+                <div className="flex justify-between">
+                  <span>Website</span>
+                  <a href={BRAND_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">{BRAND_URL}</a>
                 </div>
                 <div className="flex justify-between">
                   <span>AI Backend</span>
@@ -344,6 +352,9 @@ export function SettingsPage() {
                   <span>Model</span>
                   <span className="font-mono">{chatConfig.modelId}</span>
                 </div>
+              </div>
+              <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                {BRAND_COPYRIGHT}
               </div>
             </Card>
           </>
