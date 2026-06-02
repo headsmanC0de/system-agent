@@ -99,8 +99,10 @@ export const PROVIDERS: ChatProvider[] = [
 const STORAGE_KEY = "lh-chat-config";
 
 const DEFAULT_CONFIG: ChatConfig = {
-  providerId: "zai",
-  modelId: "glm-5.1",
+  // Default to the policy-compliant standard API, not the Coding Plan endpoint
+  // (which z.ai restricts to official tools). Existing users keep their saved config.
+  providerId: "zai-standard",
+  modelId: "glm-5",
   apiKey: "",
   baseUrl: "",
   thinkingEnabled: true,

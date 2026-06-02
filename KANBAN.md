@@ -92,7 +92,7 @@ code change can perform — it requires the user's external account:
 | ID | Action | Owner | Why |
 |---|---|---|---|
 | LH-062 (ops) | Rotate the (already-leaked) Z_AI key at z.ai, drop the new value in `.env`, then `git filter-repo` history scrub + force-push | **USER** | Needs the z.ai account login; force-pushing a rewritten shared history is irreversible. Recurrence is now guarded against (pre-commit hook); this is a one-time credential rotation. |
-| LH-069 (policy) | Decide the app's z.ai access: the **Coding Plan** key/endpoint (`api/coding/paas/v4`) is policy-restricted to "officially supported tools" — using it from this custom app risks account suspension. The legal path (`zai-standard` provider, `api/paas/v4`, pay-as-you-go key) is now available in-app; switch to it (or use local Tesseract/Ollama). | **USER** | Billing decision (standard API is metered vs the flat Coding Plan); only the account owner can choose + supply a standard key. |
+| LH-069 (policy) | **Eng done:** legal `zai-standard` provider (`api/paas/v4`) added **and the app's default switched to it** — a fresh install no longer points at the ToS-restricted Coding Plan endpoint (existing saved configs untouched). Residual is a USER choice: supply a standard pay-as-you-go key (or keep using local Tesseract/Ollama). | **USER (key/billing)** | Standard API is metered vs the flat Coding Plan; only the account owner can supply a standard key. |
 
 ## Bug Fixes Applied
 
