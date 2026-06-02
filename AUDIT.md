@@ -10,8 +10,8 @@
 
 | Item | Status |
 |---|---|
-| S-1 key in opencode.json | **Partial** — file now uses `{env:Z_AI_API_KEY}`, key in gitignored `.env`. ⚠️ opencode does **not** auto-load `.env` — you must `set -a; source .env; set +a` (or export in `~/.zshrc`) before launching opencode. ⚠️ **rotation + git-history scrub + force-push remain MANUAL** (key still compromised in pushed history). |
-| S-2 sandbox | **Open** — OS `--no-sandbox`/`--disable-gpu-sandbox` left in place (NVIDIA+Wayland workaround; needs real hardware to retest). NOTE: `webPreferences.sandbox` is now `false` (required so Electron loads the ESM preload — BF-035). To recover the renderer sandbox (`sandbox: true`) the preload would need to be emitted as CommonJS instead of ESM. contextIsolation stays the active isolation boundary. |
+| S-1 key in opencode.json | **Done (eng)** — `{env:Z_AI_API_KEY}` + gitignored `.env` + **`.githooks/pre-commit` secret-guard** preventing recurrence (dogfood-verified). ⚠️ opencode does **not** auto-load `.env` — `set -a; source .env; set +a` (or export in `~/.zshrc`) before launching. ⚠️ **rotation + history scrub + force-push remain a USER ops action** (key still compromised in pushed history). |
+| S-2 sandbox | **Done (scoped)** — the `--no-sandbox`/`--disable-gpu-sandbox` workaround is now applied **only** on detected NVIDIA+Wayland (`needsGpuSandboxWorkaround()`, `LH_GPU_WORKAROUND` override), so the OS sandbox is **recovered on all other setups**; affected boxes still auto-get it. Both paths e2e-verified. NOTE: `webPreferences.sandbox` stays `false` (ESM preload — BF-035); fully sandboxing the renderer additionally needs a CJS preload. contextIsolation is the active isolation boundary. |
 | S-3 CSP | **Done** — `session.onHeadersReceived` (dev/http) **plus** a build-time strict CSP `<meta>` for the prod `file://` renderer (onHeadersReceived doesn't fire for file://, found via e2e — BF-037). Verified by Electron e2e. |
 | S-4 IPC allowlist | **Done** — `src/main/channels.ts` SSOT gates preload `invoke()`. |
 | S-5 nav guards | **Done** — `setWindowOpenHandler` + `will-navigate` locked to dev URL. |

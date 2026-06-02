@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Secret guard (audit S-1 / LH-062 — prevent re-leaking credentials).
+# Blocks a commit whose staged additions contain a secret-shaped string.
+# Wired via `git config core.hooksPath .githooks` (done by the root `prepare` script).
+set -euo pipefail
+
+added="$(git diff --cached --diff-filter=AM -U0 | grep -E '^[+]' | grep -vE '^[+][+][+]' || true)"
+
+# Patterns: z.ai key (32-hex "." 16-alnum), Bearer <32-hex>, real API-key assignments.
+# `{env:VAR}` / `your-...-here` placeholders are allowed.
+violations="$(printf '%s\n' "$added" \
+  | grep -nE "([0-9a-f]{32}\.[A-Za-z0-9_-]{12,})|Bearer[[:space:]]+[0-9a-f]{32}|(API_KEY|SECRET|TOKEN|PASSWORD)[\"' ]*[:=][\"' ]*[A-Za-z0-9._-]{20,}" \
+  | grep -vE "\{env:|your-.*-here|MOCK|not-?a-real|example" || true)"
+
+if [ -n "$violations" ]; then
+  echo "✖ commit blocked: possible secret in staged changes (audit S-1)." >&2
+  echo "$violations" >&2
+  echo "Move it to a gitignored .env and reference it via {env:VAR}; then re-commit." >&2
+  exit 1
+fi
+exit 0

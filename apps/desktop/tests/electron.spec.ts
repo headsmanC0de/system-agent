@@ -68,3 +68,20 @@ test("S-5: window.open is denied by setWindowOpenHandler", async () => {
   });
   expect(opened).toBe(true);
 });
+
+// LH-063: the recovered-sandbox path (GPU workaround disabled). The app must still
+// launch and expose the preload API when the NVIDIA+Wayland sandbox flags are NOT set.
+test("S-2/LH-063: app launches with the GPU sandbox workaround disabled", async () => {
+  const app2 = await electron.launch({
+    args: [mainEntry],
+    env: { ...process.env, LH_GPU_WORKAROUND: "0" },
+  });
+  try {
+    const w2 = await app2.firstWindow();
+    await w2.waitForLoadState("domcontentloaded");
+    expect(await w2.title()).toBe("Linux Agent");
+    expect(await w2.evaluate(() => typeof (window as any).electronAPI?.invoke)).toBe("function");
+  } finally {
+    await app2.close();
+  }
+});

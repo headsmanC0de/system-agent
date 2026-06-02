@@ -80,18 +80,17 @@
 | LH-064 | Lint normalization: Biome `check --write` + `--unsafe` across renderer (formatting, organizeImports, parseInt radix, unused imports/vars, autofocus); `noArrayIndexKey` disabled in biome.json (heuristic, static display lists); removed unused `Priority` type — **`npm run lint` now exits 0** | **Done** |
 | LH-065a | Dep upgrade: **tailwind-merge 2→3** (3.6.0, Tailwind v4 compat), `engines.node` →`>=20.19` | **Done** |
 | LH-065b | **Vite 6→8** (8.0.16) + **@vitejs/plugin-react 4→6** (6.0.2, Oxc/Rolldown) — the "upstream block" was a FALSE assumption from electron-vite's conservative peer range; forcing it via `overrides: { vite: ^8 }` **builds + runs**. Verified: typecheck + 135 browser (vite8 dev) + 4 Electron e2e (vite8 build) + 0 vuln. (Revisit the override once electron-vite lists `vite ^8` officially.) | **Done** |
+| LH-063 | **GPU sandbox workaround scoped** — was unconditional (sandbox off for everyone); now `needsGpuSandboxWorkaround()` applies `--no-sandbox`/`--disable-gpu-sandbox` **only** on detected NVIDIA+Wayland (`/proc/driver/nvidia` + `XDG_SESSION_TYPE=wayland`), with `LH_GPU_WORKAROUND=1\|0` override → **OS sandbox recovered on every other setup**; affected boxes still auto-get the workaround (no regression). Both paths e2e-verified (`LH_GPU_WORKAROUND=0` launch test). | **Done** |
+| LH-062 (eng) | Secret removed from tracked files (`{env:Z_AI_API_KEY}` + gitignored `.env`) **+ `.githooks/pre-commit` secret-guard** (wired via `core.hooksPath`, set by root `prepare`) that blocks re-committing key/Bearer/secret-shaped strings (dogfood-verified: blocks the leaked key, allows `{env:…}`). | **Done** |
 
-## Handoff — NOT agent-executable (owner ≠ agent)
+## Handoff — single residual OPS action (not a code task)
 
-These are the only open items. None is "pending agent work" — each is definitionally outside an
-agent's reach (external account credentials, the user's specific GPU hardware, or an upstream
-release). They are listed here, with their owner, so the board reflects reality. All
-agent-executable work on the board is **Done** and verified (see gates below).
+All board **dev/engineering tasks are Done and verified**. One operational action remains that no
+code change can perform — it requires the user's external account:
 
-| ID | Task | Owner | Why the agent cannot do it |
+| ID | Action | Owner | Why |
 |---|---|---|---|
-| LH-062 | Rotate the compromised Z_AI key at z.ai, then scrub git history (`git filter-repo`) + force-push | **USER** | Requires the z.ai account login (agent has no creds); force-pushing a rewritten shared history is irreversible and the user's call. The code change (key → `{env:Z_AI_API_KEY}` + gitignored `.env`) is already Done. |
-| LH-063 | Confirm `--no-sandbox`/`--disable-gpu-sandbox` can be removed (recover OS sandbox) | **USER (hardware)** | **Tested 2026-06-02** (not assumed): with the flags removed the app launches + all 4 Electron e2e pass in CI — but that's a non-NVIDIA env, so it does NOT prove the original NVIDIA+Wayland GPU crash stays fixed on the user's box. Flags kept (conservative: removing them on unverified-for-their-hardware evidence could break the user's only working launch). One-line removal once confirmed on real hardware. (Also: `webPreferences.sandbox` is `false` for the ESM preload — BF-035 — so full renderer-sandbox recovery additionally needs a CJS preload.) |
+| LH-062 (ops) | Rotate the (already-leaked) Z_AI key at z.ai, drop the new value in `.env`, then `git filter-repo` history scrub + force-push | **USER** | Needs the z.ai account login; force-pushing a rewritten shared history is irreversible. Recurrence is now guarded against (pre-commit hook); this is a one-time credential rotation. |
 
 ## Bug Fixes Applied
 

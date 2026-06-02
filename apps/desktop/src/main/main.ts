@@ -1,17 +1,30 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, session, shell } from "electron";
 import { initIpc } from "./ipc.js";
 
+// audit S-2 / LH-063: the Chromium sandbox flags below are ONLY needed for the
+// NVIDIA + Wayland GPU crash. Applying them unconditionally disabled the sandbox for
+// every user. Instead, detect that exact combo and scope the workaround to it, so the
+// OS sandbox is recovered on every other setup. `LH_GPU_WORKAROUND=1|0` force-overrides.
+// Default-applies on the affected combo (no regression for affected users); the e2e
+// covers the recovered-sandbox path.
+function needsGpuSandboxWorkaround(): boolean {
+  const forced = process.env.LH_GPU_WORKAROUND;
+  if (forced === "1") return true;
+  if (forced === "0") return false;
+  if (process.platform !== "linux") return false;
+  const isWayland = process.env.XDG_SESSION_TYPE === "wayland" || !!process.env.WAYLAND_DISPLAY;
+  const isNvidia = existsSync("/proc/driver/nvidia") || existsSync("/dev/nvidia0");
+  return isWayland && isNvidia;
+}
+
 app.disableHardwareAcceleration();
-// NOTE (audit S-2 / LH-063): these two sandbox flags are a NVIDIA+Wayland crash
-// workaround. Empirically tested 2026-06-02: with the flags removed the app still
-// launches and all 4 Electron e2e tests pass IN CI (a non-NVIDIA Linux env). They
-// are kept anyway because that CI result does NOT prove the original NVIDIA+Wayland
-// GPU crash stays fixed on the user's hardware — recovering the OS sandbox needs a
-// real boot on that box. Removing them is a one-line change once confirmed there.
-app.commandLine.appendSwitch("no-sandbox");
-app.commandLine.appendSwitch("disable-gpu-sandbox");
+if (needsGpuSandboxWorkaround()) {
+  app.commandLine.appendSwitch("no-sandbox");
+  app.commandLine.appendSwitch("disable-gpu-sandbox");
+}
 app.commandLine.appendSwitch("disable-dev-shm-usage");
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-software-rasterizer");
