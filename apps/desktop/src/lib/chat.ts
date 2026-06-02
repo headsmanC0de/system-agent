@@ -29,14 +29,30 @@ export interface ChatConfig {
 
 export const PROVIDERS: ChatProvider[] = [
   {
+    // Coding Plan endpoint. NOTE: z.ai's usage policy restricts the Coding Plan to
+    // "officially supported tools and products" — using it from this custom app is a
+    // policy violation (risk of account suspension). For app use prefer "zai-standard".
     id: "zai",
-    name: "Z.AI",
+    name: "Z.AI (Coding Plan — official tools only)",
     baseUrl: "https://api.z.ai/api/coding/paas/v4/",
     apiKeyRequired: true,
     models: [
       { id: "glm-5.1", name: "GLM-5.1", thinking: true, streaming: true, tools: true },
       { id: "glm-5-turbo", name: "GLM-5-Turbo", thinking: true, streaming: true, tools: true },
       { id: "glm-4.7", name: "GLM-4.7", thinking: true, streaming: true, tools: true },
+      { id: "glm-4.5-air", name: "GLM-4.5-Air", thinking: false, streaming: true, tools: true },
+    ],
+  },
+  {
+    // Standard pay-as-you-go API — policy-compliant for custom apps like this one.
+    id: "zai-standard",
+    name: "Z.AI (Standard API)",
+    baseUrl: "https://api.z.ai/api/paas/v4/",
+    apiKeyRequired: true,
+    models: [
+      { id: "glm-5", name: "GLM-5", thinking: true, streaming: true, tools: true },
+      { id: "glm-4.7", name: "GLM-4.7", thinking: true, streaming: true, tools: true },
+      { id: "glm-4.6", name: "GLM-4.6", thinking: true, streaming: true, tools: true },
       { id: "glm-4.5-air", name: "GLM-4.5-Air", thinking: false, streaming: true, tools: true },
     ],
   },
@@ -147,11 +163,11 @@ export function buildRequestBody(cfg: ChatConfig, apiMessages: Record<string, un
     stream: cfg.streamingEnabled,
   };
 
-  if (cfg.providerId === "zai" && cfg.thinkingEnabled) {
+  if (cfg.providerId.startsWith("zai") && cfg.thinkingEnabled) {
     body.thinking = { type: "enabled", clear_thinking: false };
   }
 
-  if (cfg.toolsEnabled && cfg.providerId === "zai") {
+  if (cfg.toolsEnabled && cfg.providerId.startsWith("zai")) {
     body.tools = SYSTEM_TOOLS;
     body.tool_choice = "auto";
     body.tool_stream = cfg.streamingEnabled;

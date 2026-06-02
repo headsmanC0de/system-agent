@@ -189,7 +189,7 @@ export function SettingsPage() {
                       </button>
                     </div>
                   </div>
-                  {chatConfig.providerId === "zai" && (
+                  {chatConfig.providerId.startsWith("zai") && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Get your API key from <span className="text-primary">z.ai</span>
                     </p>

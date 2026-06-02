@@ -82,6 +82,7 @@
 | LH-065b | **Vite 6→8** (8.0.16) + **@vitejs/plugin-react 4→6** (6.0.2, Oxc/Rolldown) — the "upstream block" was a FALSE assumption from electron-vite's conservative peer range; forcing it via `overrides: { vite: ^8 }` **builds + runs**. Verified: typecheck + 135 browser (vite8 dev) + 4 Electron e2e (vite8 build) + 0 vuln. (Revisit the override once electron-vite lists `vite ^8` officially.) | **Done** |
 | LH-063 | **GPU sandbox workaround scoped** — was unconditional (sandbox off for everyone); now `needsGpuSandboxWorkaround()` applies `--no-sandbox`/`--disable-gpu-sandbox` **only** on detected NVIDIA+Wayland (`/proc/driver/nvidia` + `XDG_SESSION_TYPE=wayland`), with `LH_GPU_WORKAROUND=1\|0` override → **OS sandbox recovered on every other setup**; affected boxes still auto-get the workaround (no regression). Both paths e2e-verified (`LH_GPU_WORKAROUND=0` launch test). | **Done** |
 | LH-062 (eng) | Secret removed from tracked files (`{env:Z_AI_API_KEY}` + gitignored `.env`) **+ `.githooks/pre-commit` secret-guard** (wired via `core.hooksPath`, set by root `prepare`) that blocks re-committing key/Bearer/secret-shaped strings (dogfood-verified: blocks the leaked key, allows `{env:…}`). | **Done** |
+| LH-068 | z.ai capability audit (docs vs code): integration is ~90% — thinking (Preserved, `reasoning_content` captured from stream **and** round-tripped across turns), streaming, `tool_stream`, function-calling (6 tools), automatic caching (`cached_tokens` shown), context compression all correct; model IDs match the Coding Plan. Gap: structured output (`response_format`) unused (minor, YAGNI). Added a policy-compliant **`zai-standard`** provider (`api/paas/v4`). | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -91,6 +92,7 @@ code change can perform — it requires the user's external account:
 | ID | Action | Owner | Why |
 |---|---|---|---|
 | LH-062 (ops) | Rotate the (already-leaked) Z_AI key at z.ai, drop the new value in `.env`, then `git filter-repo` history scrub + force-push | **USER** | Needs the z.ai account login; force-pushing a rewritten shared history is irreversible. Recurrence is now guarded against (pre-commit hook); this is a one-time credential rotation. |
+| LH-069 (policy) | Decide the app's z.ai access: the **Coding Plan** key/endpoint (`api/coding/paas/v4`) is policy-restricted to "officially supported tools" — using it from this custom app risks account suspension. The legal path (`zai-standard` provider, `api/paas/v4`, pay-as-you-go key) is now available in-app; switch to it (or use local Tesseract/Ollama). | **USER** | Billing decision (standard API is metered vs the flat Coding Plan); only the account owner can choose + supply a standard key. |
 
 ## Bug Fixes Applied
 
