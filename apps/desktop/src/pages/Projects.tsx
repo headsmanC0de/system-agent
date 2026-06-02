@@ -110,16 +110,28 @@ function HealthRing({ score, size = 48 }: { score: number; size?: number }) {
   );
 }
 
-function ChecklistSection({ checks, category, defaultOpen = true }: { checks: ProjectCheck[]; category: CheckCategory; defaultOpen?: boolean }) {
+function ChecklistSection({
+  checks,
+  category,
+  defaultOpen = true,
+}: {
+  checks: ProjectCheck[];
+  category: CheckCategory;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const meta = CAT_META[category];
   const catChecks = checks.filter((c) => c.category === category);
   if (catChecks.length === 0) return null;
   const passed = catChecks.filter((c) => c.status === "pass").length;
-  const [open, setOpen] = useState(defaultOpen);
   return (
     <div>
       <button onClick={() => setOpen(!open)} className="flex items-center gap-2 mb-2 w-full text-left group">
-        {open ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+        {open ? (
+          <ChevronDown size={14} className="text-muted-foreground" />
+        ) : (
+          <ChevronRight size={14} className="text-muted-foreground" />
+        )}
         <span className={meta.color}>{meta.icon}</span>
         <span className="text-sm font-medium">{meta.label}</span>
         <span className="ml-auto text-xs text-muted-foreground">
@@ -147,16 +159,28 @@ function ChecklistSection({ checks, category, defaultOpen = true }: { checks: Pr
   );
 }
 
-function SystemCheckSection({ checks, category, defaultOpen = true }: { checks: SystemHealth["checks"]; category: SystemCheckCategory; defaultOpen?: boolean }) {
+function SystemCheckSection({
+  checks,
+  category,
+  defaultOpen = true,
+}: {
+  checks: SystemHealth["checks"];
+  category: SystemCheckCategory;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const meta = SYS_CAT_META[category];
   const catChecks = checks.filter((c) => c.category === category);
   if (catChecks.length === 0) return null;
   const passed = catChecks.filter((c) => c.status === "pass").length;
-  const [open, setOpen] = useState(defaultOpen);
   return (
     <div>
       <button onClick={() => setOpen(!open)} className="flex items-center gap-2 mb-2 w-full text-left group">
-        {open ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+        {open ? (
+          <ChevronDown size={14} className="text-muted-foreground" />
+        ) : (
+          <ChevronRight size={14} className="text-muted-foreground" />
+        )}
         <span className={meta.color}>{meta.icon}</span>
         <span className="text-sm font-medium">{meta.label}</span>
         <span className="ml-auto text-xs text-muted-foreground">
@@ -451,25 +475,33 @@ export function ProjectsPage() {
               </div>
               <div className="mt-4 grid grid-cols-4 gap-3">
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
-                  <div className={`text-lg font-bold ${systemHealth.outdatedPackages > 0 ? "text-warning-foreground" : "text-success-foreground"}`}>
+                  <div
+                    className={`text-lg font-bold ${systemHealth.outdatedPackages > 0 ? "text-warning-foreground" : "text-success-foreground"}`}
+                  >
                     {systemHealth.outdatedPackages}
                   </div>
                   <div className="text-xs text-muted-foreground">Outdated</div>
                 </div>
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
-                  <div className={`text-lg font-bold ${systemHealth.failedServices > 0 ? "text-destructive" : "text-success-foreground"}`}>
+                  <div
+                    className={`text-lg font-bold ${systemHealth.failedServices > 0 ? "text-destructive" : "text-success-foreground"}`}
+                  >
                     {systemHealth.failedServices}
                   </div>
                   <div className="text-xs text-muted-foreground">Failed Svc</div>
                 </div>
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
-                  <div className={`text-lg font-bold ${systemHealth.orphansCount > 0 ? "text-destructive" : "text-success-foreground"}`}>
+                  <div
+                    className={`text-lg font-bold ${systemHealth.orphansCount > 0 ? "text-destructive" : "text-success-foreground"}`}
+                  >
                     {systemHealth.orphansCount}
                   </div>
                   <div className="text-xs text-muted-foreground">Orphans</div>
                 </div>
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
-                  <div className={`text-lg font-bold ${systemHealth.diskUsage > 75 ? "text-warning-foreground" : "text-success-foreground"}`}>
+                  <div
+                    className={`text-lg font-bold ${systemHealth.diskUsage > 75 ? "text-warning-foreground" : "text-success-foreground"}`}
+                  >
                     {systemHealth.diskUsage}%
                   </div>
                   <div className="text-xs text-muted-foreground">Disk</div>
@@ -479,7 +511,11 @@ export function ProjectsPage() {
 
             {(["os", "packages", "services", "security", "storage"] as SystemCheckCategory[]).map((cat) => (
               <Card key={cat} className="p-4">
-                <SystemCheckSection checks={systemHealth.checks} category={cat} defaultOpen={cat === "os" || cat === "services"} />
+                <SystemCheckSection
+                  checks={systemHealth.checks}
+                  category={cat}
+                  defaultOpen={cat === "os" || cat === "services"}
+                />
               </Card>
             ))}
             {output && <Output>{output}</Output>}

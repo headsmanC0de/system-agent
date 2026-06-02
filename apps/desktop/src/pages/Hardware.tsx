@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
 import { Cpu, Fan, MemoryStick, Thermometer } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
 import { Bar, Card, Sparkline } from "../components/ui";
 import { useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
@@ -31,8 +31,14 @@ function parseSensors(raw: string): SensorReading[] {
               sensor: sensor.replace(/_/g, " "),
               type: isFan ? "fan" : "temp",
               value: sensorData[key],
-              max: typeof sensorData[key.replace("_input", "_max")] === "number" ? sensorData[key.replace("_input", "_max")] : undefined,
-              crit: typeof sensorData[key.replace("_input", "_crit")] === "number" ? sensorData[key.replace("_input", "_crit")] : undefined,
+              max:
+                typeof sensorData[key.replace("_input", "_max")] === "number"
+                  ? sensorData[key.replace("_input", "_max")]
+                  : undefined,
+              crit:
+                typeof sensorData[key.replace("_input", "_crit")] === "number"
+                  ? sensorData[key.replace("_input", "_crit")]
+                  : undefined,
             });
           }
         }
@@ -94,8 +100,8 @@ export function HardwarePage() {
   const allReadings = useMemo(() => parseSensors(sensorsRaw), [sensorsRaw]);
   const temps = allReadings.filter((r) => r.type === "temp");
   const fans = allReadings.filter((r) => r.type === "fan");
-  const memPct = memRaw ? Math.round((parseInt(memRaw.used) / parseInt(memRaw.total)) * 100) : 0;
-  const formatGb = (v: string) => (parseInt(v) / 1024 / 1024).toFixed(1);
+  const memPct = memRaw ? Math.round((parseInt(memRaw.used, 10) / parseInt(memRaw.total, 10)) * 100) : 0;
+  const formatGb = (v: string) => (parseInt(v, 10) / 1024 / 1024).toFixed(1);
 
   return (
     <div className="space-y-3">
@@ -106,7 +112,10 @@ export function HardwarePage() {
               <Cpu size={14} className="text-foreground" />
               <span className="text-sm text-foreground font-medium">CPU Usage</span>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{cpuPercent}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {cpuPercent}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <Bar label="" value="" pct={cpuPercent} size="md" />
           <div className="mt-2">
@@ -120,7 +129,10 @@ export function HardwarePage() {
               <MemoryStick size={14} className="text-foreground" />
               <span className="text-sm text-foreground font-medium">Memory</span>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{memPct}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {memPct}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <Bar label="" value="" pct={memPct} size="md" />
           {memRaw && (
@@ -144,23 +156,35 @@ export function HardwarePage() {
         ) : (
           <div className="divide-y divide-border/30">
             {temps.map((r, i) => {
-              const pct = r.max ? Math.min(Math.round((r.value / r.max) * 100), 100) : Math.min(Math.round(r.value), 100);
+              const pct = r.max
+                ? Math.min(Math.round((r.value / r.max) * 100), 100)
+                : Math.min(Math.round(r.value), 100);
               return (
-                <div key={`${r.chip}-${r.sensor}-${i}`} className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30 transition-colors">
+                <div
+                  key={`${r.chip}-${r.sensor}-${i}`}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30 transition-colors"
+                >
                   <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-secondary">
                     <Thermometer size={12} className={tempColor(r.value, r.max)} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">{chipLabel(r.chip)}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+                        {chipLabel(r.chip)}
+                      </span>
                       <span className="text-sm">{r.sensor}</span>
                     </div>
                     <div className="mt-1 h-1.5 rounded-full bg-secondary">
-                      <div className={`h-1.5 rounded-full transition-all ${tempBarColor(r.value, r.max)}`} style={{ width: `${pct}%` }} />
+                      <div
+                        className={`h-1.5 rounded-full transition-all ${tempBarColor(r.value, r.max)}`}
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <span className={`text-sm font-bold tabular-nums ${tempColor(r.value, r.max)}`}>{r.value.toFixed(1)}°C</span>
+                    <span className={`text-sm font-bold tabular-nums ${tempColor(r.value, r.max)}`}>
+                      {r.value.toFixed(1)}°C
+                    </span>
                     {r.max && <span className="text-xs text-muted-foreground ml-1">/{r.max}°C</span>}
                   </div>
                 </div>
@@ -179,7 +203,10 @@ export function HardwarePage() {
           </div>
           <div className="divide-y divide-border/30">
             {fans.map((r, i) => (
-              <div key={`fan-${r.chip}-${i}`} className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30 transition-colors">
+              <div
+                key={`fan-${r.chip}-${i}`}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30 transition-colors"
+              >
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-secondary">
                   <Fan size={12} className="text-info-foreground" />
                 </div>

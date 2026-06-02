@@ -31,21 +31,5 @@
       "cache": false,
       "persistent": true
     }
-  },
-  "boundary": {
-    "tags": {
-      "config": ["config"],
-      "types": ["types"],
-      "ui": ["ui"],
-      "hooks": ["hooks"],
-      "desktop": ["app"]
-    },
-    "rules": {
-      "config": { "dependsOn": [] },
-      "types": { "dependsOn": ["config"] },
-      "ui": { "dependsOn": ["config", "types"] },
-      "hooks": { "dependsOn": ["config", "types"] },
-      "app": { "dependsOn": ["types", "ui", "hooks"] }
-    }
   }
 }

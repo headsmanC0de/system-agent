@@ -1,8 +1,35 @@
-import { Activity, Box, Brain, Cpu, Fan, HardDrive, Headphones, Keyboard, Layout, MemoryStick, Monitor, MonitorOff, MoreVertical, Mouse, PcCase, Server, Skull, Pause, Play, Copy, Check, ClipboardList, Wifi, Zap, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import {
+  Activity,
+  Box,
+  Brain,
+  Check,
+  ClipboardList,
+  Copy,
+  Cpu,
+  Fan,
+  HardDrive,
+  Headphones,
+  Keyboard,
+  Layout,
+  MemoryStick,
+  Monitor,
+  MonitorOff,
+  MoreVertical,
+  Mouse,
+  Pause,
+  PcCase,
+  Play,
+  Plus,
+  Server,
+  Skull,
+  Wifi,
+  X,
+  Zap,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { system } from "../api";
 import { Bar, Card, Sparkline } from "../components/ui";
-import { useCpuHistory, usePolling } from "../lib/hooks";
+import { ema, useCpuHistory, usePolling } from "../lib/hooks";
 import type { HardwareSpec, OverviewData, ProcessInfo } from "../types";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -36,7 +63,11 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button onClick={copy} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title={`Copy: ${text}`}>
+    <button
+      onClick={copy}
+      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      title={`Copy: ${text}`}
+    >
       {copied ? <Check size={12} className="text-success-foreground" /> : <Copy size={12} />}
     </button>
   );
@@ -77,6 +108,7 @@ export function DashboardPage() {
   const [memTotal, setMemTotal] = useState("...");
   const [memPercent, setMemPercent] = useState(0);
   const [memHistory, setMemHistory] = useState<number[]>([]);
+  const memSmoothed = useRef<number | null>(null);
   const { cpuHistory, updateCpu } = useCpuHistory();
 
   const formatBytes = (bytes: string) => {
@@ -96,7 +128,9 @@ export function DashboardPage() {
     updateCpu(cpu);
     const mt = parseInt(memRaw.mem.total, 10);
     const mu = parseInt(memRaw.mem.used, 10);
-    const mp = mt > 0 ? Math.max(0, Math.min(100, Math.round((mu / mt) * 100))) : 0;
+    const rawMp = mt > 0 ? Math.max(0, Math.min(100, (mu / mt) * 100)) : 0;
+    memSmoothed.current = ema(memSmoothed.current, rawMp);
+    const mp = Math.round(memSmoothed.current);
     setMemTotal(memRaw.mem.total);
     setMemUsed(memRaw.mem.used);
     setMemPercent(mp);
@@ -115,7 +149,9 @@ export function DashboardPage() {
     setSpecs([TESSERACT_SPEC, ...auto, ...manual]);
   }, []);
 
-  useEffect(() => { loadSpecs(); }, [loadSpecs]);
+  useEffect(() => {
+    loadSpecs();
+  }, [loadSpecs]);
 
   const addManualSpec = () => {
     if (!addCategory.trim() || !addModel.trim()) return;
@@ -184,7 +220,10 @@ export function DashboardPage() {
               <Cpu size={14} className="text-foreground" />
               <span className="text-sm text-foreground font-medium">CPU Usage</span>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{cpuPercent}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {cpuPercent}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <Bar label="" value="" pct={cpuPercent} size="md" />
           <div className="mt-2 flex items-center justify-between">
@@ -198,11 +237,16 @@ export function DashboardPage() {
               <MemoryStick size={14} className="text-foreground" />
               <span className="text-sm text-foreground font-medium">Memory</span>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{memPercent}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {memPercent}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <Bar label="" value="" pct={memPercent} size="md" />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{formatBytes(memUsed)} / {formatBytes(memTotal)}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatBytes(memUsed)} / {formatBytes(memTotal)}
+            </span>
             <Sparkline data={memHistory} width={140} height={32} />
           </div>
         </Card>
@@ -217,7 +261,11 @@ export function DashboardPage() {
           </div>
           <div className="flex items-center gap-1">
             <CopyButton text={specs.map((s) => `${s.category}: ${s.model}`).join("\n")} />
-            <button onClick={() => setShowAddSpec(!showAddSpec)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Add component">
+            <button
+              onClick={() => setShowAddSpec(!showAddSpec)}
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              title="Add component"
+            >
               {showAddSpec ? <X size={12} /> : <Plus size={12} />}
             </button>
           </div>
@@ -239,7 +287,9 @@ export function DashboardPage() {
               onKeyDown={(e) => e.key === "Enter" && addManualSpec()}
               className="flex-1 rounded-md border border-border bg-card px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
             />
-            <button onClick={addManualSpec} className="btn-primary text-xs px-2 py-1">Add</button>
+            <button onClick={addManualSpec} className="btn-primary text-xs px-2 py-1">
+              Add
+            </button>
           </div>
         )}
         <div>
@@ -247,14 +297,21 @@ export function DashboardPage() {
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">No hardware information available</div>
           ) : (
             specs.map((s, i) => (
-              <div key={`${s.category}-${i}`} className="flex items-center gap-3 px-4 py-2 border-b border-border/30 hover:bg-muted/30 transition-colors group">
+              <div
+                key={`${s.category}-${i}`}
+                className="flex items-center gap-3 px-4 py-2 border-b border-border/30 hover:bg-muted/30 transition-colors group"
+              >
                 <SpecIcon category={s.category} />
                 <span className="text-xs text-muted-foreground w-28 flex-shrink-0">{s.category}</span>
                 <span className="flex-1 text-sm truncate">{s.model}</span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <CopyButton text={s.model} />
                   {s.source === "manual" && (
-                    <button onClick={() => removeManualSpec(i)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors" title="Remove">
+                    <button
+                      onClick={() => removeManualSpec(i)}
+                      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+                      title="Remove"
+                    >
                       <X size={12} />
                     </button>
                   )}
@@ -306,7 +363,10 @@ export function DashboardPage() {
                 <td className="px-4 py-2.5 truncate max-w-[200px] text-muted-foreground">{p.command}</td>
                 <td className="px-4 py-2.5 relative">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setActionPid(actionPid === p.pid ? null : p.pid); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActionPid(actionPid === p.pid ? null : p.pid);
+                    }}
                     className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <MoreVertical size={14} />
@@ -314,19 +374,26 @@ export function DashboardPage() {
                   {actionPid === p.pid && (
                     <div className="absolute right-12 top-0 z-10 w-40 rounded-xl border border-border bg-card shadow-lg py-1">
                       <button
-                        onClick={() => { kill(p.pid); setActionPid(null); }}
+                        onClick={() => {
+                          kill(p.pid);
+                          setActionPid(null);
+                        }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-muted transition-colors"
                       >
                         <Skull size={12} /> Kill Process
                       </button>
                       <button
-                        onClick={() => { setActionPid(null); }}
+                        onClick={() => {
+                          setActionPid(null);
+                        }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted transition-colors"
                       >
                         <Pause size={12} /> Pause (SIGSTOP)
                       </button>
                       <button
-                        onClick={() => { setActionPid(null); }}
+                        onClick={() => {
+                          setActionPid(null);
+                        }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted transition-colors"
                       >
                         <Play size={12} /> Resume (SIGCONT)

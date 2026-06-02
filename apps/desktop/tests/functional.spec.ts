@@ -482,7 +482,7 @@ test.describe("Settings — Interactions", () => {
     await aboutBtn.click();
     await page.waitForTimeout(300);
     await expect(page.locator("text=0.1.0")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=MIT").first()).toBeVisible();
+    await expect(page.locator("text=Private").first()).toBeVisible();
   });
 
   test("AI Provider section shows provider options", async ({ page }) => {
@@ -580,5 +580,19 @@ test.describe("Security Checks", () => {
     }
     const critical = errors.filter((e) => !e.includes("electronAPI") && !e.includes("invoke") && !e.includes("fetch"));
     expect(critical).toHaveLength(0);
+  });
+});
+
+test.describe("Mock-mode banner (audit D-1)", () => {
+  test("shows demo-data banner when not running in Electron", async ({ page }) => {
+    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
+    const banner = page.getByTestId("mock-mode-banner");
+    await expect(banner).toBeVisible({ timeout: 5000 });
+    await expect(banner).toContainText(/demo data/i);
+  });
+
+  test("banner stays visible across navigation", async ({ page }) => {
+    await navigateTo(page, "Battery & BT");
+    await expect(page.getByTestId("mock-mode-banner")).toBeVisible();
   });
 });

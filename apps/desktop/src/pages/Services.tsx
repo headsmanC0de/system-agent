@@ -102,9 +102,7 @@ export function ServicesPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === t.key
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
+              tab === t.key ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t.label}

@@ -1,4 +1,4 @@
-const isElectron = !!(window as any).electronAPI;
+export const isElectron = !!(window as any).electronAPI;
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max));
@@ -32,7 +32,14 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
         buffCache: "8192",
         available: String(total - used),
       },
-      swap: { total: "8589934592", used: "0", free: "8589934592", shared: "0", buffCache: "0", available: "8589934592" },
+      swap: {
+        total: "8589934592",
+        used: "0",
+        free: "8589934592",
+        shared: "0",
+        buffCache: "0",
+        available: "8589934592",
+      },
     };
   },
   "system:cpu-usage": () => {
@@ -40,19 +47,68 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
     const tick = Math.floor(Date.now() / 1000) * 100;
     const total = baseTotal + tick;
     const usagePct = 5 + Math.floor(Math.random() * 30);
-    const idle = total - Math.floor(total * usagePct / 100);
+    const idle = total - Math.floor((total * usagePct) / 100);
     return { idle, total };
   },
   "system:top-processes": () => {
     const jitter = () => rand(0.8, 1.2);
     return [
-      { user: "user", pid: 1234, cpu: +(12.5 * jitter()).toFixed(1), mem: +(8.3 * jitter()).toFixed(1), rss: Math.floor(524288 * jitter()), command: "firefox" },
-      { user: "user", pid: 2345, cpu: +(8.2 * jitter()).toFixed(1), mem: +(5.1 * jitter()).toFixed(1), rss: Math.floor(327680 * jitter()), command: "code" },
-      { user: "user", pid: 3456, cpu: +(4.7 * jitter()).toFixed(1), mem: +(3.2 * jitter()).toFixed(1), rss: Math.floor(204800 * jitter()), command: "discord" },
-      { user: "user", pid: 4567, cpu: +(2.1 * jitter()).toFixed(1), mem: +(1.8 * jitter()).toFixed(1), rss: Math.floor(115200 * jitter()), command: "spotify" },
-      { user: "user", pid: 5678, cpu: +(1.5 * jitter()).toFixed(1), mem: +(0.9 * jitter()).toFixed(1), rss: Math.floor(57600 * jitter()), command: "alacritty" },
-      { user: "user", pid: 6789, cpu: +(rand(0.5, 3.0)).toFixed(1), mem: +(rand(0.3, 2.0)).toFixed(1), rss: Math.floor(rand(30000, 200000)), command: "node" },
-      { user: "user", pid: 7890, cpu: +(rand(0.1, 1.5)).toFixed(1), mem: +(rand(0.2, 1.0)).toFixed(1), rss: Math.floor(rand(20000, 80000)), command: "pipewire" },
+      {
+        user: "user",
+        pid: 1234,
+        cpu: +(12.5 * jitter()).toFixed(1),
+        mem: +(8.3 * jitter()).toFixed(1),
+        rss: Math.floor(524288 * jitter()),
+        command: "firefox",
+      },
+      {
+        user: "user",
+        pid: 2345,
+        cpu: +(8.2 * jitter()).toFixed(1),
+        mem: +(5.1 * jitter()).toFixed(1),
+        rss: Math.floor(327680 * jitter()),
+        command: "code",
+      },
+      {
+        user: "user",
+        pid: 3456,
+        cpu: +(4.7 * jitter()).toFixed(1),
+        mem: +(3.2 * jitter()).toFixed(1),
+        rss: Math.floor(204800 * jitter()),
+        command: "discord",
+      },
+      {
+        user: "user",
+        pid: 4567,
+        cpu: +(2.1 * jitter()).toFixed(1),
+        mem: +(1.8 * jitter()).toFixed(1),
+        rss: Math.floor(115200 * jitter()),
+        command: "spotify",
+      },
+      {
+        user: "user",
+        pid: 5678,
+        cpu: +(1.5 * jitter()).toFixed(1),
+        mem: +(0.9 * jitter()).toFixed(1),
+        rss: Math.floor(57600 * jitter()),
+        command: "alacritty",
+      },
+      {
+        user: "user",
+        pid: 6789,
+        cpu: +rand(0.5, 3.0).toFixed(1),
+        mem: +rand(0.3, 2.0).toFixed(1),
+        rss: Math.floor(rand(30000, 200000)),
+        command: "node",
+      },
+      {
+        user: "user",
+        pid: 7890,
+        cpu: +rand(0.1, 1.5).toFixed(1),
+        mem: +rand(0.2, 1.0).toFixed(1),
+        rss: Math.floor(rand(20000, 80000)),
+        command: "pipewire",
+      },
     ];
   },
   "system:kill-process": () => "killed",
@@ -102,9 +158,7 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
     { unit: "ntpd.service", active: "failed", sub: "failed" },
     { unit: "cups.service", active: "inactive", sub: "dead" },
   ],
-  "system:failed-services": () => [
-    { unit: "ntpd.service", load: "loaded", active: "failed", sub: "exit-code" },
-  ],
+  "system:failed-services": () => [{ unit: "ntpd.service", load: "loaded", active: "failed", sub: "exit-code" }],
   "system:service-action": () => "ok",
   "system:autostart-list": () => [
     { name: "NetworkManager", state: "enabled", source: "/etc/xdg/autostart/nm-applet.desktop" },
@@ -234,10 +288,50 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
     latency: "12ms",
   }),
   "system:network-interfaces": () => [
-    { name: "enp6s0", ip: "192.168.1.100", ipv6: "fe80::a00:27ff:fe04:1234", mac: "A0:2B:50:FC:12:34", status: "up", speed: "1Gbps", type: "ethernet", rxBytes: 1872345678, txBytes: 234567890 },
-    { name: "wlan0", ip: "192.168.1.101", ipv6: "fe80::a00:27ff:fe04:5678", mac: "A0:2B:50:FC:56:78", status: "down", speed: "N/A", type: "wifi", rxBytes: 0, txBytes: 0 },
-    { name: "lo", ip: "127.0.0.1", ipv6: "::1", mac: "00:00:00:00:00:00", status: "up", speed: "N/A", type: "loopback", rxBytes: 12345678, txBytes: 12345678 },
-    { name: "docker0", ip: "172.17.0.1", ipv6: "", mac: "02:42:AC:11:00:01", status: "up", speed: "N/A", type: "bridge", rxBytes: 56789012, txBytes: 34567890 },
+    {
+      name: "enp6s0",
+      ip: "192.168.1.100",
+      ipv6: "fe80::a00:27ff:fe04:1234",
+      mac: "A0:2B:50:FC:12:34",
+      status: "up",
+      speed: "1Gbps",
+      type: "ethernet",
+      rxBytes: 1872345678,
+      txBytes: 234567890,
+    },
+    {
+      name: "wlan0",
+      ip: "192.168.1.101",
+      ipv6: "fe80::a00:27ff:fe04:5678",
+      mac: "A0:2B:50:FC:56:78",
+      status: "down",
+      speed: "N/A",
+      type: "wifi",
+      rxBytes: 0,
+      txBytes: 0,
+    },
+    {
+      name: "lo",
+      ip: "127.0.0.1",
+      ipv6: "::1",
+      mac: "00:00:00:00:00:00",
+      status: "up",
+      speed: "N/A",
+      type: "loopback",
+      rxBytes: 12345678,
+      txBytes: 12345678,
+    },
+    {
+      name: "docker0",
+      ip: "172.17.0.1",
+      ipv6: "",
+      mac: "02:42:AC:11:00:01",
+      status: "up",
+      speed: "N/A",
+      type: "bridge",
+      rxBytes: 56789012,
+      txBytes: 34567890,
+    },
   ],
   "system:open-ports": () => [
     { port: 22, proto: "tcp", service: "ssh", state: "LISTEN", pid: 1234, process: "sshd" },
@@ -316,21 +410,96 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
   "system:rgb-set": () => "ok",
   "system:logs": () => {
     const lines = [
-      { priority: "err", timestamp: "2026-05-29 18:15:32", unit: "docker.service", message: "Failed to start container webapp: OCI runtime error" },
-      { priority: "warning", timestamp: "2026-05-29 18:14:01", unit: "systemd-timesyncd.service", message: "Timed out waiting for reply from NTP server 162.159.200.1" },
-      { priority: "info", timestamp: "2026-05-29 18:10:45", unit: "NetworkManager.service", message: "<info> [1748545845.4521] dhcp4 (enp6s0): state changed extended -> bound" },
-      { priority: "info", timestamp: "2026-05-29 18:08:22", unit: "sshd.service", message: "Accepted key RSA SHA256:xK3a9v... at 192.168.1.50 port 52432" },
-      { priority: "notice", timestamp: "2026-05-29 18:05:11", unit: "sudo", message: "user : TTY=pts/0 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/pacman -Syu" },
-      { priority: "warning", timestamp: "2026-05-29 18:02:30", unit: "kernel", message: "NVRM: Xid (PCI:0000:01:00) 31, Ch 00000010, intr 10000000" },
-      { priority: "err", timestamp: "2026-05-29 17:58:44", unit: "smartd.service", message: "Device: /dev/sda, 1 Currently unreadable (pending) sectors" },
-      { priority: "info", timestamp: "2026-05-29 17:55:20", unit: "pacman", message: "installed linux-6.12.7.arch1-1 (7.0.0-2)" },
-      { priority: "info", timestamp: "2026-05-29 17:50:33", unit: "systemd-logind.service", message: "New session c1 of user user" },
-      { priority: "notice", timestamp: "2026-05-29 17:45:10", unit: "sshd.service", message: "Connection from 192.168.1.50 port 52432" },
-      { priority: "info", timestamp: "2026-05-29 17:40:55", unit: "docker.service", message: "Container webapp started successfully in 2.3s" },
-      { priority: "debug", timestamp: "2026-05-29 17:35:22", unit: "pipewire.service", message: "alsa-pcm-device: hw:0,0: rate: 48000 channels: 2" },
-      { priority: "err", timestamp: "2026-05-29 17:30:01", unit: "ntpd.service", message: "bind() fails: Address already in use" },
-      { priority: "info", timestamp: "2026-05-29 17:25:40", unit: "cron", message: "Job `/usr/bin/updatedb` completed successfully" },
-      { priority: "warning", timestamp: "2026-05-29 17:20:15", unit: "btrfs", message: "device label home devid 1 transid 58472 /dev/nvme0n1p2 check 8192 crc errors" },
+      {
+        priority: "err",
+        timestamp: "2026-05-29 18:15:32",
+        unit: "docker.service",
+        message: "Failed to start container webapp: OCI runtime error",
+      },
+      {
+        priority: "warning",
+        timestamp: "2026-05-29 18:14:01",
+        unit: "systemd-timesyncd.service",
+        message: "Timed out waiting for reply from NTP server 162.159.200.1",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 18:10:45",
+        unit: "NetworkManager.service",
+        message: "<info> [1748545845.4521] dhcp4 (enp6s0): state changed extended -> bound",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 18:08:22",
+        unit: "sshd.service",
+        message: "Accepted key RSA SHA256:xK3a9v... at 192.168.1.50 port 52432",
+      },
+      {
+        priority: "notice",
+        timestamp: "2026-05-29 18:05:11",
+        unit: "sudo",
+        message: "user : TTY=pts/0 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/pacman -Syu",
+      },
+      {
+        priority: "warning",
+        timestamp: "2026-05-29 18:02:30",
+        unit: "kernel",
+        message: "NVRM: Xid (PCI:0000:01:00) 31, Ch 00000010, intr 10000000",
+      },
+      {
+        priority: "err",
+        timestamp: "2026-05-29 17:58:44",
+        unit: "smartd.service",
+        message: "Device: /dev/sda, 1 Currently unreadable (pending) sectors",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 17:55:20",
+        unit: "pacman",
+        message: "installed linux-6.12.7.arch1-1 (7.0.0-2)",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 17:50:33",
+        unit: "systemd-logind.service",
+        message: "New session c1 of user user",
+      },
+      {
+        priority: "notice",
+        timestamp: "2026-05-29 17:45:10",
+        unit: "sshd.service",
+        message: "Connection from 192.168.1.50 port 52432",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 17:40:55",
+        unit: "docker.service",
+        message: "Container webapp started successfully in 2.3s",
+      },
+      {
+        priority: "debug",
+        timestamp: "2026-05-29 17:35:22",
+        unit: "pipewire.service",
+        message: "alsa-pcm-device: hw:0,0: rate: 48000 channels: 2",
+      },
+      {
+        priority: "err",
+        timestamp: "2026-05-29 17:30:01",
+        unit: "ntpd.service",
+        message: "bind() fails: Address already in use",
+      },
+      {
+        priority: "info",
+        timestamp: "2026-05-29 17:25:40",
+        unit: "cron",
+        message: "Job `/usr/bin/updatedb` completed successfully",
+      },
+      {
+        priority: "warning",
+        timestamp: "2026-05-29 17:20:15",
+        unit: "btrfs",
+        message: "device label home devid 1 transid 58472 /dev/nvme0n1p2 check 8192 crc errors",
+      },
     ];
     return JSON.stringify(lines);
   },
@@ -358,7 +527,12 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
         fields: { url: "mail.google.com", recovery: "backup@mail.com" },
         full: "mock-password-not-real\nusername: user@mail.com\nurl: mail.google.com\nrecovery: backup@mail.com",
       };
-    return { password: "mock-password-not-real", username: "", fields: { url: path }, full: `mock-password-not-real\nurl: ${path}` };
+    return {
+      password: "mock-password-not-real",
+      username: "",
+      fields: { url: path },
+      full: `mock-password-not-real\nurl: ${path}`,
+    };
   },
   "password:generate": () => "generated and copied",
   "password:insert": () => "inserted",
@@ -419,46 +593,9 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
   ],
   "battery:bt-connect": () => "connecting...",
   "battery:bt-disconnect": () => "disconnected",
-  "projects:list": () => getMockProjects(),
-  "projects:add": (...a: unknown[]) => {
-    const path = String(a[0] ?? "");
-    const name = path.split("/").pop() || "unknown";
-    const proj: import("./types").ProjectInfo = {
-      id: name.toLowerCase().replace(/\s+/g, "-"),
-      name,
-      path,
-      isMonorepo: false,
-      monorepoTool: null,
-      types: ["node"],
-      lastScanned: new Date().toISOString(),
-      totalDeps: 0,
-      outdatedDeps: 0,
-      healthScore: 100,
-      deps: [],
-      workspaces: [],
-      checks: [],
-    };
-    const existing = getMockProjects();
-    existing.push(proj);
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
-    return proj;
-  },
-  "projects:remove": (...a: unknown[]) => {
-    const id = String(a[0]);
-    const existing = getMockProjects().filter((p) => p.id !== id);
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
-    return "removed";
-  },
-  "projects:scan": (...a: unknown[]) => {
-    const id = String(a[0]);
-    const existing = getMockProjects();
-    const proj = existing.find((p) => p.id === id);
-    if (proj) {
-      proj.lastScanned = new Date().toISOString();
-    }
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
-    return proj;
-  },
+  // projects list/add/remove/scan are a user-curated list persisted in localStorage —
+  // handled renderer-local in the `projects` export below (works in both browser and
+  // Electron), so they have no mock/IPC entry here. Only `outdated` hits real IPC.
   "projects:outdated": (...a: unknown[]) => {
     const id = String(a[0]);
     const proj = getMockProjects().find((p) => p.id === id);
@@ -594,7 +731,16 @@ export const system = {
   sensors: () => invoke<string>("system:sensors"),
   disk: () => invoke<import("./types").DiskInfo[]>("system:disk"),
   health: () => invoke<import("./types").SystemHealth>("system:health"),
-  network: () => invoke<{ publicIp: string; localIp: string; gateway: string; dns: string[]; hostname: string; isReachable: boolean; latency: string }>("system:network"),
+  network: () =>
+    invoke<{
+      publicIp: string;
+      localIp: string;
+      gateway: string;
+      dns: string[];
+      hostname: string;
+      isReachable: boolean;
+      latency: string;
+    }>("system:network"),
   networkInterfaces: () => invoke<import("./types").NetworkInterface[]>("system:network-interfaces"),
   openPorts: () => invoke<import("./types").OpenPort[]>("system:open-ports"),
   netConnections: () => invoke<import("./types").NetConnection[]>("system:net-connections"),
@@ -827,11 +973,45 @@ function buildDefaultProjects(): import("./types").ProjectInfo[] {
   ];
 }
 
+// The project list is user-curated UI state, persisted in localStorage so it works
+// identically in the browser and inside Electron (no IPC handler needed). Only
+// `outdated` reaches the main process (real `find` + `npm outdated`).
 export const projects = {
-  list: () => invoke<import("./types").ProjectInfo[]>("projects:list"),
-  add: (path: string) => invoke<import("./types").ProjectInfo>("projects:add", path),
-  remove: (id: string) => invoke<string>("projects:remove", id),
-  scan: (id: string) => invoke<import("./types").ProjectInfo>("projects:scan", id),
+  list: async (): Promise<import("./types").ProjectInfo[]> => getMockProjects(),
+  add: async (path: string): Promise<import("./types").ProjectInfo> => {
+    const name = path.split("/").pop() || "unknown";
+    const proj: import("./types").ProjectInfo = {
+      id: name.toLowerCase().replace(/\s+/g, "-"),
+      name,
+      path,
+      isMonorepo: false,
+      monorepoTool: null,
+      types: ["node"],
+      lastScanned: new Date().toISOString(),
+      totalDeps: 0,
+      outdatedDeps: 0,
+      healthScore: 100,
+      deps: [],
+      workspaces: [],
+      checks: [],
+    };
+    const existing = getMockProjects();
+    existing.push(proj);
+    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    return proj;
+  },
+  remove: async (id: string): Promise<string> => {
+    const existing = getMockProjects().filter((p) => p.id !== id);
+    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    return "removed";
+  },
+  scan: async (id: string): Promise<import("./types").ProjectInfo | undefined> => {
+    const existing = getMockProjects();
+    const proj = existing.find((p) => p.id === id);
+    if (proj) proj.lastScanned = new Date().toISOString();
+    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    return proj;
+  },
   outdated: (id: string) => invoke<import("./types").ProjectDep[]>("projects:outdated", id),
 };
 

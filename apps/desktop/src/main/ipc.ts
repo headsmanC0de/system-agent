@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import os from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -92,7 +93,8 @@ export function initIpc() {
       shell("cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | xargs"),
       shell("nproc"),
       shell("free -h | awk '/^Mem:/ {print $2}'"),
-      cmd("df", ["-h", "/", "--output=size,used,avail,pcent", "--no-header"]),
+      // GNU df has no --no-header flag; drop the header line via tail instead.
+      shell("df -h / --output=size,used,avail,pcent | tail -n +2"),
       cmd("uptime").then((o) => o.replace(/.*load average: /, "")),
     ]);
     return { hostname, kernel, arch, uptime, cpuModel: cpuModel.trim(), cpuCores, totalMem, disk: disk.trim(), load };
@@ -305,7 +307,7 @@ export function initIpc() {
   });
 
   ipcMain.handle("system:disk", async () => {
-    const raw = await cmd("df", ["-h", "-x", "tmpfs", "-x", "devtmpfs", "-x", "squashfs", "--no-header"]);
+    const raw = await shell("df -h -x tmpfs -x devtmpfs -x squashfs | tail -n +2");
     return raw
       .split("\n")
       .filter(Boolean)
@@ -344,6 +346,96 @@ export function initIpc() {
   ipcMain.handle("system:journal", async (_e, count: number) => {
     const n = Math.max(1, Math.min(10000, Number(count) || 50));
     return cmd("journalctl", ["-n", String(n), "--no-pager", "-p", "warning"]);
+  });
+
+  // Full journal (all priorities) — the Logs page filters by priority client-side.
+  ipcMain.handle("system:logs", async (_e, count: number) => {
+    const n = Math.max(1, Math.min(10000, Number(count) || 200));
+    return cmd("journalctl", ["-n", String(n), "--no-pager"]).catch(() => "");
+  });
+
+  ipcMain.handle("system:open-ports", async () => {
+    const raw = await cmd("ss", ["-tulnp", "--no-header"]).catch(() => "");
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((l) => {
+        const p = l.split(/\s+/);
+        const proto = p[0] || "";
+        const local = p[4] || "";
+        const port = Number.parseInt(local.split(":").pop() || "0", 10);
+        const m = l.match(/\("([^"]+)",pid=(\d+)/);
+        return {
+          port,
+          proto,
+          service: "",
+          state: p[1] || "LISTEN",
+          pid: m ? Number.parseInt(m[2]!, 10) : 0,
+          process: m ? m[1]! : "",
+        };
+      })
+      .filter((x) => x.port > 0);
+  });
+
+  ipcMain.handle("system:network-interfaces", async () => {
+    const raw = await cmd("ip", ["-j", "addr"]).catch(() => "[]");
+    let parsed: Array<Record<string, unknown>> = [];
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = [];
+    }
+    const dev = await shell("cat /proc/net/dev").catch(() => "");
+    const counters = new Map<string, { rx: number; tx: number }>();
+    for (const line of dev.split("\n")) {
+      const mm = line.trim().match(/^([^:]+):\s+(\d+)(?:\s+\d+){7}\s+(\d+)/);
+      if (mm) counters.set(mm[1]!.trim(), { rx: Number(mm[2]), tx: Number(mm[3]) });
+    }
+    const typeOf = (name: string): import("../types").NetworkInterface["type"] => {
+      if (name === "lo") return "loopback";
+      if (/^(en|eth)/.test(name)) return "ethernet";
+      if (/^(wl|wlan|wlp)/.test(name)) return "wifi";
+      if (/^(br|virbr)/.test(name)) return "bridge";
+      if (/^(docker|veth|tun|tap)/.test(name)) return "virtual";
+      return "ethernet";
+    };
+    return parsed.map((iface) => {
+      const name = String(iface.ifname || "");
+      const addrs = (iface.addr_info as Array<Record<string, unknown>>) || [];
+      const v4 = addrs.find((a) => a.family === "inet");
+      const v6 = addrs.find((a) => a.family === "inet6");
+      const c = counters.get(name) || { rx: 0, tx: 0 };
+      return {
+        name,
+        ip: v4 ? String(v4.local) : "",
+        ipv6: v6 ? String(v6.local) : "",
+        mac: String(iface.address || ""),
+        status: iface.operstate === "UP" ? "up" : "down",
+        speed: "",
+        type: typeOf(name),
+        rxBytes: c.rx,
+        txBytes: c.tx,
+      } as import("../types").NetworkInterface;
+    });
+  });
+
+  ipcMain.handle("system:hardware-specs", async () => {
+    const [cpu, gpu, board, boardVendor] = await Promise.all([
+      shell("grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs").catch(() => ""),
+      shell("lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -1 | cut -d: -f3 | xargs").catch(() => ""),
+      shell("cat /sys/devices/virtual/dmi/id/board_name 2>/dev/null").catch(() => ""),
+      shell("cat /sys/devices/virtual/dmi/id/board_vendor 2>/dev/null").catch(() => ""),
+    ]);
+    const specs: import("../types").HardwareSpec[] = [];
+    if (cpu) specs.push({ category: "cpu", model: cpu, source: "auto" });
+    if (gpu) specs.push({ category: "gpu", model: gpu, source: "auto" });
+    if (board) specs.push({ category: "motherboard", model: `${boardVendor} ${board}`.trim(), source: "auto" });
+    return specs;
+  });
+
+  ipcMain.handle("system:rollback-snapshot", async (_e, num: string) => {
+    if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
+    return cmd("sudo", ["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
   });
 
   ipcMain.handle("system:health", async () => {
@@ -637,7 +729,7 @@ export function initIpc() {
       connection: string;
     }> = [];
     for (const p of paths) {
-      const info = await shell(`upower -i "${p}" 2>/dev/null`).catch(() => "");
+      const info = await cmd("upower", ["-i", p]).catch(() => "");
       if (!info) continue;
       const get = (key: string) => {
         const m = info.match(new RegExp(`${key}:\\s+(.+)`));
@@ -682,7 +774,7 @@ export function initIpc() {
       const mac = parts[1] || "";
       const name = parts.slice(2).join(" ");
       if (!mac) continue;
-      const info = await shell(`bluetoothctl info "${mac}" 2>/dev/null`).catch(() => "");
+      const info = await cmd("bluetoothctl", ["info", mac]).catch(() => "");
       const paired = info.includes("Paired: yes");
       const connected = info.includes("Connected: yes");
       const iconMatch = info.match(/Icon:\s+(.+)/);
@@ -752,13 +844,16 @@ export function initIpc() {
     const paths = projectsRaw.split("\n").filter(Boolean);
     for (const pkgPath of paths) {
       const dir = pkgPath.replace("/package.json", "");
-      const info = await shell(`cd "${dir}" && cat package.json 2>/dev/null`).catch(() => "");
+      const info = await readFile(pkgPath, "utf8").catch(() => "");
       if (!info) continue;
       try {
         const pkg = JSON.parse(info);
         const projId = pkg.name || dir.split("/").pop() || "";
         if (projId !== id) continue;
-        const npmJson = await shell(`cd "${dir}" && npm outdated --json 2>/dev/null || echo '{}'`).catch(() => "{}");
+        // npm outdated exits non-zero when updates exist; its JSON is still on stdout.
+        const npmJson = await exec("npm", ["outdated", "--json"], { cwd: dir, timeout: 15000, maxBuffer: 1024 * 1024 })
+          .then(({ stdout }) => stdout.trim() || "{}")
+          .catch((e: { stdout?: string }) => e?.stdout?.trim() || "{}");
         let outdatedDeps: Array<{
           name: string;
           current: string;
@@ -958,8 +1053,13 @@ export function initIpc() {
 
   ipcMain.handle("llm:inference-status", async () => {
     try {
-      const gpuRaw = await shell("nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo '0,0'");
-      const [vramUsed, vramTotal] = gpuRaw.trim().split(",").map((s: string) => parseFloat(s.trim()));
+      const gpuRaw = await shell(
+        "nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo '0,0'",
+      );
+      const [vramUsed, vramTotal] = gpuRaw
+        .trim()
+        .split(",")
+        .map((s: string) => parseFloat(s.trim()));
       const pidRaw = await shell("pgrep -f 'tesseract-moe' || echo ''");
       const running = pidRaw.trim().length > 0;
       return {

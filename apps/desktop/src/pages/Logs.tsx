@@ -11,7 +11,6 @@ interface LogEntry {
 }
 
 const PRIORITY_ORDER = ["err", "warning", "notice", "info", "debug"] as const;
-type Priority = (typeof PRIORITY_ORDER)[number];
 
 const PRIORITY_VARIANT: Record<string, "danger" | "warning" | "default" | "primary"> = {
   err: "danger",
@@ -137,12 +136,7 @@ export function LogsPage() {
             ))}
           </select>
 
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search logs..."
-            className="w-48"
-          />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search logs..." className="w-48" />
 
           <button
             onClick={() => setFollow((f) => !f)}
@@ -192,13 +186,7 @@ export function LogsPage() {
                   <Badge variant="outline" className="shrink-0 text-[10px]">
                     {entry.unit}
                   </Badge>
-                  <span
-                    className={`min-w-0 flex-1 text-sm ${
-                      isExpanded ? "" : "truncate"
-                    }`}
-                  >
-                    {entry.message}
-                  </span>
+                  <span className={`min-w-0 flex-1 text-sm ${isExpanded ? "" : "truncate"}`}>{entry.message}</span>
                 </div>
               );
             })

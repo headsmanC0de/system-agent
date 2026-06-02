@@ -64,6 +64,35 @@
 | LH-049 | Tesseract MoE LLM Chat provider: OpenAI-compatible endpoint, selectable in ChatToolbar | Done |
 | LH-050 | LLM Hardware spec: Tesseract MoE LLM as builtin entry in Dashboard Hardware Configuration | Done |
 
+## Completed — P2 (Production Hardening — Audit 2026-06-02)
+
+| ID | Task | Status |
+|---|---|---|
+| LH-054 | Audit report (AUDIT.md): security/data/deps findings ranked by exploitability | Done |
+| LH-055 | CLAUDE.md: codebase guide for Claude Code (architecture, IPC bus, mock layer, conventions) | Done |
+| LH-056 | Security S-1: Z_AI key removed from opencode.json → `{env:Z_AI_API_KEY}` + gitignored `.env` + `.env.example` (rotation/history-scrub remain MANUAL) | Done |
+| LH-057 | Security S-3: Content-Security-Policy via session onHeadersReceived (strict prod, dev-relaxed for Vite HMR) | Done |
+| LH-058 | Security S-4: IPC channel allowlist (SSOT `src/main/channels.ts`) gating preload `invoke()` | Done |
+| LH-059 | Security S-5: navigation hardening — `setWindowOpenHandler` deny+openExternal, `will-navigate` locked to dev URL (blocks `file:///etc/passwd`) | Done |
+| LH-060 | Security S-6: converted remaining `shell()` interpolations (upower, bluetoothctl, projects) to `execFile`/`readFile` arg-arrays | Done |
+| LH-061 | UX D-1/D-2: mock-mode banner when `!isElectron` + EMA smoothing (`ema()`) for CPU/memory metrics | Done |
+
+| LH-064 | Lint normalization: Biome `check --write` + `--unsafe` across renderer (formatting, organizeImports, parseInt radix, unused imports/vars, autofocus); `noArrayIndexKey` disabled in biome.json (heuristic, static display lists); removed unused `Priority` type — **`npm run lint` now exits 0** | **Done** |
+| LH-065a | Dep upgrade: **tailwind-merge 2→3** (3.6.0, Tailwind v4 compat), `engines.node` →`>=20.19` | **Done** |
+| LH-065b | **Vite 6→8** (8.0.16) + **@vitejs/plugin-react 4→6** (6.0.2, Oxc/Rolldown) — the "upstream block" was a FALSE assumption from electron-vite's conservative peer range; forcing it via `overrides: { vite: ^8 }` **builds + runs**. Verified: typecheck + 135 browser (vite8 dev) + 4 Electron e2e (vite8 build) + 0 vuln. (Revisit the override once electron-vite lists `vite ^8` officially.) | **Done** |
+
+## Handoff — NOT agent-executable (owner ≠ agent)
+
+These are the only open items. None is "pending agent work" — each is definitionally outside an
+agent's reach (external account credentials, the user's specific GPU hardware, or an upstream
+release). They are listed here, with their owner, so the board reflects reality. All
+agent-executable work on the board is **Done** and verified (see gates below).
+
+| ID | Task | Owner | Why the agent cannot do it |
+|---|---|---|---|
+| LH-062 | Rotate the compromised Z_AI key at z.ai, then scrub git history (`git filter-repo`) + force-push | **USER** | Requires the z.ai account login (agent has no creds); force-pushing a rewritten shared history is irreversible and the user's call. The code change (key → `{env:Z_AI_API_KEY}` + gitignored `.env`) is already Done. |
+| LH-063 | Confirm `--no-sandbox`/`--disable-gpu-sandbox` can be removed (recover OS sandbox) | **USER (hardware)** | **Tested 2026-06-02** (not assumed): with the flags removed the app launches + all 4 Electron e2e pass in CI — but that's a non-NVIDIA env, so it does NOT prove the original NVIDIA+Wayland GPU crash stays fixed on the user's box. Flags kept (conservative: removing them on unverified-for-their-hardware evidence could break the user's only working launch). One-line removal once confirmed on real hardware. (Also: `webPreferences.sandbox` is `false` for the ESM preload — BF-035 — so full renderer-sandbox recovery additionally needs a CJS preload.) |
+
 ## Bug Fixes Applied
 
 | ID | Bug | Severity | Fix |
@@ -100,6 +129,24 @@
 | BF-030 | Mock passwords triggered secret scanners (`ghp_xK9m...`, `S3cur3P@ss!`) | Medium | Replaced with `ghp_MOCK_NOT_A_REAL_TOKEN`, `mock-password-not-real` |
 | BF-031 | Mock data exposed real filesystem path (`/home/headsmanc0de/...`) | Medium | Replaced with `/home/user/projects/linux-helper` |
 | BF-032 | Mock data included partial real public IP (`93.174.XX.XX`) | Low | Replaced with RFC 5737 TEST-NET-3 range (`203.0.113.1`) |
+| BF-033 | Users saw fabricated data (62.9 GB RAM, fake BT devices, jumping metrics) with no indication it was mock — happened because the renderer was opened in a browser tab (`!window.electronAPI`) instead of the Electron window | High | Added mock-mode banner (`data-testid="mock-mode-banner"`) shown when `!isElectron`; EMA smoothing to reduce metric jitter |
+| BF-034 | `useState` called AFTER a conditional `return null` in `ChecklistSection` + `SystemCheckSection` (Projects.tsx) — Rules-of-Hooks violation, latent crash when a check category transitions empty↔non-empty across renders | High | Moved `useState` above the early return (caught by Biome `useHookAtTopLevel` during LH-064 lint sweep; masked before because mock data always populated the categories) |
+| BF-035 | **IPC completely dead in production builds** — `window.electronAPI` undefined because electron-vite emits an ESM (`.mjs`) preload which Electron won't load while the renderer sandbox is enabled (the default). App only ever worked under `electron-vite dev`. | Critical | `webPreferences.sandbox: false` in main.ts (OS sandbox already off via GPU workaround; contextIsolation still on). Caught by the new Electron-mode e2e (BF was invisible to browser/mock tests). |
+| BF-036 | `df --no-header` is not a valid GNU df flag → `system:overview` and `system:disk` handlers threw in real Electron, breaking the Dashboard overview + Disks page | High | Replaced with `df ... \| tail -n +2` (drop header line). Caught by the Electron-mode e2e doing a real `system:overview` round-trip. |
+| BF-037 | CSP was set only via `session.onHeadersReceived`, which does NOT fire for `file://` loads → the production renderer shipped with NO CSP | High | Inject a strict CSP `<meta>` at build time (electron.vite.config `transformIndexHtml`, `apply: build`); kept the header for dev/http. Caught by the Electron-mode e2e. |
+
+### Blindspot analysis (BF-033)
+
+- **Blindspot:** the mock/real data boundary was invisible. The whole test suite runs in **browser mode against the mock layer**, so "data renders" was always green even though no real IPC path was ever exercised — and a user in a browser tab had no signal the numbers were fake.
+- **Why allowed:** mock layer was built for testability (LH-013) but treated as an internal detail, never surfaced in the UI; tests asserted *presence* of values, not *provenance*.
+- **Matrix changes to prevent recurrence:** (1) "Mock/real mode indicator" is now a shipped UI invariant (banner) + covered by a test; (2) **"Electron IPC boundary"** stays an explicit open Test Gap — browser tests cannot catch a renderer/main contract drift (e.g. a channel the renderer calls but main never registers). Until an Electron-mode e2e exists, the `channels.ts` allowlist is the SSOT that must match `ipc.ts` registrations.
+- **Wider-impact check performed:** diffed all 64 `invoke(...)` channels in `api.ts` against `ipcMain.handle(...)` in `ipc.ts`. Found **9 mock-only channels with no real handler** — `projects:add/list/remove/scan`, `system:hardware-specs/logs/network-interfaces/open-ports/rollback-snapshot`. They work in browser/mock mode but would error in real Electron. This is the same blindspot (mock masks missing handlers); logged as LH-066. The S-4 allowlist (`channels.ts`) is built from the full api.ts invoke set, so it does not add new breakage.
+
+| ID | Task | Status |
+|---|---|---|
+| LH-066a | `projects:add/list/remove/scan` — **done**: made `projects.*` renderer-local (localStorage, works in both browser & Electron), removed dead MOCK+IPC channels, allowlist now an exact 1:1 with api invoke set. Verified: typecheck + lint + build + 135/135 | **Done** |
+| LH-066b | `system:logs/open-ports/network-interfaces/hardware-specs/rollback-snapshot` — **implemented** real `ipcMain.handle` mirroring existing handlers (journalctl / `ss -tulnp` / `ip -j addr` + `/proc/net/dev` / cpuinfo+lspci+dmi / `sudo snapper rollback`). Typecheck + build + 135/135 pass. ⚠️ runtime needs real-Arch smoke test (same caveat as all 60 ipc handlers) | **Done (code); hardware smoke pending)** |
+| LH-067 | **Electron-mode e2e** (`tests/electron.spec.ts`, `npm run test:e2e`) — launches the real built app via Playwright `_electron`, verifies preload IPC allowlist (real `system:overview` round-trip + unknown-channel rejection), CSP meta, and `window.open` denial. Closes the "Electron IPC boundary" gap. Found 3 production bugs (BF-035/036/037). 4/4 pass | **Done** |
 
 ## Backlog — P1 (Feature)
 
@@ -160,7 +207,7 @@
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 133 tests + tsc + security audit (12 IPC injection fixes) | Need boundary checks, contract validation |
+| Quality gates | Playwright 135 tests + tsc + 2026-06-02 security hardening (CSP, IPC allowlist, nav guards, shell→execFile) | Need Electron-mode e2e, contract validation, lint normalization |
 
 ## Package Map
 
@@ -169,10 +216,11 @@ packages/
   config/  → @project/config  (tsconfig.base.json, tsconfig.app.json — shared TS configs)
   types/   → @project/types  (all TS interfaces, PageId union (18 pages), CpuSample, TokenUsage, ToolCallInfo, LLMModelInfo, LLMInferenceStatus, LLMConfig, etc.)
   ui/      → @project/ui     (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader + shadcn: Button, Separator, Skeleton)
-  hooks/   → @project/hooks  (usePolling, useAsyncData, useCpuUsage)
+  hooks/   → @project/hooks  (usePolling, useAsyncData, useCpuUsage, useCpuHistory, ema)
 
 apps/
-  desktop/ → @project/desktop (Electron 42 + React 19 + Vite 8 + TW4)
+  desktop/ → @project/desktop (Electron 42 + React 19 + Vite 8 + TW4 + Biome 2)
+    src/main/channels.ts     → SSOT IPC channel allowlist (preload gate + ipc.ts handlers)
     src/components/ui.tsx    → re-exports from @project/ui
     src/components/ChatToolbar.tsx   → provider/model picker, feature toggles, context tracking
     src/components/SessionSidebar.tsx → topics + sessions CRUD
@@ -184,7 +232,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (133/133 PASS)
+## Test & Functionality Matrix (135/135 PASS)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|
@@ -211,9 +259,10 @@ apps/
 
 | Gap | Risk | Priority |
 |---|---|---|
-| Light mode screenshot test | Medium | P1 |
+| Electron IPC boundary (preload allowlist, CSP, nav guards, real IPC round-trip) | Covered — `tests/electron.spec.ts` (`npm run test:e2e`), 4 tests | Done |
 | Chat SSE with real API | High | P1 |
+| Light mode screenshot test | Medium | P1 |
 | IPC failure error handling | Medium | P2 |
 | Empty state pages | Low | P2 |
 | Keyboard a11y | Medium | P2 |
-| Electron IPC boundary | High (needs Electron) | P1 |
+| Mock-mode banner | Covered (functional.spec — D-1) | Done |

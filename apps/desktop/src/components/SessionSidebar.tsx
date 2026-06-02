@@ -52,9 +52,7 @@ export function SessionSidebar({
   };
 
   const sessionsForTopic = (topicId: string) =>
-    sessions
-      .filter((s) => s.topicId === topicId)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+    sessions.filter((s) => s.topicId === topicId).sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card">
@@ -86,15 +84,11 @@ export function SessionSidebar({
           return (
             <div key={topic.id} className="mb-1">
               <div className="group flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-muted transition-colors">
-                <button
-                  onClick={() => onToggleTopic(topic.id)}
-                  className="flex-shrink-0 text-muted-foreground"
-                >
+                <button onClick={() => onToggleTopic(topic.id)} className="flex-shrink-0 text-muted-foreground">
                   {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
                 {editingId === topic.id ? (
                   <input
-                    autoFocus
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={commitEdit}
@@ -146,7 +140,6 @@ export function SessionSidebar({
                       <MessageSquare size={11} className="flex-shrink-0" />
                       {editingId === session.id ? (
                         <input
-                          autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           onBlur={commitEdit}

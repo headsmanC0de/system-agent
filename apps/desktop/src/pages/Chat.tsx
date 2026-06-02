@@ -3,19 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatToolbar } from "../components/ChatToolbar";
 import { SessionSidebar } from "../components/SessionSidebar";
 import { BRAND_NAME } from "../lib/branding";
-import {
-  buildRequestBody,
-  executeToolCall,
-  getChatConfig,
-  getEffectiveBaseUrl,
-  getProvider,
-  saveChatConfig,
-} from "../lib/chat";
 import type { ChatConfig } from "../lib/chat";
+import { buildRequestBody, executeToolCall, getChatConfig, getEffectiveBaseUrl, getProvider } from "../lib/chat";
+import type { ChatSession, ChatTopic } from "../lib/sessions";
 import {
   calculateContextUsage,
   compressSession,
-  CONTEXT_COMPRESS_THRESHOLD,
   createSession,
   createTopic,
   DEFAULT_TOPIC,
@@ -31,7 +24,6 @@ import {
   updateTopic,
 } from "../lib/sessions";
 import type { ChatMessage, ToolCallInfo } from "../types";
-import type { ChatSession, ChatTopic } from "../lib/sessions";
 
 interface StreamChunk {
   content?: string;
@@ -76,7 +68,7 @@ export function ChatPage() {
     if (activeSessionId) setActiveSessionId(activeSessionId);
   }, [activeSessionId]);
 
-  const persistSessions = useCallback((updated: ChatSession[]) => {
+  const _persistSessions = useCallback((updated: ChatSession[]) => {
     setSessions(updated);
     const { saveSessions } = require("../lib/sessions");
     saveSessions(updated);
@@ -109,7 +101,7 @@ export function ChatPage() {
     const updated = getSessions();
     setSessions(updated);
     if (activeSessionId === id) {
-      const remaining = updated.filter((s) => true);
+      const remaining = updated.filter((_s) => true);
       setActiveSessionIdState(remaining.length > 0 ? remaining[0].id : null);
     }
   };
@@ -221,7 +213,7 @@ export function ChatPage() {
     systemPrompt: string,
   ) {
     const MAX_TOOL_ROUNDS = 5;
-    let currentSession = { ...session };
+    const currentSession = { ...session };
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const apiMessages = buildApiMessages(currentSession.messages, systemPrompt);
@@ -379,8 +371,8 @@ export function ChatPage() {
     return { content: fullContent, thinking: fullThinking, toolCalls: Array.from(toolCallsMap.values()), usage };
   }
 
-  const contextInfo = activeSession ? calculateContextUsage(activeSession) : null;
-  const tokenSummary = activeSession ? getSessionTokenSummary(activeSession) : null;
+  const _contextInfo = activeSession ? calculateContextUsage(activeSession) : null;
+  const _tokenSummary = activeSession ? getSessionTokenSummary(activeSession) : null;
   const [chatConfig, setChatConfig] = useState<ChatConfig>(getChatConfig());
 
   useEffect(() => {

@@ -263,10 +263,7 @@ export function BatteryPage() {
               filteredBt.map((dev) => {
                 const DevIcon = deviceIcon(dev.icon);
                 return (
-                  <div
-                    key={dev.mac}
-                    className="flex items-center gap-4 px-4 py-3 hover:bg-muted/50 transition-colors"
-                  >
+                  <div key={dev.mac} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/50 transition-colors">
                     <div
                       className={`flex h-9 w-9 items-center justify-center rounded-lg ${dev.connected ? "bg-info/10" : "bg-secondary"}`}
                     >

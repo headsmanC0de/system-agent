@@ -24,9 +24,10 @@ import {
   Wrench,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BRAND_NAME } from "./lib/branding";
+import { isElectron } from "./api";
 import BrandLogo from "./components/brand-logo";
 import PoweredByBadge from "./components/powered-by-badge";
+import { BRAND_NAME } from "./lib/branding";
 import type { ThemeMode } from "./lib/theme";
 import { applyMode, getStoredMode, initTheme } from "./lib/theme";
 import { AutostartPage } from "./pages/Autostart";
@@ -38,8 +39,8 @@ import { DisksPage } from "./pages/Disks";
 import { DocsPage } from "./pages/Docs";
 import { GpuPage } from "./pages/Gpu";
 import { HardwarePage } from "./pages/Hardware";
-import { LogsPage } from "./pages/Logs";
 import { LlmPage } from "./pages/Llm";
+import { LogsPage } from "./pages/Logs";
 import { NetworkPage } from "./pages/Network";
 import { PackagesPage } from "./pages/Packages";
 import { PasswordsPage } from "./pages/Passwords";
@@ -260,6 +261,15 @@ export function App() {
         <header className="flex h-12 flex-shrink-0 items-center justify-between border-b border-border bg-card px-6">
           <h2 className="text-sm font-semibold">{PAGE_TITLES[page]}</h2>
           <div className="flex items-center gap-3">
+            {!isElectron && (
+              <span
+                data-testid="mock-mode-banner"
+                title="Not running inside the Electron app — showing mock data, not your real system."
+                className="rounded-md border border-warning bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-foreground"
+              >
+                Demo data (browser mode)
+              </span>
+            )}
             <span className="text-xs text-muted-foreground font-mono">
               {time.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
             </span>

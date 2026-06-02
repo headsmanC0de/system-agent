@@ -1,4 +1,4 @@
-import { Brain, Play, Square, Save, RefreshCw, Settings2, Activity, Zap } from "lucide-react";
+import { Activity, Brain, Play, RefreshCw, Save, Settings2, Square, Zap } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { llm } from "../api";
 import { Bar, Card, Sparkline, StatCard } from "../components/ui";
@@ -101,16 +101,32 @@ export function LlmPage() {
                 Stopped
               </span>
             )}
-            <button onClick={handleStart} className="flex h-7 items-center gap-1 rounded-md bg-success/10 px-2 text-xs text-success-foreground hover:bg-success/20 transition-colors" title="Start server">
+            <button
+              onClick={handleStart}
+              className="flex h-7 items-center gap-1 rounded-md bg-success/10 px-2 text-xs text-success-foreground hover:bg-success/20 transition-colors"
+              title="Start server"
+            >
               <Play size={12} /> Start
             </button>
-            <button onClick={handleStop} className="flex h-7 items-center gap-1 rounded-md bg-destructive/10 px-2 text-xs text-destructive hover:bg-destructive/20 transition-colors" title="Stop server">
+            <button
+              onClick={handleStop}
+              className="flex h-7 items-center gap-1 rounded-md bg-destructive/10 px-2 text-xs text-destructive hover:bg-destructive/20 transition-colors"
+              title="Stop server"
+            >
               <Square size={12} /> Stop
             </button>
-            <button onClick={() => setShowConfig(!showConfig)} className="flex h-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors" title="Configuration">
+            <button
+              onClick={() => setShowConfig(!showConfig)}
+              className="flex h-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+              title="Configuration"
+            >
               <Settings2 size={14} />
             </button>
-            <button onClick={refresh} className="flex h-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors" title="Refresh">
+            <button
+              onClick={refresh}
+              className="flex h-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+              title="Refresh"
+            >
               <RefreshCw size={14} />
             </button>
           </div>
@@ -124,7 +140,9 @@ export function LlmPage() {
             </div>
             <div className="text-center">
               <div className="text-xs text-muted-foreground">Experts</div>
-              <div className="text-sm font-semibold">{modelInfo.experts} ({modelInfo.activeExperts} active)</div>
+              <div className="text-sm font-semibold">
+                {modelInfo.experts} ({modelInfo.activeExperts} active)
+              </div>
             </div>
             <div className="text-center">
               <div className="text-xs text-muted-foreground">Context</div>
@@ -145,11 +163,16 @@ export function LlmPage() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Activity size={12} /> VRAM Usage
               </div>
-              <span className="text-2xl font-bold tabular-nums">{vramPct}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+              <span className="text-2xl font-bold tabular-nums">
+                {vramPct}
+                <span className="text-sm font-normal text-muted-foreground">%</span>
+              </span>
             </div>
             <Bar label="" value="" pct={vramPct} size="md" />
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{status.vramUsed.toFixed(1)} / {status.vramTotal.toFixed(1)} GB</span>
+              <span className="text-xs text-muted-foreground">
+                {status.vramUsed.toFixed(1)} / {status.vramTotal.toFixed(1)} GB
+              </span>
               <Sparkline data={vramHistory} width={180} height={32} />
             </div>
           </Card>
@@ -159,7 +182,10 @@ export function LlmPage() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Zap size={12} /> Throughput
               </div>
-              <span className="text-2xl font-bold tabular-nums">{status.tokensPerSec.toFixed(1)}<span className="text-sm font-normal text-muted-foreground"> t/s</span></span>
+              <span className="text-2xl font-bold tabular-nums">
+                {status.tokensPerSec.toFixed(1)}
+                <span className="text-sm font-normal text-muted-foreground"> t/s</span>
+              </span>
             </div>
             <div className="mt-2">
               <Sparkline data={tpsHistory} width={280} height={40} />
@@ -177,14 +203,19 @@ export function LlmPage() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-semibold">Inference Configuration</div>
-            <button onClick={handleSaveConfig} className="flex h-7 items-center gap-1 rounded-md bg-primary/10 px-2 text-xs text-primary hover:bg-primary/20 transition-colors">
+            <button
+              onClick={handleSaveConfig}
+              className="flex h-7 items-center gap-1 rounded-md bg-primary/10 px-2 text-xs text-primary hover:bg-primary/20 transition-colors"
+            >
               <Save size={12} /> Save
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {Object.entries(editConfig || config!).map(([key, value]) => (
               <div key={key} className="space-y-1">
-                <label className="text-xs text-muted-foreground capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</label>
+                <label className="text-xs text-muted-foreground capitalize">
+                  {key.replace(/([A-Z])/g, " $1").trim()}
+                </label>
                 <input
                   type={typeof value === "number" ? "number" : "text"}
                   value={String((editConfig || config)![key as keyof LLMConfig])}

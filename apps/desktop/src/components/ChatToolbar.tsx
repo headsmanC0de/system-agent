@@ -1,6 +1,6 @@
 import { Brain, ChevronDown, Database, Sparkles, Wrench } from "lucide-react";
 import { useState } from "react";
-import type { ChatConfig, ChatModel, ChatProvider } from "../lib/chat";
+import type { ChatConfig } from "../lib/chat";
 import { getAvailableModels, getProvider, PROVIDERS, saveChatConfig } from "../lib/chat";
 import type { ChatSession } from "../lib/sessions";
 import { calculateContextUsage, getSessionTokenSummary } from "../lib/sessions";
@@ -19,7 +19,8 @@ export function ChatToolbar({ config, session, onConfigChange }: Props) {
 
   const context = session ? calculateContextUsage(session) : null;
   const tokens = session ? getSessionTokenSummary(session) : null;
-  const contextColor = (context?.percent || 0) > 80 ? "bg-destructive" : (context?.percent || 0) > 50 ? "bg-warning" : "bg-success";
+  const contextColor =
+    (context?.percent || 0) > 80 ? "bg-destructive" : (context?.percent || 0) > 50 ? "bg-warning" : "bg-success";
 
   const toggle = (field: "thinkingEnabled" | "toolsEnabled" | "streamingEnabled") => {
     const updated = saveChatConfig({ [field]: !config[field] });
@@ -101,7 +102,9 @@ export function ChatToolbar({ config, session, onConfigChange }: Props) {
       <button
         onClick={() => toggle("thinkingEnabled")}
         className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
-          config.thinkingEnabled && currentModel?.thinking ? "bg-info/15 text-info" : "text-foreground/30 hover:bg-muted"
+          config.thinkingEnabled && currentModel?.thinking
+            ? "bg-info/15 text-info"
+            : "text-foreground/30 hover:bg-muted"
         }`}
         title={currentModel?.thinking ? "Toggle thinking/reasoning" : "Model doesn't support thinking"}
       >
@@ -112,7 +115,9 @@ export function ChatToolbar({ config, session, onConfigChange }: Props) {
       <button
         onClick={() => toggle("toolsEnabled")}
         className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
-          config.toolsEnabled && currentModel?.tools ? "bg-warning/15 text-warning" : "text-foreground/30 hover:bg-muted"
+          config.toolsEnabled && currentModel?.tools
+            ? "bg-warning/15 text-warning"
+            : "text-foreground/30 hover:bg-muted"
         }`}
         title={currentModel?.tools ? "Toggle function calling" : "Model doesn't support tools"}
       >
@@ -139,12 +144,13 @@ export function ChatToolbar({ config, session, onConfigChange }: Props) {
             <Database size={10} />
             <span>{context.percent}%</span>
             <div className="h-1 w-12 rounded-full bg-muted overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${contextColor}`} style={{ width: `${context.percent}%` }} />
+              <div
+                className={`h-full rounded-full transition-all ${contextColor}`}
+                style={{ width: `${context.percent}%` }}
+              />
             </div>
           </div>
-          {tokens && tokens.cached > 0 && (
-            <span className="text-success">cache {tokens.cacheSavings}</span>
-          )}
+          {tokens && tokens.cached > 0 && <span className="text-success">cache {tokens.cacheSavings}</span>}
         </div>
       )}
     </div>

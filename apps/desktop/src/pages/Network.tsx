@@ -1,4 +1,16 @@
-import { Cable, Check, ChevronDown, ChevronRight, Copy, Globe, Lock, Network, Server, Signal, Wifi } from "lucide-react";
+import {
+  Cable,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Globe,
+  Lock,
+  Network,
+  Server,
+  Signal,
+  Wifi,
+} from "lucide-react";
 import { useCallback, useState } from "react";
 import { system } from "../api";
 import { Badge, Card, StatCard } from "../components/ui";
@@ -13,7 +25,11 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button onClick={copy} className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title={`Copy: ${text}`}>
+    <button
+      onClick={copy}
+      className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      title={`Copy: ${text}`}
+    >
       {copied ? <Check size={10} className="text-success-foreground" /> : <Copy size={10} />}
     </button>
   );
@@ -23,7 +39,7 @@ function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
 }
 
 function IfaceIcon({ type }: { type: NetworkInterface["type"] }) {
@@ -51,7 +67,15 @@ function statusVariant(state: string): "success" | "danger" | "default" | "prima
 }
 
 export function NetworkPage() {
-  const [netInfo, setNetInfo] = useState<{ publicIp: string; localIp: string; gateway: string; dns: string[]; hostname: string; isReachable: boolean; latency: string } | null>(null);
+  const [netInfo, setNetInfo] = useState<{
+    publicIp: string;
+    localIp: string;
+    gateway: string;
+    dns: string[];
+    hostname: string;
+    isReachable: boolean;
+    latency: string;
+  } | null>(null);
   const [ifaces, setIfaces] = useState<NetworkInterface[]>([]);
   const [ports, setPorts] = useState<OpenPort[]>([]);
   const [conns, setConns] = useState<NetConnection[]>([]);
@@ -97,11 +121,7 @@ export function NetworkPage() {
             {netInfo?.publicIp && <CopyButton text={netInfo.publicIp} />}
           </div>
           <div className="mt-1">
-            {netInfo?.isReachable ? (
-              <Badge variant="success">Online</Badge>
-            ) : (
-              <Badge variant="danger">Offline</Badge>
-            )}
+            {netInfo?.isReachable ? <Badge variant="success">Online</Badge> : <Badge variant="danger">Offline</Badge>}
           </div>
         </Card>
 
@@ -123,12 +143,16 @@ export function NetworkPage() {
             <span>DNS Servers</span>
           </div>
           <div className="mt-1.5 space-y-0.5">
-            {netInfo?.dns?.length ? netInfo.dns.map((d) => (
-              <div key={d} className="flex items-center gap-2">
-                <span className="text-sm font-mono">{d}</span>
-                <CopyButton text={d} />
-              </div>
-            )) : <span className="text-sm text-muted-foreground">...</span>}
+            {netInfo?.dns?.length ? (
+              netInfo.dns.map((d) => (
+                <div key={d} className="flex items-center gap-2">
+                  <span className="text-sm font-mono">{d}</span>
+                  <CopyButton text={d} />
+                </div>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground">...</span>
+            )}
           </div>
         </Card>
 
@@ -169,8 +193,14 @@ export function NetworkPage() {
                 </div>
               </div>
               <div className="text-right text-xs space-y-0.5 flex-shrink-0">
-                <div><span className="text-muted-foreground">RX </span><span className="font-mono text-success-foreground">{formatBytes(iface.rxBytes)}</span></div>
-                <div><span className="text-muted-foreground">TX </span><span className="font-mono text-info-foreground">{formatBytes(iface.txBytes)}</span></div>
+                <div>
+                  <span className="text-muted-foreground">RX </span>
+                  <span className="font-mono text-success-foreground">{formatBytes(iface.rxBytes)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">TX </span>
+                  <span className="font-mono text-info-foreground">{formatBytes(iface.txBytes)}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -178,9 +208,16 @@ export function NetworkPage() {
       </Card>
 
       <Card className="p-0">
-        <button onClick={() => setPortsOpen(!portsOpen)} className="flex w-full items-center justify-between border-b border-border px-4 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+        <button
+          onClick={() => setPortsOpen(!portsOpen)}
+          className="flex w-full items-center justify-between border-b border-border px-4 py-2 text-sm font-medium hover:bg-muted/50 transition-colors"
+        >
           <span>Open Ports ({ports.length})</span>
-          {portsOpen ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+          {portsOpen ? (
+            <ChevronDown size={14} className="text-muted-foreground" />
+          ) : (
+            <ChevronRight size={14} className="text-muted-foreground" />
+          )}
         </button>
         {portsOpen && (
           <div className="max-h-[300px] overflow-y-auto">
@@ -201,7 +238,9 @@ export function NetworkPage() {
                     <td className="px-4 py-2 text-xs">{p.proto}</td>
                     <td className="px-4 py-2 text-xs">{p.service}</td>
                     <td className="px-4 py-2 text-xs text-muted-foreground">{p.process}</td>
-                    <td className="px-4 py-2"><Badge variant="primary">{p.state}</Badge></td>
+                    <td className="px-4 py-2">
+                      <Badge variant="primary">{p.state}</Badge>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -225,7 +264,10 @@ export function NetworkPage() {
             </thead>
             <tbody>
               {conns.slice(0, 200).map((c, i) => (
-                <tr key={`${c.netid}-${c.local}-${c.peer}-${i}`} className="border-b border-border/50 hover:bg-muted/50">
+                <tr
+                  key={`${c.netid}-${c.local}-${c.peer}-${i}`}
+                  className="border-b border-border/50 hover:bg-muted/50"
+                >
                   <td className="px-4 py-2 font-mono text-xs">{c.netid}</td>
                   <td className="px-4 py-2">
                     <Badge variant={statusVariant(c.state)}>{c.state}</Badge>

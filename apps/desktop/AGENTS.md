@@ -6,10 +6,11 @@ All commands from `apps/desktop/`:
 - `npm run build` — electron-vite build
 - `npm run preview` — test production build
 - `npm run typecheck` — tsc --noEmit
-- `npm run lint` — eslint .
+- `npm run lint` — Biome check (scoped to src/main, src/pages, src/components, src/lib, App.tsx, api.ts)
+- `npm run test` — Playwright (browser mode against mock layer; auto-starts vite :5173)
 
 ## Stack
-Electron 42 + React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + electron-vite 3
+Electron 42 + React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + electron-vite 5 + Biome 2
 
 ## Architecture
 ```
@@ -70,10 +71,14 @@ Output: `out/main/main.js`, `out/preload/preload.mjs`, `out/renderer/`
 - Dead deps: `class-variance-authority`, `clsx`, `tailwind-merge` — installed but unused, safe to remove
 
 ## Test Suite
-110 Playwright tests (browser mode, mock data):
-- `tests/renderer.spec.ts` — 29 smoke tests (sidebar, navigation, page rendering)
-- `tests/functional.spec.ts` — 56 functional tests (data rendering, interactions, edge cases, security)
-- `tests/projects.spec.ts` — 9 project page tests (health, deps, checklist)
-- `tests/screenshots.spec.ts` — 16 page screenshots
+135 Playwright tests (browser mode, mock data):
+- `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
+- `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, mock-mode banner)
+- `tests/projects.spec.ts` — project page tests (health, deps, checklist)
+- `tests/screenshots.spec.ts` — page screenshots
 
-Run: `/tmp/node_modules/.bin/playwright test` from `apps/desktop/` (requires vite dev server at :5173)
+Run: `npx playwright test` from `apps/desktop/` (config auto-starts vite at :5173).
+
+NOTE: tests run in **browser mode** so they exercise the mock layer, not real IPC. The
+renderer↔main contract (preload allowlist in `src/main/channels.ts` ↔ `ipcMain.handle` in
+`src/main/ipc.ts`), CSP, and nav guards are NOT covered here — they need an Electron-mode e2e.

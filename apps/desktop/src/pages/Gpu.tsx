@@ -62,7 +62,9 @@ export function GpuPage() {
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold">{gpu.name}</div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>{gpu.power} / {gpu.powerLimit} W</span>
+            <span>
+              {gpu.power} / {gpu.powerLimit} W
+            </span>
             <span>Driver: 570.133.07</span>
           </div>
         </div>
@@ -76,7 +78,10 @@ export function GpuPage() {
             <span className={`text-2xl font-bold tabular-nums ${tempColor(gpu.temp)}`}>{gpu.temp}°C</span>
           </div>
           <div className="h-1.5 rounded-full bg-secondary">
-            <div className={`h-1.5 rounded-full transition-all ${tempBarColor(gpu.temp)}`} style={{ width: `${Math.min(gpu.temp, 100)}%` }} />
+            <div
+              className={`h-1.5 rounded-full transition-all ${tempBarColor(gpu.temp)}`}
+              style={{ width: `${Math.min(gpu.temp, 100)}%` }}
+            />
           </div>
           <div className="mt-2">
             <Sparkline data={tempHistory} width={280} height={40} />
@@ -86,7 +91,10 @@ export function GpuPage() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs text-muted-foreground">GPU Utilization</div>
-            <span className="text-2xl font-bold tabular-nums">{gpu.util}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {gpu.util}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <div className="h-1.5 rounded-full bg-secondary">
             <div className="h-1.5 rounded-full transition-all bg-primary" style={{ width: `${gpu.util}%` }} />
@@ -99,11 +107,16 @@ export function GpuPage() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs text-muted-foreground">VRAM</div>
-            <span className="text-2xl font-bold tabular-nums">{memPct}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {memPct}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <Bar label="" value="" pct={memPct} size="md" />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{gpu.memUsed} / {gpu.memTotal} GiB</span>
+            <span className="text-xs text-muted-foreground">
+              {gpu.memUsed} / {gpu.memTotal} GiB
+            </span>
             <Sparkline data={memHistory} width={180} height={32} />
           </div>
         </Card>
@@ -111,7 +124,10 @@ export function GpuPage() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs text-muted-foreground">Fan Speed</div>
-            <span className="text-2xl font-bold tabular-nums">{gpu.fan}<span className="text-sm font-normal text-muted-foreground">%</span></span>
+            <span className="text-2xl font-bold tabular-nums">
+              {gpu.fan}
+              <span className="text-sm font-normal text-muted-foreground">%</span>
+            </span>
           </div>
           <div className="h-1.5 rounded-full bg-secondary">
             <div className="h-1.5 rounded-full transition-all bg-primary" style={{ width: `${gpu.fan}%` }} />
@@ -127,15 +143,21 @@ export function GpuPage() {
         <div className="grid grid-cols-3 divide-x divide-border/30">
           <div className="px-4 py-3 text-center">
             <div className="text-xs text-muted-foreground">GPU Core</div>
-            <div className="text-lg font-bold tabular-nums">2100<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span></div>
+            <div className="text-lg font-bold tabular-nums">
+              2100<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
+            </div>
           </div>
           <div className="px-4 py-3 text-center">
             <div className="text-xs text-muted-foreground">Memory</div>
-            <div className="text-lg font-bold tabular-nums">10501<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span></div>
+            <div className="text-lg font-bold tabular-nums">
+              10501<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
+            </div>
           </div>
           <div className="px-4 py-3 text-center">
             <div className="text-xs text-muted-foreground">Video Encode</div>
-            <div className="text-lg font-bold tabular-nums">1620<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span></div>
+            <div className="text-lg font-bold tabular-nums">
+              1620<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
+            </div>
           </div>
         </div>
       </Card>

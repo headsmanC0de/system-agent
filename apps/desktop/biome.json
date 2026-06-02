@@ -25,7 +25,8 @@
         "useConst": "error"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off"
       },
       "a11y": {
         "useButtonType": "off",

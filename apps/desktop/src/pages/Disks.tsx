@@ -1,5 +1,5 @@
+import { AlertTriangle, CheckCircle2, Database, FolderOpen, HardDrive } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { HardDrive, AlertTriangle, CheckCircle2, Database, FolderOpen } from "lucide-react";
 import { system } from "../api";
 import { Card, StatCard } from "../components/ui";
 import { useAsyncData } from "../lib/hooks";
@@ -61,7 +61,9 @@ export function DisksPage() {
         <StatCard label="Total Used" value={formatTotal(totalUsed.used)} />
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${criticalCount > 0 ? "bg-destructive/10" : "bg-success/10"}`}>
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-lg ${criticalCount > 0 ? "bg-destructive/10" : "bg-success/10"}`}
+            >
               {criticalCount > 0 ? (
                 <AlertTriangle size={18} className="text-destructive" />
               ) : (
@@ -70,7 +72,9 @@ export function DisksPage() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Health</div>
-              <div className={`text-xl font-bold ${criticalCount > 0 ? "text-destructive" : "text-success-foreground"}`}>
+              <div
+                className={`text-xl font-bold ${criticalCount > 0 ? "text-destructive" : "text-success-foreground"}`}
+              >
                 {criticalCount > 0 ? `${criticalCount} Critical` : "All Good"}
               </div>
             </div>
@@ -87,9 +91,11 @@ export function DisksPage() {
           return (
             <Card key={`${d.filesystem}-${d.mount}`} className="p-0 overflow-hidden">
               <div className="flex items-center gap-4 px-5 py-4">
-                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
-                  d.filesystem === "tmpfs" ? "bg-info/10" : "bg-primary/10"
-                }`}>
+                <div
+                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
+                    d.filesystem === "tmpfs" ? "bg-info/10" : "bg-primary/10"
+                  }`}
+                >
                   {d.filesystem === "tmpfs" ? (
                     <Database size={18} className="text-info-foreground" />
                   ) : (

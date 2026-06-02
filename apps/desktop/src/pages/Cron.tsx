@@ -40,10 +40,21 @@ function describeCron(line: string): { schedule: string; command: string; raw: s
   else if (min === "*/30") schedule = "Every 30 minutes";
   else if (min.startsWith("*/")) schedule = `Every ${min.slice(2)} minutes`;
   else if (min === "0" && hour === "*") schedule = "Every hour";
-  else if (min === "0" && hour !== "*" && dom === "*" && mon === "*" && dow === "*") schedule = `Daily at ${hour.padStart(2, "0")}:00`;
-  else if (min !== "*" && hour !== "*" && dom === "*" && mon === "*" && dow === "*") schedule = `Daily at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
+  else if (min === "0" && hour !== "*" && dom === "*" && mon === "*" && dow === "*")
+    schedule = `Daily at ${hour.padStart(2, "0")}:00`;
+  else if (min !== "*" && hour !== "*" && dom === "*" && mon === "*" && dow === "*")
+    schedule = `Daily at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
   else if (dow !== "*" && dom === "*" && mon === "*") {
-    const days: Record<string, string> = { "0": "Sun", "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat", "7": "Sun" };
+    const days: Record<string, string> = {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat",
+      "7": "Sun",
+    };
     schedule = `${days[dow] || dow} at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
   } else schedule = `${min} ${hour} ${dom} ${mon} ${dow}`;
 
@@ -102,7 +113,7 @@ export function CronPage() {
   const parsedLines = currentCron.split("\n").map((line) => ({ line, parsed: describeCron(line) }));
   const activeJobs = parsedLines.filter((p) => p.parsed !== null);
   const comments = parsedLines.filter((p) => p.parsed === null && p.line.trim().startsWith("#"));
-  const emptyLines = parsedLines.filter((p) => !p.line.trim());
+  const _emptyLines = parsedLines.filter((p) => !p.line.trim());
 
   return (
     <div className="space-y-3">
@@ -110,7 +121,10 @@ export function CronPage() {
         {(["user", "system", "timers"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => { setTab(t); setEditing(false); }}
+            onClick={() => {
+              setTab(t);
+              setEditing(false);
+            }}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               tab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"
             }`}
@@ -126,7 +140,13 @@ export function CronPage() {
         ))}
         <div className="flex-1" />
         {tab !== "timers" && !editing && (
-          <button onClick={() => { setEditVal(tab === "user" ? cron.user : cron.system); setEditing(true); }} className="btn-secondary flex items-center gap-1.5 text-xs">
+          <button
+            onClick={() => {
+              setEditVal(tab === "user" ? cron.user : cron.system);
+              setEditing(true);
+            }}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+          >
             <Edit3 size={13} /> Edit
           </button>
         )}
@@ -150,8 +170,8 @@ export function CronPage() {
           <div>
             <div className="text-xs text-muted-foreground">Cron Jobs</div>
             <div className="text-xl font-bold">
-              {(cron.user.split("\n").filter((l) => describeCron(l)).length) +
-                (cron.system.split("\n").filter((l) => describeCron(l)).length)}
+              {cron.user.split("\n").filter((l) => describeCron(l)).length +
+                cron.system.split("\n").filter((l) => describeCron(l)).length}
             </div>
           </div>
         </Card>
@@ -170,7 +190,9 @@ export function CronPage() {
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Due Soon</div>
-            <div className="text-xl font-bold">{timers.filter((t) => t.left.includes("m ") || t.left.match(/^\d+m$/)).length}</div>
+            <div className="text-xl font-bold">
+              {timers.filter((t) => t.left.includes("m ") || t.left.match(/^\d+m$/)).length}
+            </div>
           </div>
         </Card>
       </div>
@@ -192,7 +214,9 @@ export function CronPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{t.unit.replace(".timer", "")}</span>
-                      <Badge variant="default" className="text-[10px]">{t.activates}</Badge>
+                      <Badge variant="default" className="text-[10px]">
+                        {t.activates}
+                      </Badge>
                     </div>
                     <div className="flex gap-4 mt-0.5 text-xs text-muted-foreground">
                       <span>Next: {t.next}</span>
@@ -227,7 +251,9 @@ export function CronPage() {
         <Card className="p-0">
           <div className="border-b border-border/50 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 flex items-center justify-between">
             <span>{tab === "user" ? "User" : "System"} Crontab</span>
-            <span>{activeJobs.length} jobs • {comments.length} comments</span>
+            <span>
+              {activeJobs.length} jobs • {comments.length} comments
+            </span>
           </div>
           {currentCron ? (
             <div className="divide-y divide-border/50">
@@ -242,18 +268,25 @@ export function CronPage() {
                   }
                   if (!line.trim()) return <div key={i} className="h-1" />;
                   return (
-                    <div key={i} className="px-4 py-2 text-xs text-muted-foreground font-mono">{line}</div>
+                    <div key={i} className="px-4 py-2 text-xs text-muted-foreground font-mono">
+                      {line}
+                    </div>
                   );
                 }
                 return (
-                  <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group"
+                  >
                     <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-secondary">
                       <Clock size={12} className="text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Badge variant={scheduleVariant(parsed.schedule)}>{parsed.schedule}</Badge>
-                        <span className="text-sm font-medium font-mono truncate">{extractCommandName(parsed.command)}</span>
+                        <span className="text-sm font-medium font-mono truncate">
+                          {extractCommandName(parsed.command)}
+                        </span>
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground font-mono truncate" title={parsed.command}>
                         {parsed.command}
@@ -261,7 +294,9 @@ export function CronPage() {
                     </div>
                     <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => { navigator.clipboard.writeText(parsed.raw); }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(parsed.raw);
+                        }}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
                         Copy

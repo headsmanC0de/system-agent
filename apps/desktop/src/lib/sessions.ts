@@ -1,4 +1,4 @@
-import type { ChatMessage, TokenUsage } from "../types";
+import type { ChatMessage } from "../types";
 
 export interface ChatSession {
   id: string;
@@ -88,7 +88,7 @@ export function getSessionsByTopic(topicId: string): ChatSession[] {
 }
 
 export function createSession(topicId: string, name?: string): ChatSession {
-  const topic = getTopics().find((t) => t.id === topicId);
+  const _topic = getTopics().find((t) => t.id === topicId);
   const session: ChatSession = {
     id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: name || "New chat",
@@ -110,7 +110,10 @@ export function createSession(topicId: string, name?: string): ChatSession {
   return session;
 }
 
-export function updateSession(id: string, updates: Partial<Pick<ChatSession, "name" | "messages" | "tokenStats">>): void {
+export function updateSession(
+  id: string,
+  updates: Partial<Pick<ChatSession, "name" | "messages" | "tokenStats">>,
+): void {
   const sessions = getSessions();
   const idx = sessions.findIndex((s) => s.id === id);
   if (idx >= 0) {

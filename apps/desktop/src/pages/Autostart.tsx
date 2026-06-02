@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { system } from "../api";
-import { Card, Badge, SearchInput, StatCard, Output } from "../components/ui";
+import { Badge, Card, Output, SearchInput, StatCard } from "../components/ui";
 import { useAsyncData } from "../lib/hooks";
 import type { AutostartEntry } from "../types";
 
@@ -25,9 +25,7 @@ export function AutostartPage() {
     }
   };
 
-  const filtered = search
-    ? entries.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
-    : entries;
+  const filtered = search ? entries.filter((e) => e.name.toLowerCase().includes(search.toLowerCase())) : entries;
 
   const enabledCount = entries.filter((e) => e.state === "enabled").length;
   const disabledCount = entries.filter((e) => e.state === "disabled").length;

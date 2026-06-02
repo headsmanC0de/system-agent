@@ -12,17 +12,20 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "check-types": "turbo run check-types",
+    "check-types": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.0",
     "prettier": "^3.6.0",
     "turbo": "^2.9.16",
-    "vite": "^6.4.2"
+    "vite": "^8.0.0"
+  },
+  "overrides": {
+    "vite": "^8.0.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "packageManager": "npm@11.14.1",
   "workspaces": [

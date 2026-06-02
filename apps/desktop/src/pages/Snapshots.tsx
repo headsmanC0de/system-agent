@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
 import { Camera, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
 import { Badge, Card, Output, SearchInput, StatCard } from "../components/ui";
 import { useAsyncData } from "../lib/hooks";
@@ -120,12 +120,7 @@ export function SnapshotsPage() {
       </div>
 
       <div className="flex gap-2">
-        <SearchInput
-          value={desc}
-          onChange={setDesc}
-          placeholder="Describe new snapshot..."
-          className="flex-1"
-        />
+        <SearchInput value={desc} onChange={setDesc} placeholder="Describe new snapshot..." className="flex-1" />
         <button onClick={create} className="btn-primary flex items-center gap-1.5">
           <Plus size={14} />
           Create
@@ -158,17 +153,11 @@ export function SnapshotsPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => rollback(s.number)}
-                className="btn-ghost text-xs flex items-center gap-1"
-              >
+              <button onClick={() => rollback(s.number)} className="btn-ghost text-xs flex items-center gap-1">
                 <RotateCcw size={12} />
                 Rollback
               </button>
-              <button
-                onClick={() => del(s.number)}
-                className="btn-danger text-xs flex items-center gap-1"
-              >
+              <button onClick={() => del(s.number)} className="btn-danger text-xs flex items-center gap-1">
                 <Trash2 size={12} />
                 Delete
               </button>

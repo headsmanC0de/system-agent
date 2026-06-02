@@ -22,7 +22,7 @@
       "command": ["npx", "-y", "@z_ai/mcp-server"],
       "enabled": true,
       "env": {
-        "Z_AI_API_KEY": "7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8",
+        "Z_AI_API_KEY": "{env:Z_AI_API_KEY}",
         "Z_AI_MODE": "ZAI"
       }
     },
@@ -31,7 +31,7 @@
       "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
       "enabled": true,
       "headers": {
-        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+        "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }
     },
     "web-reader": {
@@ -39,12 +39,12 @@
       "url": "https://api.z.ai/api/mcp/web_reader/mcp",
       "enabled": true,
       "headers": {
-        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+        "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }
     },
     "playwright": {
       "type": "local",
-      "command": ["npx", "-y", "@playwright/mcp@latest"],
+      "command": ["npx", "-y", "@playwright/mcp@latest", "--no-sandbox"],
       "enabled": true
     },
     "zread": {
@@ -52,7 +52,7 @@
       "url": "https://api.z.ai/api/mcp/zread/mcp",
       "enabled": true,
       "headers": {
-        "Authorization": "Bearer 7171352f6d3b40f3aa0e410159b39fd8.7c5iWG9GXxKQt7D8"
+        "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }
     }
   },

@@ -69,9 +69,7 @@ export const PROVIDERS: ChatProvider[] = [
     name: "Tesseract MoE LLM",
     baseUrl: "http://localhost:8080/v1/",
     apiKeyRequired: false,
-    models: [
-      { id: "tesseract-moe", name: "Tesseract MoE", thinking: true, streaming: true, tools: true },
-    ],
+    models: [{ id: "tesseract-moe", name: "Tesseract MoE", thinking: true, streaming: true, tools: true }],
   },
   {
     id: "custom",
@@ -140,10 +138,7 @@ export function getAvailableModels(config: ChatConfig): ChatModel[] {
   return provider?.models || [];
 }
 
-export function buildRequestBody(
-  cfg: ChatConfig,
-  apiMessages: Record<string, unknown>[],
-): Record<string, unknown> {
+export function buildRequestBody(cfg: ChatConfig, apiMessages: Record<string, unknown>[]): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: cfg.modelId,
     messages: apiMessages,
@@ -177,7 +172,8 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_system_info",
-      description: "Get system overview: CPU, memory, uptime, kernel version, OS name. Use this when user asks about system status.",
+      description:
+        "Get system overview: CPU, memory, uptime, kernel version, OS name. Use this when user asks about system status.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -185,7 +181,8 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_gpu_status",
-      description: "Get NVIDIA GPU status: temperature, utilization, fan speed, VRAM usage, power draw. Use when user asks about GPU.",
+      description:
+        "Get NVIDIA GPU status: temperature, utilization, fan speed, VRAM usage, power draw. Use when user asks about GPU.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -193,7 +190,8 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_disk_usage",
-      description: "Get disk usage information: mounted filesystems, total/used/available space, mount points. Use when user asks about disks or storage.",
+      description:
+        "Get disk usage information: mounted filesystems, total/used/available space, mount points. Use when user asks about disks or storage.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -201,7 +199,8 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_service_status",
-      description: "Get systemd service status. Use when user asks about services, daemons, or whether something is running.",
+      description:
+        "Get systemd service status. Use when user asks about services, daemons, or whether something is running.",
       parameters: {
         type: "object",
         properties: {
@@ -215,7 +214,8 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_network_info",
-      description: "Get network information: interfaces, IP addresses, active connections, open ports. Use when user asks about networking.",
+      description:
+        "Get network information: interfaces, IP addresses, active connections, open ports. Use when user asks about networking.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -223,11 +223,15 @@ export const SYSTEM_TOOLS = [
     type: "function" as const,
     function: {
       name: "run_command",
-      description: "Run a shell command and return its output. Use for diagnostics, reading config files, checking logs. DANGEROUS commands (rm, mkfs, dd, format) are blocked.",
+      description:
+        "Run a shell command and return its output. Use for diagnostics, reading config files, checking logs. DANGEROUS commands (rm, mkfs, dd, format) are blocked.",
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "The shell command to run, e.g. 'journalctl -u nginx --no-pager -n 20'" },
+          command: {
+            type: "string",
+            description: "The shell command to run, e.g. 'journalctl -u nginx --no-pager -n 20'",
+          },
           reason: { type: "string", description: "Why you are running this command" },
         },
         required: ["command", "reason"],
@@ -258,7 +262,9 @@ export async function executeToolCall(name: string, args: Record<string, unknown
       const found = services.find(
         (s) => s.unit.toLowerCase() === service.toLowerCase() || s.unit.toLowerCase().includes(service.toLowerCase()),
       );
-      return found ? JSON.stringify(found, null, 2) : `Service "${service}" not found. Use get_services to list all services.`;
+      return found
+        ? JSON.stringify(found, null, 2)
+        : `Service "${service}" not found. Use get_services to list all services.`;
     }
     case "get_network_info": {
       const net = await api.system.network();
@@ -267,13 +273,33 @@ export async function executeToolCall(name: string, args: Record<string, unknown
     case "run_command": {
       const rawCmd = String(args.command || "").trim();
       const ALLOWED_PREFIXES = [
-        "journalctl", "systemctl status", "systemctl list", "cat /proc/",
-        "free", "df", "uptime", "whoami", "hostname", "uname",
-        "ls ", "ps ", "top -bn1", "nvidia-smi", "sensors",
-        "ip addr", "ip link", "ip route", "ss ", "ping ",
-        "pacman -Q", "pacman -Si", "which ", "echo ",
+        "journalctl",
+        "systemctl status",
+        "systemctl list",
+        "cat /proc/",
+        "free",
+        "df",
+        "uptime",
+        "whoami",
+        "hostname",
+        "uname",
+        "ls ",
+        "ps ",
+        "top -bn1",
+        "nvidia-smi",
+        "sensors",
+        "ip addr",
+        "ip link",
+        "ip route",
+        "ss ",
+        "ping ",
+        "pacman -Q",
+        "pacman -Si",
+        "which ",
+        "echo ",
       ];
-      const blocked = /\b(rm\s|mkfs|dd\s|format|chmod|chown|curl |wget |nc |ncat|bash |sh |python |node |crontab|shutdown|reboot|init\s|sudo |su )\b/i;
+      const blocked =
+        /\b(rm\s|mkfs|dd\s|format|chmod|chown|curl |wget |nc |ncat|bash |sh |python |node |crontab|shutdown|reboot|init\s|sudo |su )\b/i;
       if (blocked.test(rawCmd)) {
         return `BLOCKED: Command contains restricted operations. Run manually in terminal if needed.`;
       }

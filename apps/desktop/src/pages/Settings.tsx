@@ -74,9 +74,7 @@ export function SettingsPage() {
             key={s.id}
             onClick={() => setSection(s.id)}
             className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
-              section === s.id
-                ? "bg-muted text-foreground font-medium"
-                : "text-muted-foreground hover:bg-muted/50"
+              section === s.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:bg-muted/50"
             }`}
           >
             {s.icon}
@@ -338,11 +336,15 @@ export function SettingsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Organization</span>
-                  <a href={ORG_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">{ORG_NAME}</a>
+                  <a href={ORG_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">
+                    {ORG_NAME}
+                  </a>
                 </div>
                 <div className="flex justify-between">
                   <span>Website</span>
-                  <a href={BRAND_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">{BRAND_URL}</a>
+                  <a href={BRAND_URL} target="_blank" rel="noopener" className="font-mono text-primary hover:underline">
+                    {BRAND_URL}
+                  </a>
                 </div>
                 <div className="flex justify-between">
                   <span>AI Backend</span>
@@ -353,9 +355,7 @@ export function SettingsPage() {
                   <span className="font-mono">{chatConfig.modelId}</span>
                 </div>
               </div>
-              <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-                {BRAND_COPYRIGHT}
-              </div>
+              <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">{BRAND_COPYRIGHT}</div>
             </Card>
           </>
         )}

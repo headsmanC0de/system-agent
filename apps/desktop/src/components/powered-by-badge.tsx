@@ -7,9 +7,7 @@ interface PoweredByBadgeProps {
 export default function PoweredByBadge({ className = "" }: PoweredByBadgeProps) {
   return (
     <div className={`flex items-center justify-center gap-1.5 ${className}`}>
-      <span className="text-[10px] text-muted-foreground tracking-wide uppercase">
-        Powered by
-      </span>
+      <span className="text-[10px] text-muted-foreground tracking-wide uppercase">Powered by</span>
       <a
         href={ORG_URL}
         target="_blank"
