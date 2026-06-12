@@ -97,6 +97,10 @@
 | LH-076 | Cleanups: biome scripts referenced nonexistent `src/vite.config.ts`/`src/main.ts` (fixed → `src/main.tsx`); dead `tsdown.*.config.ts` removed; stale broken `@workspace/ui` alias removed from `vite.config.ts`; `executeToolCall` dynamic `import("../api")` → static (kills the Rolldown INEFFECTIVE_DYNAMIC_IMPORT warning); missing `system:battery-watch` MOCK added; `Llm.tsx` raw `<pre>` → shared `<Output>`. | **Done** |
 | LH-077 | Deps refreshed (2026-06-12): electron 42.4.0, react/react-dom 19.2.7, electron-builder 26.15.2, @types/node 24→**25**, turbo 2.9.18, prettier 3.8.4 — typecheck/build/tests green, `npm audit` 0 vulns. Projects-page mock dep matrix synced to real versions. | **Done** |
 | LH-078 | Root hygiene: 137 untracked PNG screenshots moved to `screenshots/`; AGENTS.md/CLAUDE.md refreshed to current reality (Biome, test counts, ui.tsx re-export). | **Done** |
+| LH-079 | **IPC contract guard**: `invoke(channel: IpcChannel)` + `MOCK: Partial<Record<IpcChannel, …>>` (compile-time, renderer side) + `tests/ipc-contract.spec.ts` (handlers ↔ allowlist ↔ MOCK set equality, main side). Hand-sync drift between ipc.ts/channels.ts/api.ts is now impossible to land. | **Done** |
+| LH-080 | **usePolling/useAsyncData error surfacing**: rejections captured into a returned `error` state (no more unhandled rejections from pages like GPU that don't try/catch); `intervalMs <= 0` now means "run once" — fixing BF-040; shared `<StaleDataNotice>` (`@project/ui`) rendered on Dashboard/GPU/Hardware/Network. | **Done** |
+| LH-081 | **SSE parser extracted** to `src/lib/sse.ts` (pure function, callbacks for streaming UI) — Chat.tsx slimmed by ~75 lines; 9 unit tests (`tests/sse.spec.ts`): chunk-boundary splits, multi-byte UTF-8 splits, tool-call accumulation, usage/cached tokens, malformed events, CRLF, [DONE], cumulative callbacks. | **Done** |
+| LH-082 | Board SSOT: backlog IDs renumbered (LH-101+) — old backlog reused LH-026…LH-055 already taken by completed tasks; polkit migration promoted to an explicit backlog item (LH-110). | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -151,6 +155,7 @@ code change can perform — it requires the user's external account:
 | BF-037 | CSP was set only via `session.onHeadersReceived`, which does NOT fire for `file://` loads → the production renderer shipped with NO CSP | High | Inject a strict CSP `<meta>` at build time (electron.vite.config `transformIndexHtml`, `apply: build`); kept the header for dev/http. Caught by the Electron-mode e2e. |
 | BF-038 | Switching the preload to CJS (LH-074) silently bundled the **electron npm launcher** (`node_modules/electron/index.js`) into `preload.cjs`: in the cjs-format override electron-vite skips its auto-externalization of `electron` → preload crashed at load, `window.electronAPI` undefined | Critical | Explicit `external: ["electron"]` in the preload `rollupOptions`. Caught immediately by the Electron-mode e2e (`npm run test:e2e`). |
 | BF-039 | `safeStorage.encryptString` throws "Encryption is not available" on Linux when no keyring (kwallet/libsecret) is unlocked — first `secrets:set` would crash | High | `getSafeStorage()` falls back to `setUsePlainTextEncryption(true)` (basic_text backend) when `isEncryptionAvailable()` is false; secrets file stays 0600. Caught by the new LH-073 e2e test. |
+| BF-040 | Logs page with "follow" OFF called `usePolling(refresh, 0)` → `setInterval(fn, 0)` fires every ~4ms → in real Electron a `journalctl` spawn storm (hundreds of processes/sec); also a duplicate initial fetch (own `useEffect` + the hook's immediate tick) | High | `usePolling` now treats `intervalMs <= 0` as "run once, no interval"; the redundant `useEffect` removed from Logs.tsx. |
 
 ### Blindspot analysis (BF-033)
 
@@ -172,50 +177,61 @@ code change can perform — it requires the user's external account:
 - **Matrix change to prevent recurrence:** the Electron-mode e2e is the standing guard for this class — **any change to `electron.vite.config.ts`, `main.ts` webPreferences, or preload must run `npm run test:e2e` before merge**. This is now enforced automatically: CI (LH-075) runs the e2e on every push/PR, so config-sensitive regressions can no longer land unnoticed.
 - **Wider-impact check performed:** verified the built `preload.cjs` no longer contains the npm launcher (`grep install.js` clean); both sandbox paths re-verified (`LH_GPU_WORKAROUND=0` launch test); secrets round-trip verified against real `safeStorage` in e2e; full browser suite re-run to confirm the mock fallback keeps non-Electron mode intact.
 
+### Blindspot analysis (BF-040 — found during LH-080, 2026-06-12)
+
+- **Blindspot:** `usePolling`'s contract for `intervalMs = 0` was never defined. Logs.tsx used `0` to mean "don't poll", the hook passed it straight to `setInterval`, which means "as fast as possible" (~4ms). Browser tests were green because the mock `system:logs` is a cheap synchronous function — the cost (a `journalctl` process storm) only exists in real Electron.
+- **Why allowed:** the hook had no test, no JSDoc contract, and the call-site semantics ("0 = off") were an undocumented page-author assumption; mock-mode masks resource-cost bugs entirely (same family as BF-033/035).
+- **Matrix change:** edge-of-contract values (`0`, negative, `NaN`) for shared hooks are now part of the hook's documented contract (JSDoc in `@project/hooks`); the "Electron IPC boundary" rule extends to **resource-cost behavior**: anything that spawns processes on a timer needs its interval semantics stated explicitly.
+- **Wider-impact check performed:** audited all 7 `usePolling` call sites — Logs.tsx was the only dynamic-interval caller (`follow ? 3000 : 0`); all others use constant 1000/30000. No other `setInterval`/`setTimeout` in pages takes a computed interval that can hit 0.
+
 ## Backlog — P1 (Feature)
+
+> Backlog IDs renumbered to LH-101+ (2026-06-12): the old backlog reused LH-026…LH-055,
+> colliding with completed task IDs — the board is the SSOT, IDs must be unique.
 
 | ID | Task | Priority | Status |
 |---|---|---|---|
-| LH-026 | Zig shared library (syscalls: sysinfo, /proc, statvfs, NVML) — Zig 0.16 migration | P1 | Pending |
-| LH-027 | Zig .so → Electron native addon (node-addon-api or ffi-napi) | P1 | Pending |
-| LH-028 | Package search with debounce + package detail modal | P1 | Pending |
-| LH-029 | GPU fan control slider, power limit adjustment | P1 | Pending |
-| LH-030 | BT Device Popup: volume, audio profile, PipeWire EQ presets, media controls (on device card click) | P1 | Pending |
-| LH-031 | Projects: real IPC (read package.json, npm outdated, cargo outdated) | P1 | Pending |
-| LH-032 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
-| LH-033 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
-| LH-034 | Export system report (JSON/HTML) | P1 | Pending |
+| LH-101 | Zig shared library (syscalls: sysinfo, /proc, statvfs, NVML) — Zig 0.16 migration | P1 | Pending |
+| LH-102 | Zig .so → Electron native addon (node-addon-api or ffi-napi) | P1 | Pending |
+| LH-103 | Package search with debounce + package detail modal | P1 | Pending |
+| LH-104 | GPU fan control slider, power limit adjustment | P1 | Pending |
+| LH-105 | BT Device Popup: volume, audio profile, PipeWire EQ presets, media controls (on device card click) | P1 | Pending |
+| LH-106 | Projects: real IPC (read package.json, npm outdated, cargo outdated) | P1 | Pending |
+| LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
+| LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
+| LH-109 | Export system report (JSON/HTML) | P1 | Pending |
+| LH-110 | **Polkit migration** — replace sudo-stdin password piping in IPC handlers (audit S-7, last open security item in code) | P1 | Pending |
 
 ## Backlog — P2 (Platform Maturity)
 
 | ID | Task | Priority | Status |
 |---|---|---|---|
-| LH-035 | Brand Runtime: `packages/brand-runtime`, `brands/default/` with brand.config.ts | P2 | Pending |
-| LH-036 | Repo Doctor: `tools/repo-doctor/` with package-boundaries, app-thinness, contract checks | P2 | Pending |
-| LH-037 | Deploy configs: `deploy/` with systemd, AppImage, flatpak | P2 | Pending |
-| LH-038 | Release manifests: version, commit, checks, env contract | P2 | Pending |
-| LH-039 | `.agents/commands/`: diagnose-issue, add-package, refactor-to-package, release-check | P2 | Pending |
-| LH-040 | AI_POLICY.md | P2 | Pending |
-| LH-041 | Docs structure: `docs/architecture/`, `docs/decisions/`, `docs/runbooks/` | P2 | Pending |
-| LH-042 | RGB custom color picker (hex input + color wheel) | P2 | Pending |
-| LH-043 | Mock data extraction to `packages/mock-data` | P2 | Pending |
+| LH-120 | Brand Runtime: `packages/brand-runtime`, `brands/default/` with brand.config.ts | P2 | Pending |
+| LH-121 | Repo Doctor: `tools/repo-doctor/` with package-boundaries, app-thinness, contract checks | P2 | Pending |
+| LH-122 | Deploy configs: `deploy/` with systemd, AppImage, flatpak | P2 | Pending |
+| LH-123 | Release manifests: version, commit, checks, env contract | P2 | Pending |
+| LH-124 | `.agents/commands/`: diagnose-issue, add-package, refactor-to-package, release-check | P2 | Pending |
+| LH-125 | AI_POLICY.md | P2 | Pending |
+| LH-126 | Docs structure: `docs/architecture/`, `docs/decisions/`, `docs/runbooks/` | P2 | Pending |
+| LH-127 | RGB custom color picker (hex input + color wheel) | P2 | Pending |
+| LH-128 | Mock data extraction to `packages/mock-data` | P2 | Pending |
 
 ## Backlog — P3 (Windows Installer + Advanced)
 
 | ID | Task | Priority | Status |
 |---|---|---|---|
-| LH-044 | Windows Installer App — Electron/React for Linux migration prep | P3 | Backlog |
-| LH-045 | Hardware scanner (CPU/GPU/RAM/storage/UEFI vs BIOS/WiFi/BT) | P3 | Backlog |
-| LH-046 | BIOS update checker + config guide | P3 | Backlog |
-| LH-047 | Arch ISO downloader + USB flasher | P3 | Backlog |
-| LH-048 | Migration profile export/import | P3 | Backlog |
-| LH-049 | Zigzag TUI fallback (terminal UI for SSH/recovery) | P3 | Backlog |
-| LH-050 | Security audit panel (random-seed perms, UFW, secrets scan) | P3 | Backlog |
-| LH-051 | Btrfs backup dashboard (snapper + btrbk + external drive) | P3 | Backlog |
-| LH-052 | Boot manager (systemd-boot entries, kernel params, initramfs rebuild) | P3 | Backlog |
-| LH-053 | Audio configurator (PipeWire/WirePlumber device renaming) | P3 | Backlog |
-| LH-054 | Dev stack status panel (Zig/Rust/Node/Python/CUDA versions) | P3 | Backlog |
-| LH-055 | Examples/templates for each platform module | P3 | Backlog |
+| LH-140 | Windows Installer App — Electron/React for Linux migration prep | P3 | Backlog |
+| LH-141 | Hardware scanner (CPU/GPU/RAM/storage/UEFI vs BIOS/WiFi/BT) | P3 | Backlog |
+| LH-142 | BIOS update checker + config guide | P3 | Backlog |
+| LH-143 | Arch ISO downloader + USB flasher | P3 | Backlog |
+| LH-144 | Migration profile export/import | P3 | Backlog |
+| LH-145 | Zigzag TUI fallback (terminal UI for SSH/recovery) | P3 | Backlog |
+| LH-146 | Security audit panel (random-seed perms, UFW, secrets scan) | P3 | Backlog |
+| LH-147 | Btrfs backup dashboard (snapper + btrbk + external drive) | P3 | Backlog |
+| LH-148 | Boot manager (systemd-boot entries, kernel params, initramfs rebuild) | P3 | Backlog |
+| LH-149 | Audio configurator (PipeWire/WirePlumber device renaming) | P3 | Backlog |
+| LH-150 | Dev stack status panel (Zig/Rust/Node/Python/CUDA versions) | P3 | Backlog |
+| LH-151 | Examples/templates for each platform module | P3 | Backlog |
 
 ## Blueprint Alignment Matrix
 
@@ -231,7 +247,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 138 browser + 6 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 150 browser + 6 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -239,8 +255,8 @@ code change can perform — it requires the user's external account:
 packages/
   config/  → @project/config  (tsconfig.base.json, tsconfig.app.json — shared TS configs)
   types/   → @project/types  (all TS interfaces, PageId union (18 pages), CpuSample, TokenUsage, ToolCallInfo, LLMModelInfo, LLMInferenceStatus, LLMConfig, etc.)
-  ui/      → @project/ui     (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader + shadcn: Button, Separator, Skeleton)
-  hooks/   → @project/hooks  (usePolling, useAsyncData, useCpuUsage, useCpuHistory, ema)
+  ui/      → @project/ui     (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader, Sparkline, StaleDataNotice + shadcn: Button, Separator, Skeleton)
+  hooks/   → @project/hooks  (usePolling, useAsyncData, useCpuUsage, useCpuHistory, ema — polling/async hooks return { error })
 
 apps/
   desktop/ → @project/desktop (Electron 42 + React 19 + Vite 8 + TW4 + Biome 2)
@@ -250,13 +266,14 @@ apps/
     src/components/SessionSidebar.tsx → topics + sessions CRUD
     src/components/brand-logo.tsx    → SVG logo with branding SSOT
     src/lib/branding.ts     → BRAND_NAME, BRAND_SHORT, BRAND_ID (1-line rebrand)
-    src/lib/chat.ts          → Provider config, SYSTEM_TOOLS, executeToolCall, buildRequestBody
+    src/lib/chat.ts          → Provider config, SYSTEM_TOOLS, executeToolCall, buildRequestBody, API-key secrets, isValidBaseUrl
+    src/lib/sse.ts           → pure SSE stream parser (parseSSEStream + callbacks) — unit-tested in tests/sse.spec.ts
     src/lib/sessions.ts      → Topics, Sessions, context compression, token stats
     src/lib/hooks.ts         → re-exports from @project/hooks
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (138 browser + 6 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (150 browser + 6 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|

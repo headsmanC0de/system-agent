@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { system } from "../api";
-import { Badge, Card, StatCard } from "../components/ui";
+import { Badge, Card, StaleDataNotice, StatCard } from "../components/ui";
 import { useAsyncData, usePolling } from "../lib/hooks";
 import type { NetConnection, NetworkInterface, OpenPort } from "../types";
 
@@ -103,13 +103,14 @@ export function NetworkPage() {
   }, []);
 
   useAsyncData(refreshAll);
-  usePolling(refreshConns, 1000);
+  const { error: pollError } = usePolling(refreshConns, 1000);
 
   const listening = conns.filter((c) => c.state === "LISTEN");
   const established = conns.filter((c) => c.state === "ESTAB");
 
   return (
     <div className="space-y-3">
+      <StaleDataNotice error={pollError} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">

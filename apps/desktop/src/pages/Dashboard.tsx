@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { system } from "../api";
-import { Bar, Card, Sparkline } from "../components/ui";
+import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
 import { ema, useCpuHistory, usePolling } from "../lib/hooks";
 import type { HardwareSpec, OverviewData, ProcessInfo } from "../types";
 
@@ -172,7 +172,7 @@ export function DashboardPage() {
     loadSpecs();
   };
 
-  usePolling(refresh, 1000);
+  const { error: pollError } = usePolling(refresh, 1000);
 
   useEffect(() => {
     const close = () => setActionPid(null);
@@ -191,6 +191,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-3">
+      <StaleDataNotice error={pollError} />
       <div className="grid grid-cols-4 gap-4">
         <OverviewCard label="Hostname" value={overview.hostname} sub={overview.arch} icon={<Server size={12} />} />
         <OverviewCard

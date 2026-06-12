@@ -14,7 +14,7 @@
     "lint:fix": "biome check --write src/main src/pages src/components src/lib src/App.tsx src/api.ts src/main.tsx src/types.ts",
     "format": "biome format --write src/main src/pages src/components src/lib src/App.tsx src/api.ts src/main.tsx src/types.ts",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test tests/renderer.spec.ts tests/functional.spec.ts tests/projects.spec.ts tests/screenshots.spec.ts",
+    "test": "playwright test tests/renderer.spec.ts tests/functional.spec.ts tests/projects.spec.ts tests/screenshots.spec.ts tests/sse.spec.ts tests/ipc-contract.spec.ts",
     "test:e2e": "electron-vite build && playwright test tests/electron.spec.ts",
     "clean": "rm -rf out dist .turbo test-results node_modules/.vite"
   },

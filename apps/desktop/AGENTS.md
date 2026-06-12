@@ -77,11 +77,13 @@ Output: `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed rend
 - Compromised Z_AI key in git history — rotation + `git filter-repo` is a USER ops action (see AUDIT.md)
 
 ## Test Suite
-138 browser-mode Playwright tests + 6 Electron-mode e2e:
+150 browser-runner Playwright tests (incl. SSE unit + IPC contract specs) + 6 Electron-mode e2e:
 - `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
 - `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, secrets/baseUrl validation, mock-mode banner)
 - `tests/projects.spec.ts` — project page tests (health, deps, checklist)
 - `tests/screenshots.spec.ts` — page screenshots
+- `tests/sse.spec.ts` — unit tests for `src/lib/sse.ts` (chunk splits, UTF-8, tool calls, usage, malformed events)
+- `tests/ipc-contract.spec.ts` — contract guard: ipc.ts handlers ↔ channels.ts allowlist ↔ MOCK fallbacks
 - `tests/electron.spec.ts` — real built app: IPC allowlist, CSP, window.open denial, safeStorage secrets round-trip, recovered-sandbox launch (`npm run test:e2e`)
 
 Run: `npm run test` from `apps/desktop/` (config auto-starts vite at :5173).

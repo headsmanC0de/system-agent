@@ -20,7 +20,7 @@
 | Hygiene | **Done (LH-076/078)** — biome script paths fixed, dead tsdown configs + stale alias removed, dynamic-import warning fixed, root PNGs → `screenshots/`, AGENTS.md refreshed. |
 | S-1 key rotation | ⚠️ **STILL OPEN (USER ops)** — the compromised Z_AI key remains in `.env` and in pushed git history. Rotate at z.ai, then `git filter-repo` + force-push. Code-side guards (pre-commit hook) are in place. |
 
-Verification (2026-06-12): `tsc --noEmit` clean, lint exit 0, **138 browser + 6 Electron e2e** pass, build PASS, `npm audit` 0 vulns.
+Verification (2026-06-12): `tsc --noEmit` clean, lint exit 0, **150 browser + 6 Electron e2e** pass, build PASS, `npm audit` 0 vulns.
 
 ---
 

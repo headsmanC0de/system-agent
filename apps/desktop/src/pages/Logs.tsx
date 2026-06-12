@@ -48,10 +48,6 @@ export function LogsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
   usePolling(refresh, follow ? 3000 : 0);
 
   useEffect(() => {

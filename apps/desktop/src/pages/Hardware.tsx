@@ -1,7 +1,7 @@
 import { Cpu, Fan, MemoryStick, Thermometer } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
-import { Bar, Card, Sparkline } from "../components/ui";
+import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
 import { useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
 
 interface SensorReading {
@@ -95,7 +95,7 @@ export function HardwarePage() {
     }
   }, [updateCpu, updateCpuHistory]);
 
-  usePolling(refresh, 1000);
+  const { error: pollError } = usePolling(refresh, 1000);
 
   const allReadings = useMemo(() => parseSensors(sensorsRaw), [sensorsRaw]);
   const temps = allReadings.filter((r) => r.type === "temp");
@@ -105,6 +105,7 @@ export function HardwarePage() {
 
   return (
     <div className="space-y-3">
+      <StaleDataNotice error={pollError} />
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">

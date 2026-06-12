@@ -1,9 +1,13 @@
+import type { IpcChannel } from "./main/channels";
+
 export const isElectron = !!(window as any).electronAPI;
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max));
 
-const MOCK: Record<string, (...args: unknown[]) => unknown> = {
+// Keyed by IpcChannel so a typo'd or unregistered channel is a compile error;
+// tests/ipc-contract.spec.ts enforces the ipc.ts handler side of the contract.
+const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
   "system:overview": () => {
     const load1 = rand(0.1, 2.5).toFixed(2);
     const load2 = rand(0.1, 2.0).toFixed(2);
@@ -699,7 +703,7 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
   },
 };
 
-export async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+export async function invoke<T>(channel: IpcChannel, ...args: unknown[]): Promise<T> {
   if (isElectron) {
     return (window as any).electronAPI.invoke(channel, ...args);
   }

@@ -8,22 +8,56 @@ export function ema(prev: number | null, next: number, alpha = 0.3): number {
   return prev * (1 - alpha) + next * alpha;
 }
 
+// Runs once immediately, then every intervalMs. intervalMs <= 0 means "run once,
+// don't poll" (NOT setInterval(fn, 0), which would hammer the callback every ~4ms).
+// Rejections are captured into `error` instead of becoming unhandled; it clears on
+// the next successful tick so pages can show a "live data unavailable" indicator.
 export function usePolling(callback: () => Promise<void>, intervalMs: number) {
   const cbRef = useRef(callback);
   cbRef.current = callback;
+  const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
-    cbRef.current();
-    const id = setInterval(() => cbRef.current(), intervalMs);
-    return () => clearInterval(id);
+    let active = true;
+    const tick = () => {
+      Promise.resolve()
+        .then(() => cbRef.current())
+        .then(
+          () => active && setError(null),
+          (e) => active && setError(e instanceof Error ? e : new Error(String(e))),
+        );
+    };
+    tick();
+    if (intervalMs <= 0) {
+      return () => {
+        active = false;
+      };
+    }
+    const id = setInterval(tick, intervalMs);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, [intervalMs]);
+  return { error };
 }
 
 export function useAsyncData(callback: () => Promise<void>) {
   const cbRef = useRef(callback);
   cbRef.current = callback;
+  const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
-    cbRef.current();
+    let active = true;
+    Promise.resolve()
+      .then(() => cbRef.current())
+      .then(
+        () => active && setError(null),
+        (e) => active && setError(e instanceof Error ? e : new Error(String(e))),
+      );
+    return () => {
+      active = false;
+    };
   }, []);
+  return { error };
 }
 
 export function useCpuUsage() {

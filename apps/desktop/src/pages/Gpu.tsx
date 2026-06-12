@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { system } from "../api";
-import { Bar, Card, Sparkline } from "../components/ui";
+import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
 import { usePolling } from "../lib/hooks";
 import type { GpuData } from "../types";
 
@@ -49,7 +49,7 @@ export function GpuPage() {
     }
   }, [pushTemp, pushUtil, pushMem, pushFan]);
 
-  usePolling(refresh, 1000);
+  const { error: pollError } = usePolling(refresh, 1000);
 
   if (!gpu) return <div className="text-muted-foreground">No NVIDIA GPU detected or nvidia-smi not available</div>;
 
@@ -58,6 +58,7 @@ export function GpuPage() {
 
   return (
     <div className="space-y-3">
+      <StaleDataNotice error={pollError} />
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold">{gpu.name}</div>
