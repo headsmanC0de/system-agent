@@ -42,9 +42,11 @@ extracted into pure functions and unit-tested without Electron.
 5. **Fixtures, not helpers**: navigation/seeding go through `tests/fixtures.ts`
    (`gotoPage`, `seedStorage`) — no per-spec `navigateTo` copies, no raw
    `page.goto` + click chains in new tests.
-6. **Mock honesty**: browser mode must visibly differ from real data
-   (mock-mode banner test) and every new IPC channel ships its MOCK entry in
-   the same commit.
+6. **Mock honesty & shape parity**: browser mode must visibly differ from real
+   data (mock-mode banner test); every new IPC channel ships its MOCK entry in
+   the same commit; and mock values must match the REAL command output in shape
+   and units (unitless where the command is unitless, bytes where bytes) —
+   otherwise magnitude/format bugs are invisible or false (BF-042/BF-043).
 
 ## 3. What new tests must cover
 
@@ -70,7 +72,7 @@ screenshots — use `browser_take_screenshot` only for human-facing evidence.
 
 Procedure (what the `qa-audit` agent does):
 
-1. Start the mock-mode app: `cd apps/desktop && npx vite --port 5173` (or reuse
+1. Start the mock-mode app: `cd apps/desktop && npx vite --port 5173 --host 127.0.0.1` (the host flag matters: bare vite binds IPv6-only `[::1]` while tests target 127.0.0.1) (or reuse
    a running instance).
 2. `browser_navigate` → `http://127.0.0.1:5173`.
 3. For EACH page in the sidebar (19): click its nav entry, `browser_snapshot`,

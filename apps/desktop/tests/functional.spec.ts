@@ -112,6 +112,11 @@ test.describe("GPU — Data Rendering", () => {
     await expect(page.locator("text=120").first()).toBeVisible();
   });
 
+  test("power renders a single W unit (BF-043, mock shape parity)", async ({ page, gotoPage }) => {
+    await gotoPage("GPU");
+    await expect(page.locator("text=120 / 285 W").first()).toBeVisible({ timeout: 5000 });
+  });
+
   test("shows clock speeds section", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
     await expect(page.locator("text=Clock Speeds").first()).toBeVisible({ timeout: 5000 });
@@ -256,6 +261,11 @@ test.describe("Passwords — Data & Interactions", () => {
 });
 
 test.describe("Hardware — Data Rendering", () => {
+  test("memory totals render in GiB magnitude, not MiB (BF-042)", async ({ page, gotoPage }) => {
+    await gotoPage("Hardware");
+    await expect(page.locator("text=/62\\.\\d GB total/").first()).toBeVisible({ timeout: 5000 });
+  });
+
   test("shows CPU usage bar", async ({ page, gotoPage }) => {
     await gotoPage("Hardware");
     await expect(page.locator("text=CPU Usage").first()).toBeVisible({ timeout: 5000 });

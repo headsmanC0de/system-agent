@@ -168,6 +168,8 @@ code change can perform — it requires the user's external account:
 | BF-039 | `safeStorage.encryptString` throws "Encryption is not available" on Linux when no keyring (kwallet/libsecret) is unlocked — first `secrets:set` would crash | High | `getSafeStorage()` falls back to `setUsePlainTextEncryption(true)` (basic_text backend) when `isEncryptionAvailable()` is false; secrets file stays 0600. Caught by the new LH-073 e2e test. |
 | BF-040 | Logs page with "follow" OFF called `usePolling(refresh, 0)` → `setInterval(fn, 0)` fires every ~4ms → in real Electron a `journalctl` spawn storm (hundreds of processes/sec); also a duplicate initial fetch (own `useEffect` + the hook's immediate tick) | High | `usePolling` now treats `intervalMs <= 0` as "run once, no interval"; the redundant `useEffect` removed from Logs.tsx. |
 | BF-041 | Every `npm run test:e2e` run opened https://example.com in the user's default browser: the S-5 deny-test calls `window.open("https://example.com")` and `setWindowOpenHandler` forwarded ANY http/https URL to `shell.openExternal` before denying | Medium | Host allowlist (LH-085): only branding/provider https hosts reach `openExternal`; example.com is now denied with no side effect. |
+| BF-042 | Hardware page rendered memory in MiB labeled "GB" ("64363.3 GB total" on a 63 GiB machine) — `formatGb` divided bytes by 1024² instead of 1024³; affected REAL Electron too (`free --bytes` returns bytes) | Medium | Divide by 1024³. Regression test: functional "memory totals render in GiB magnitude (BF-042)". **Found by the first qa-audit agent run.** |
+| BF-043 | GPU page showed "120W / 285W W" in browser mode — MOCK baked units into `power`/`powerLimit` while the real `nvidia-smi --nounits` handler returns unitless values; mock shape diverged from real output | Low | MOCK → "120"/"285" (matches real handler shape). Regression test: functional "power renders a single W unit (BF-043)". **Found by qa-audit.** |
 
 ### Blindspot analysis (BF-033)
 
@@ -188,6 +190,13 @@ code change can perform — it requires the user's external account:
 - **Why allowed:** both behaviors are implicit — nothing in the config or API types says "externalization is format-dependent" or "encryptString throws without a keyring". Unit-level reasoning could not catch either; only executing the real production build in a real session could.
 - **Matrix change to prevent recurrence:** the Electron-mode e2e is the standing guard for this class — **any change to `electron.vite.config.ts`, `main.ts` webPreferences, or preload must run `npm run test:e2e` before merge**. This is now enforced automatically: CI (LH-075) runs the e2e on every push/PR, so config-sensitive regressions can no longer land unnoticed.
 - **Wider-impact check performed:** verified the built `preload.cjs` no longer contains the npm launcher (`grep install.js` clean); both sandbox paths re-verified (`LH_GPU_WORKAROUND=0` launch test); secrets round-trip verified against real `safeStorage` in e2e; full browser suite re-run to confirm the mock fallback keeps non-Electron mode intact.
+
+### Blindspot analysis (BF-042/BF-043 — found by the qa-audit agent, 2026-06-12)
+
+- **Blindspot:** existing tests asserted *presence* of values ("Memory" label visible), never their *plausibility* (magnitude, units). A 1024× unit error and a doubled unit string were both green in 153 tests.
+- **Why allowed:** no invariant required mock data to match real command output in shape/units, and no test asserted value magnitudes.
+- **Matrix change:** TESTING.md invariant 6 extended to **shape parity** (mock values must match real output units/format); regression tests now pin magnitudes (BF-042) and unit rendering (BF-043).
+- **Wider-impact check:** BF-042 affects real Electron (bytes in → wrong math); audited the other unit-formatting sites — GPU VRAM (`MiB→GiB` in Gpu.tsx) and Dashboard memory use correct divisors; Disks uses `df -h` pre-formatted strings (no math). The vite host mismatch found during verification (bare `npx vite` binds `[::1]` only) is fixed in TESTING.md §5 / qa-audit instructions (`--host 127.0.0.1`).
 
 ### Blindspot analysis (Activity keep-mounted routing — LH-114, 2026-06-12)
 
@@ -268,7 +277,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 151 browser + 7 Electron e2e (LH-111…115 round: re-verified) + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 153 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -294,7 +303,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (151 browser + 7 Electron e2e (LH-111…115 round: re-verified) — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (153 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|

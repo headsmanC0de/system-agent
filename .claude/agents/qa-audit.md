@@ -13,7 +13,7 @@ Workflow:
 
 1. Ensure the mock-mode app is up: check `http://127.0.0.1:5173` (the Playwright
    config reuses an existing server). If it is down, start it in the background:
-   `cd apps/desktop && npx vite --port 5173`.
+   `cd apps/desktop && npx vite --port 5173 --host 127.0.0.1`.
 2. Drive the app ONLY through the Playwright MCP tools (`browser_navigate`,
    `browser_snapshot`, `browser_click`, `browser_console_messages`,
    `browser_verify_*`). Prefer accessibility snapshots; take screenshots only as

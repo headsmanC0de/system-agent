@@ -238,8 +238,8 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
     util: 12,
     memUsed: "2.1",
     memTotal: "16.0",
-    power: "120W",
-    powerLimit: "285W",
+    power: "120",
+    powerLimit: "285",
     fan: 35,
   }),
   "system:hardware-specs": () => [

@@ -101,7 +101,7 @@ export function HardwarePage() {
   const temps = allReadings.filter((r) => r.type === "temp");
   const fans = allReadings.filter((r) => r.type === "fan");
   const memPct = memRaw ? Math.round((parseInt(memRaw.used, 10) / parseInt(memRaw.total, 10)) * 100) : 0;
-  const formatGb = (v: string) => (parseInt(v, 10) / 1024 / 1024).toFixed(1);
+  const formatGb = (v: string) => (parseInt(v, 10) / 1024 / 1024 / 1024).toFixed(1);
 
   return (
     <div className="space-y-3">
