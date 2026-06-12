@@ -23,5 +23,12 @@
   "devDependencies": {
     "@project/config": "*"
   },
-  "turborepo": { "tags": ["ui"] }
+  "turborepo": {
+    "tags": [
+      "ui"
+    ]
+  },
+  "scripts": {
+    "lint": "biome check src"
+  }
 }

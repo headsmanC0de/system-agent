@@ -90,4 +90,6 @@ Run: `npm run test` (projects `unit`+`browser`) / `npm run test:e2e` (project `e
 
 RULE: any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload MUST be
 verified with `npm run test:e2e` — browser tests cannot see this class of bug (BF-035/038/039).
+RULE: visited pages stay mounted via <Activity mode="hidden"> (LH-114) — tests must NOT assume a
+single page in the DOM; `text=` expect-locators use `.first()` (active page renders first in DOM).
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, build, browser tests, and the e2e on every push/PR.

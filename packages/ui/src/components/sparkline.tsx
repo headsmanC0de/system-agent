@@ -12,11 +12,13 @@ export function Sparkline({ data, color = "var(--primary)", height = 32, width =
   const max = Math.max(...data);
   const range = max - min || 1;
 
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((v - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   const areaPoints = `0,${height} ${points} ${width},${height}`;
 
@@ -29,7 +31,14 @@ export function Sparkline({ data, color = "var(--primary)", height = 32, width =
         </linearGradient>
       </defs>
       <polygon points={areaPoints} fill="url(#sparkline-gradient)" />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

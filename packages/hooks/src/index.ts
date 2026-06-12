@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import type { CpuSample } from "@project/types";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Exponential moving average for smoothing noisy real-time metrics (audit D-2).
 // alpha in (0,1]: higher = more responsive, lower = smoother. prev=null seeds.
@@ -13,26 +13,27 @@ export function ema(prev: number | null, next: number, alpha = 0.3): number {
 // Rejections are captured into `error` instead of becoming unhandled; it clears on
 // the next successful tick so pages can show a "live data unavailable" indicator.
 export function usePolling(callback: () => Promise<void>, intervalMs: number) {
-  const cbRef = useRef(callback);
-  cbRef.current = callback;
   const [error, setError] = useState<Error | null>(null);
+  // useEffectEvent (React 19.2): always sees the latest callback without it
+  // being an effect dependency — the official primitive for this pattern.
+  const tick = useEffectEvent((isActive: () => boolean) => {
+    Promise.resolve()
+      .then(() => callback())
+      .then(
+        () => isActive() && setError(null),
+        (e) => isActive() && setError(e instanceof Error ? e : new Error(String(e))),
+      );
+  });
   useEffect(() => {
     let active = true;
-    const tick = () => {
-      Promise.resolve()
-        .then(() => cbRef.current())
-        .then(
-          () => active && setError(null),
-          (e) => active && setError(e instanceof Error ? e : new Error(String(e))),
-        );
-    };
-    tick();
+    const isActive = () => active;
+    tick(isActive);
     if (intervalMs <= 0) {
       return () => {
         active = false;
       };
     }
-    const id = setInterval(tick, intervalMs);
+    const id = setInterval(() => tick(isActive), intervalMs);
     return () => {
       active = false;
       clearInterval(id);
@@ -42,17 +43,18 @@ export function usePolling(callback: () => Promise<void>, intervalMs: number) {
 }
 
 export function useAsyncData(callback: () => Promise<void>) {
-  const cbRef = useRef(callback);
-  cbRef.current = callback;
   const [error, setError] = useState<Error | null>(null);
+  const run = useEffectEvent((isActive: () => boolean) => {
+    Promise.resolve()
+      .then(() => callback())
+      .then(
+        () => isActive() && setError(null),
+        (e) => isActive() && setError(e instanceof Error ? e : new Error(String(e))),
+      );
+  });
   useEffect(() => {
     let active = true;
-    Promise.resolve()
-      .then(() => cbRef.current())
-      .then(
-        () => active && setError(null),
-        (e) => active && setError(e instanceof Error ? e : new Error(String(e))),
-      );
+    run(() => active);
     return () => {
       active = false;
     };

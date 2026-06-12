@@ -23,7 +23,7 @@ import {
   Wifi,
   Wrench,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Activity, useEffect, useState } from "react";
 import { isElectron } from "./api";
 import BrandLogo from "./components/brand-logo";
 import PoweredByBadge from "./components/powered-by-badge";
@@ -139,7 +139,16 @@ const PAGE_TITLES: Record<PageId, string> = {
 
 export function App() {
   const [page, setPage] = useState<PageId>("dashboard");
+  // Pages visited this session stay mounted inside <Activity mode="hidden">:
+  // their state (search filters, scroll, expanded rows) survives navigation
+  // while React unmounts their effects — polling stops on hidden pages.
+  const [visited, setVisited] = useState<ReadonlySet<PageId>>(new Set<PageId>(["dashboard"]));
   const [collapsed, setCollapsed] = useState(false);
+
+  const navigate = (id: PageId) => {
+    setVisited((v) => (v.has(id) ? v : new Set(v).add(id)));
+    setPage(id);
+  };
   const [time, setTime] = useState(new Date());
   const [mode, setMode] = useState<ThemeMode>(getStoredMode());
 
@@ -157,8 +166,6 @@ export function App() {
     setMode(next);
     applyMode(next);
   };
-
-  const PageComponent = PAGES[page];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -202,7 +209,7 @@ export function App() {
                 {group.items.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setPage(item.id)}
+                    onClick={() => navigate(item.id)}
                     title={collapsed ? item.label : undefined}
                     className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
                       page === item.id
@@ -279,7 +286,19 @@ export function App() {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="p-3 h-full">
-            <PageComponent />
+            {/* Active page first in DOM order: text queries (and assistive tech
+                reading order) resolve to the visible instance, not a hidden one.
+                React preserves instances across reorder via the stable key. */}
+            {[...visited]
+              .sort((a, b) => (a === page ? -1 : b === page ? 1 : 0))
+              .map((id) => {
+                const PageComponent = PAGES[id];
+                return (
+                  <Activity key={id} mode={id === page ? "visible" : "hidden"}>
+                    <PageComponent />
+                  </Activity>
+                );
+              })}
           </div>
         </main>
       </div>

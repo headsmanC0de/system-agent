@@ -3,16 +3,16 @@ import { BASE, expect, test } from "./fixtures";
 test.describe("Dashboard — Data Rendering", () => {
   test("shows hostname and kernel from mock data", async ({ page, gotoPage }) => {
     await gotoPage("Dashboard");
-    await expect(page.locator("text=archlinux")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=6.12.7-arch1-1")).toBeVisible();
-    await expect(page.locator("text=x86_64")).toBeVisible();
-    await expect(page.locator("text=up 3 days, 14:22")).toBeVisible();
+    await expect(page.locator("text=archlinux").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=6.12.7-arch1-1").first()).toBeVisible();
+    await expect(page.locator("text=x86_64").first()).toBeVisible();
+    await expect(page.locator("text=up 3 days, 14:22").first()).toBeVisible();
   });
 
   test("shows CPU info with cores and load", async ({ page, gotoPage }) => {
     await gotoPage("Dashboard");
-    await expect(page.locator("text=16 cores")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=CPU Usage")).toBeVisible();
+    await expect(page.locator("text=16 cores").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=CPU Usage").first()).toBeVisible();
   });
 
   test("shows disk usage from mock data", async ({ page, gotoPage }) => {
@@ -23,12 +23,12 @@ test.describe("Dashboard — Data Rendering", () => {
 
   test("shows top processes table with entries", async ({ page, gotoPage }) => {
     await gotoPage("Dashboard");
-    await expect(page.locator("text=Top Processes")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=firefox")).toBeVisible();
-    await expect(page.locator("text=code")).toBeVisible();
-    await expect(page.locator("text=discord")).toBeVisible();
-    await expect(page.locator("text=spotify")).toBeVisible();
-    await expect(page.locator("text=alacritty")).toBeVisible();
+    await expect(page.locator("text=Top Processes").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=firefox").first()).toBeVisible();
+    await expect(page.locator("text=code").first()).toBeVisible();
+    await expect(page.locator("text=discord").first()).toBeVisible();
+    await expect(page.locator("text=spotify").first()).toBeVisible();
+    await expect(page.locator("text=alacritty").first()).toBeVisible();
   });
 
   test("memory bar renders with percentage", async ({ page, gotoPage }) => {
@@ -38,9 +38,9 @@ test.describe("Dashboard — Data Rendering", () => {
 
   test("shows hardware configuration section", async ({ page, gotoPage }) => {
     await gotoPage("Dashboard");
-    await expect(page.locator("text=Hardware Configuration")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=AMD Ryzen 9 9950X")).toBeVisible();
-    await expect(page.locator("text=Tesseract MoE LLM")).toBeVisible();
+    await expect(page.locator("text=Hardware Configuration").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=AMD Ryzen 9 9950X").first()).toBeVisible();
+    await expect(page.locator("text=Tesseract MoE LLM").first()).toBeVisible();
   });
 });
 
@@ -75,7 +75,7 @@ test.describe("Packages — Data & Interactions", () => {
 
   test("Update All and Remove Orphans buttons present", async ({ page, gotoPage }) => {
     await gotoPage("Packages");
-    await expect(page.locator("text=Update All")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Update All").first()).toBeVisible({ timeout: 5000 });
     const removeBtn = page.locator("button").filter({ hasText: /Remove \d+ Orphans/ });
     await expect(removeBtn).toBeVisible({ timeout: 5000 });
   });
@@ -84,38 +84,38 @@ test.describe("Packages — Data & Interactions", () => {
 test.describe("GPU — Data Rendering", () => {
   test("shows GPU name", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=NVIDIA GeForce RTX 4070 Ti SUPER")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=NVIDIA GeForce RTX 4070 Ti SUPER").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("shows temperature card", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=GPU Temperature")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=45°C")).toBeVisible();
+    await expect(page.locator("text=GPU Temperature").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=45°C").first()).toBeVisible();
   });
 
   test("shows utilization card", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=GPU Utilization")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=12%")).toBeVisible();
+    await expect(page.locator("text=GPU Utilization").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=12%").first()).toBeVisible();
   });
 
   test("shows fan speed card", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=Fan Speed")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=35%")).toBeVisible();
+    await expect(page.locator("text=Fan Speed").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=35%").first()).toBeVisible();
   });
 
   test("shows VRAM and Power bars", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=VRAM")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=VRAM").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=GiB").first()).toBeVisible();
     await expect(page.locator("text=120").first()).toBeVisible();
   });
 
   test("shows clock speeds section", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=Clock Speeds")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=2100")).toBeVisible();
+    await expect(page.locator("text=Clock Speeds").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=2100").first()).toBeVisible();
   });
 });
 
@@ -127,10 +127,10 @@ test.describe("Services — Data & Interactions", () => {
 
   test("shows running services", async ({ page, gotoPage }) => {
     await gotoPage("Services");
-    await expect(page.locator("text=docker.service")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=NetworkManager.service")).toBeVisible();
-    await expect(page.locator("text=sshd.service")).toBeVisible();
-    await expect(page.locator("text=pipewire.service")).toBeVisible();
+    await expect(page.locator("text=docker.service").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=NetworkManager.service").first()).toBeVisible();
+    await expect(page.locator("text=sshd.service").first()).toBeVisible();
+    await expect(page.locator("text=pipewire.service").first()).toBeVisible();
   });
 
   test("action buttons visible for each service", async ({ page, gotoPage }) => {
@@ -149,16 +149,16 @@ test.describe("Services — Data & Interactions", () => {
 
   test("tab navigation works", async ({ page, gotoPage }) => {
     await gotoPage("Services");
-    await expect(page.locator("text=All (")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Running (")).toBeVisible();
-    await expect(page.locator("text=Failed (")).toBeVisible();
+    await expect(page.locator("text=All (").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Running (").first()).toBeVisible();
+    await expect(page.locator("text=Failed (").first()).toBeVisible();
   });
 });
 
 test.describe("Snapshots — Data & Interactions", () => {
   test("shows snapshot table with data", async ({ page, gotoPage }) => {
     await gotoPage("Snapshots");
-    await expect(page.locator("text=Pre-system upgrade snapshot")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Pre-system upgrade snapshot").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=single").first()).toBeVisible();
   });
 
@@ -180,21 +180,21 @@ test.describe("Snapshots — Data & Interactions", () => {
 test.describe("Disks — Data Rendering", () => {
   test("shows disk entries with usage bars", async ({ page, gotoPage }) => {
     await gotoPage("Disks");
-    await expect(page.locator("text=nvme0n1p2")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=nvme0n1p2").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("shows second disk", async ({ page, gotoPage }) => {
     await gotoPage("Disks");
-    await expect(page.locator("text=sda1")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=sda1").first()).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe("Network — Data Rendering", () => {
   test("shows stat cards", async ({ page, gotoPage }) => {
     await gotoPage("Network");
-    await expect(page.locator("text=Total Connections")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Listening")).toBeVisible();
-    await expect(page.locator("text=Established")).toBeVisible();
+    await expect(page.locator("text=Total Connections").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Listening").first()).toBeVisible();
+    await expect(page.locator("text=Established").first()).toBeVisible();
   });
 
   test("shows connections table with data", async ({ page, gotoPage }) => {
@@ -207,17 +207,17 @@ test.describe("Network — Data Rendering", () => {
 test.describe("Battery & Bluetooth — Data Rendering", () => {
   test("shows stat cards", async ({ page, gotoPage }) => {
     await gotoPage("Battery & BT");
-    await expect(page.locator("text=Monitored")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Connected BT")).toBeVisible();
-    await expect(page.locator("text=Paired BT")).toBeVisible();
-    await expect(page.locator("text=Low Battery")).toBeVisible();
+    await expect(page.locator("text=Monitored").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Connected BT").first()).toBeVisible();
+    await expect(page.locator("text=Paired BT").first()).toBeVisible();
+    await expect(page.locator("text=Low Battery").first()).toBeVisible();
   });
 
   test("shows power devices", async ({ page, gotoPage }) => {
     await gotoPage("Battery & BT");
-    await expect(page.locator("text=Power Devices")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Logitech PRO X 2")).toBeVisible();
-    await expect(page.locator("text=91%")).toBeVisible();
+    await expect(page.locator("text=Power Devices").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Logitech PRO X 2").first()).toBeVisible();
+    await expect(page.locator("text=91%").first()).toBeVisible();
   });
 
   test("shows Bluetooth tab with devices", async ({ page, gotoPage }) => {
@@ -245,7 +245,7 @@ test.describe("Passwords — Data & Interactions", () => {
   test("Add and Refresh buttons visible", async ({ page, gotoPage }) => {
     await gotoPage("Passwords");
     await expect(page.locator("text=Add").first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Refresh")).toBeVisible();
+    await expect(page.locator("text=Refresh").first()).toBeVisible();
   });
 
   test("click entry shows detail panel", async ({ page, gotoPage }) => {
@@ -258,7 +258,7 @@ test.describe("Passwords — Data & Interactions", () => {
 test.describe("Hardware — Data Rendering", () => {
   test("shows CPU usage bar", async ({ page, gotoPage }) => {
     await gotoPage("Hardware");
-    await expect(page.locator("text=CPU Usage")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=CPU Usage").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("shows sensors output", async ({ page, gotoPage }) => {
@@ -298,8 +298,8 @@ test.describe("RGB — Data Rendering", () => {
 
   test("has All White and All Off buttons", async ({ page, gotoPage }) => {
     await gotoPage("RGB");
-    await expect(page.locator("text=All White")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=All Off")).toBeVisible();
+    await expect(page.locator("text=All White").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=All Off").first()).toBeVisible();
   });
 });
 
@@ -368,7 +368,7 @@ test.describe("LLM (Tesseract MoE) — Data & Interactions", () => {
     await expect(page.locator("main").getByText("Tesseract MoE LLM").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Mixture of Experts").first()).toBeVisible();
     await expect(page.locator("text=47B").first()).toBeVisible();
-    await expect(page.locator("text=Q4_K_M")).toBeVisible();
+    await expect(page.locator("text=Q4_K_M").first()).toBeVisible();
   });
 
   test("shows Start and Stop buttons", async ({ page, gotoPage }) => {
@@ -380,15 +380,15 @@ test.describe("LLM (Tesseract MoE) — Data & Interactions", () => {
   test("shows inference status when running", async ({ page, gotoPage }) => {
     await gotoPage("Tesseract MoE");
     await expect(page.locator("text=Running").first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=VRAM Usage")).toBeVisible();
-    await expect(page.locator("text=Throughput")).toBeVisible();
+    await expect(page.locator("text=VRAM Usage").first()).toBeVisible();
+    await expect(page.locator("text=Throughput").first()).toBeVisible();
   });
 
   test("shows stat cards for inference metrics", async ({ page, gotoPage }) => {
     await gotoPage("Tesseract MoE");
-    await expect(page.locator("text=Avg Latency")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Requests/min")).toBeVisible();
-    await expect(page.locator("text=Uptime")).toBeVisible();
+    await expect(page.locator("text=Avg Latency").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Requests/min").first()).toBeVisible();
+    await expect(page.locator("text=Uptime").first()).toBeVisible();
   });
 
   test("config toggle button visible", async ({ page, gotoPage }) => {
@@ -407,9 +407,9 @@ test.describe("Docs — Data & Interactions", () => {
 
   test("shows document list with entries", async ({ page, gotoPage }) => {
     await gotoPage("Docs");
-    await expect(page.locator("text=GPU Crash Workaround")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Package Update Guide")).toBeVisible();
-    await expect(page.locator("text=WiFi Setup")).toBeVisible();
+    await expect(page.locator("text=GPU Crash Workaround").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Package Update Guide").first()).toBeVisible();
+    await expect(page.locator("text=WiFi Setup").first()).toBeVisible();
   });
 
   test("shows category sidebar", async ({ page, gotoPage }) => {
@@ -419,13 +419,13 @@ test.describe("Docs — Data & Interactions", () => {
 
   test("New Doc button visible", async ({ page, gotoPage }) => {
     await gotoPage("Docs");
-    await expect(page.locator("text=New Doc")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=New Doc").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("clicking doc shows content", async ({ page, gotoPage }) => {
     await gotoPage("Docs");
     await page.locator("text=GPU Crash Workaround").first().click();
-    await expect(page.locator("text=software rendering")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=software rendering").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("search input works", async ({ page, gotoPage }) => {
@@ -466,7 +466,7 @@ test.describe("Settings — Interactions", () => {
     await gotoPage("Settings");
     const aboutBtn = page.locator('button:has-text("About")');
     await aboutBtn.click();
-    await expect(page.locator("text=0.1.0")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=0.1.0").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Private").first()).toBeVisible();
   });
 
@@ -501,9 +501,9 @@ test.describe("Edge Cases & Error Handling", () => {
 
   test("sidebar collapse preserves page content", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=NVIDIA")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=NVIDIA").first()).toBeVisible({ timeout: 5000 });
     await page.locator("button >> svg").first().click();
-    await expect(page.locator("text=NVIDIA")).toBeVisible();
+    await expect(page.locator("text=NVIDIA").first()).toBeVisible();
   });
 
   test("search with no results shows empty state", async ({ page, gotoPage }) => {

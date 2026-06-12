@@ -133,7 +133,7 @@ test.describe("Page-specific UI checks", () => {
     await expect(page.locator("header")).toContainText("Docs");
     await expect(page.locator("text=Total Docs").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Categories").first()).toBeVisible();
-    await expect(page.locator("text=New Doc")).toBeVisible();
+    await expect(page.locator("text=New Doc").first()).toBeVisible();
   });
 
   test("Packages page has search", async ({ page, gotoPage }) => {
@@ -149,7 +149,7 @@ test.describe("No console errors on load", () => {
     page.on("pageerror", (err) => errors.push(err.message));
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
     await expect(page.locator("main")).toBeVisible();
-    await expect(page.locator("text=archlinux")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("text=archlinux").first()).toBeVisible({ timeout: 10000 });
     const critical = errors.filter((e) => !e.includes("electronAPI") && !e.includes("invoke"));
     expect(critical).toHaveLength(0);
   });

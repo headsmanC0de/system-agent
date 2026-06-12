@@ -15,11 +15,11 @@ test.describe("Projects page", () => {
   test("shows production readiness tab", async ({ page, gotoPage }) => {
     await gotoPage("Projects");
     await expect(page.locator("text=Project").first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Production Readiness")).toBeVisible();
-    await expect(page.locator("text=Overall Readiness")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=CI/CD Pipeline")).toBeVisible();
-    await expect(page.locator("text=Code Quality")).toBeVisible();
-    await expect(page.locator("text=Security")).toBeVisible();
+    await expect(page.locator("text=Production Readiness").first()).toBeVisible();
+    await expect(page.locator("text=Overall Readiness").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=CI/CD Pipeline").first()).toBeVisible();
+    await expect(page.locator("text=Code Quality").first()).toBeVisible();
+    await expect(page.locator("text=Security").first()).toBeVisible();
     await expect(page.locator("span", { hasText: "Dependencies" }).first()).toBeVisible();
   });
 

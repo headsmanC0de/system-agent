@@ -11,5 +11,12 @@
   "devDependencies": {
     "@project/config": "*"
   },
-  "turborepo": { "tags": ["types"] }
+  "turborepo": {
+    "tags": [
+      "types"
+    ]
+  },
+  "scripts": {
+    "lint": "biome check src"
+  }
 }

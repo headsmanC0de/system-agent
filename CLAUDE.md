@@ -32,7 +32,7 @@ Inside `apps/desktop/` (the common case):
 - `npm run build` — electron-vite build. Outputs `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed renderer can load it — do not switch back to ESM), `out/renderer/`.
 - `npm run preview` — run the production build.
 - `npm run typecheck` — `tsc --noEmit`.
-- `npm run lint` / `npm run lint:fix` / `npm run format` — **Biome** (config `apps/desktop/biome.json`), scoped to specific paths in the script. The renderer uses Biome; the rest of the repo uses Prettier+ESLint config from the turbo starter.
+- `npm run lint` / `npm run lint:fix` / `npm run format` — **Biome monorepo** (root `biome.json` is the SSOT; package configs are `{"root": false, "extends": "//"}`). All workspaces lint via `turbo run lint`; prettier only formats markdown.
 - `npm run test` — Playwright (browser mode); `npm run test:e2e` — real-Electron e2e (builds first). **Any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload must be verified with `test:e2e`** — this class of bug (BF-035/038/039) is invisible to browser tests. CI (`.github/workflows/ci.yml`) runs both suites on push/PR.
 
 ### Tests

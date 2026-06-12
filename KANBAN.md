@@ -108,6 +108,9 @@
 | LH-087 | electron-vite 5: deprecated `externalizeDepsPlugin()` removed (externalization is the default via `build.externalizeDeps`); explicit `external: ["electron"]` for the CJS preload kept (BF-038 guard). Deprecation warnings gone. | **Done** |
 | LH-111 | **Playwright modernization**: all 45 `waitForTimeout` swept (0 remain) → web-first assertions / `expect.poll`; shared fixtures (`tests/fixtures.ts`: `gotoPage`, `seedStorage`) replace 4 per-spec `navigateTo` copies (DRY); config split into projects `unit` / `browser` / `e2e`. **Browser suite: 1.7 min → ~20 s.** | **Done** |
 | LH-112 | **safeStorage honesty**: `secrets:backend` IPC reports `getSelectedStorageBackend()`; Settings shows a keyring warning when `basic_text` (key only obfuscated); handlers migrated to `encryptStringAsync`/`decryptStringAsync` with `shouldReEncrypt` key-rotation handling. Covered by functional + e2e tests. | **Done** |
+| LH-113 | **Biome 2 monorepo**: root `biome.json` (SSOT rules, css excluded — TW4 syntax), `apps/desktop/biome.json` → `{"root": false, "extends": "//"}`; lint scripts in all packages; turbo lint covers 4 workspaces; prettier scoped to markdown only; fixed a real a11y finding it surfaced (Separator aria-orientation on role="none"). | **Done** |
+| LH-114 | **React 19.2 modernization (scoped)**: hooks rewritten on `useEffectEvent` (official primitive replaces the ref dance); page routing wrapped in `<Activity>` — visited pages stay mounted hidden (filters/scroll/state survive navigation, effects/polling stop). React Compiler + useSyncExternalStore deliberately deferred (LH-117): compiler needs `@rolldown/plugin-babel` on an electron-vite/Vite-8 combo that upstream doesn’t list as supported yet — regression risk > benefit for a local desktop app. | **Done** |
+| LH-115 | **TS 6 hardening**: `"strict": true` was silently MISSING from the desktop tsconfigs (CLAUDE.md claimed otherwise) — enabled with **0 resulting errors**; stale `@workspace/ui` path mapping removed; `erasableSyntaxOnly`/`bundler`/explicit `types` confirmed already present in `@project/config`. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -185,6 +188,13 @@ code change can perform — it requires the user's external account:
 - **Matrix change to prevent recurrence:** the Electron-mode e2e is the standing guard for this class — **any change to `electron.vite.config.ts`, `main.ts` webPreferences, or preload must run `npm run test:e2e` before merge**. This is now enforced automatically: CI (LH-075) runs the e2e on every push/PR, so config-sensitive regressions can no longer land unnoticed.
 - **Wider-impact check performed:** verified the built `preload.cjs` no longer contains the npm launcher (`grep install.js` clean); both sandbox paths re-verified (`LH_GPU_WORKAROUND=0` launch test); secrets round-trip verified against real `safeStorage` in e2e; full browser suite re-run to confirm the mock fallback keeps non-Electron mode intact.
 
+### Blindspot analysis (Activity keep-mounted routing — LH-114, 2026-06-12)
+
+- **Blindspot:** page-global `text=` locators in the test suite assumed exactly one page exists in the DOM. `<Activity mode="hidden">` keeps visited pages mounted, so `.first()` could resolve to a hidden duplicate, and randomized mock numbers on the frozen hidden Dashboard collided with static values on other pages (flaky strict-mode violations).
+- **Why allowed:** the single-page-in-DOM invariant was implicit — never written down, so nothing flagged tests that depended on it.
+- **Fix + matrix change:** the app renders the ACTIVE page first in DOM order (also better for assistive-tech reading order), and all `text=` expect-locators use `.first()` → "first match" now always means "the visible instance". New invariant documented in AGENTS.md: tests must not assume only one page is mounted.
+- **Wider-impact check:** full suite run twice back-to-back (151 + 139 green) to flush flaky collisions; e2e 7/7 confirms production launch, nav and IPC unaffected.
+
 ### Blindspot analysis (BF-040 — found during LH-080, 2026-06-12)
 
 - **Blindspot:** `usePolling`'s contract for `intervalMs = 0` was never defined. Logs.tsx used `0` to mean "don't poll", the hook passed it straight to `setInterval`, which means "as fast as possible" (~4ms). Browser tests were green because the mock `system:logs` is a cheap synchronous function — the cost (a `journalctl` process storm) only exists in real Electron.
@@ -208,10 +218,8 @@ code change can perform — it requires the user's external account:
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
 | LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
 | LH-109 | Export system report (JSON/HTML) | P1 | Pending |
-| LH-113 | Biome 2 monorepo: root `biome.json`, nested `"extends": "//"` in packages, retire the Prettier/ESLint split; `biome ci` in turbo lint | P2 | Pending |
-| LH-114 | React 19.2 modernization: `useEffectEvent` in usePolling, `<Activity>` for page routing (state survives nav), `useSyncExternalStore` for the chat stream; then React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset` (babel BEFORE react plugin) | P2 | Pending |
-| LH-115 | TS 6 config hardening in `@project/config`: `erasableSyntaxOnly`, `moduleResolution: "bundler"`, explicit `types`, drop `baseUrl` — free TS 7 migration | P2 | Pending |
-| LH-116 | Packaged-build hardening: Electron fuses (`runAsNode=off`, ASAR integrity) via electron-builder 26; consider custom `protocol.handle` scheme instead of `file://` (checklist #18–19) | P2 | Pending |
+| LH-117 | React Compiler (`@rolldown/plugin-babel` + `reactCompilerPreset`, babel BEFORE react plugin) + `useSyncExternalStore` for the chat stream — adopt once electron-vite officially supports Vite 8 | P2 | Pending |
+| LH-116 | Packaged-build hardening: Electron fuses (`runAsNode=off`, ASAR integrity) + custom `protocol.handle` instead of `file://` (checklist #18–19). **Blocked by**: no electron-builder config exists yet — fold into LH-122 (deploy configs) when packaging lands. | P2 | Blocked (needs LH-122) |
 
 
 ## Backlog — P2 (Platform Maturity)
@@ -259,7 +267,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 151 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 151 browser + 7 Electron e2e (LH-111…115 round: re-verified) + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -285,7 +293,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (151 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (151 browser + 7 Electron e2e (LH-111…115 round: re-verified) — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|
