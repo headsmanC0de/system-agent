@@ -696,6 +696,23 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
   "llm:stop": () => "Stopping Tesseract MoE inference server...",
   "llm:save-config": () => "Configuration saved",
   "system:battery-watch": () => undefined,
+  "system:snapshot-diff": (from, to) =>
+    [
+      `+..... /etc/pacman.conf`,
+      `c..... /etc/mkinitcpio.conf`,
+      `-..... /var/cache/old-package.tar`,
+      `c..... /usr/lib/modules/6.12.7-arch1-1/vmlinuz`,
+      `(mock diff of snapshots ${from}..${to})`,
+    ].join("\n"),
+  "system:save-report": (_content, suggestedName) => {
+    const blob = new Blob([String(_content)], { type: "application/octet-stream" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = String(suggestedName);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    return `downloaded: ${suggestedName}`;
+  },
   "secrets:backend": () => "basic_text",
   "secrets:get": (name) => localStorage.getItem(`lh-secret-${name}`) ?? "",
   "secrets:set": (name, value) => {
@@ -719,6 +736,8 @@ export const system = {
   cpuUsage: () => invoke<import("./types").CpuSample>("system:cpu-usage"),
   topProcesses: () => invoke<import("./types").ProcessInfo[]>("system:top-processes"),
   killProcess: (pid: number) => invoke<string>("system:kill-process", pid),
+  snapshotDiff: (from: string, to: string) => invoke<string>("system:snapshot-diff", from, to),
+  saveReport: (content: string, suggestedName: string) => invoke<string>("system:save-report", content, suggestedName),
   packages: () => invoke<import("./types").PackageInfo[]>("system:packages"),
   outdated: () => invoke<import("./types").OutdatedPackage[]>("system:outdated"),
   packageInfo: (name: string) => invoke<string>("system:package-info", name),

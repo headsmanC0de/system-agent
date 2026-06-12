@@ -42,6 +42,15 @@ test.describe("Dashboard — Data Rendering", () => {
     await expect(page.locator("text=AMD Ryzen 9 9950X").first()).toBeVisible();
     await expect(page.locator("text=Tesseract MoE LLM").first()).toBeVisible();
   });
+
+  test("export report downloads JSON in mock mode (LH-109)", async ({ page, gotoPage }) => {
+    await gotoPage("Dashboard");
+    const download = page.waitForEvent("download");
+    await page.locator('button:has-text("Export JSON")').click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/^system-report-.*\.json$/);
+    await expect(page.locator("text=Report saved").first()).toBeVisible();
+  });
 });
 
 test.describe("Packages — Data & Interactions", () => {
@@ -78,6 +87,27 @@ test.describe("Packages — Data & Interactions", () => {
     await expect(page.locator("text=Update All").first()).toBeVisible({ timeout: 5000 });
     const removeBtn = page.locator("button").filter({ hasText: /Remove \d+ Orphans/ });
     await expect(removeBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test("package row opens detail modal (LH-103)", async ({ page, gotoPage }) => {
+    await gotoPage("Packages");
+    const row = page.locator(".cursor-pointer").filter({ hasText: "firefox" }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    await row.click();
+    const dialog = page.getByRole("dialog").first();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator("text=Standalone web browser").first()).toBeVisible();
+    await dialog.getByLabel("Close").click();
+    await expect(dialog).toBeHidden();
+  });
+
+  test("search is debounced but still filters (LH-103)", async ({ page, gotoPage }) => {
+    await gotoPage("Packages");
+    const dockerRow = page.locator(".cursor-pointer").filter({ hasText: "docker" }).first();
+    await expect(dockerRow).toBeVisible({ timeout: 5000 });
+    await page.locator('input[placeholder*="Search"]').fill("fire");
+    await expect(page.locator(".cursor-pointer").filter({ hasText: "firefox" }).first()).toBeVisible();
+    await expect(dockerRow).toBeHidden();
   });
 });
 
@@ -179,6 +209,13 @@ test.describe("Snapshots — Data & Interactions", () => {
     const deletes = page.locator("text=Delete");
     await expect.poll(() => rollbacks.count()).toBeGreaterThanOrEqual(2);
     await expect.poll(() => deletes.count()).toBeGreaterThanOrEqual(2);
+  });
+
+  test("snapshot diff button shows changes (LH-108)", async ({ page, gotoPage }) => {
+    await gotoPage("Snapshots");
+    await page.locator("text=Diff").first().click();
+    await expect(page.getByText("/etc/pacman.conf").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=/Diff \\d+\\.\\.\\d+:/").first()).toBeVisible();
   });
 });
 

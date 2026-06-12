@@ -1,6 +1,17 @@
 import type { CpuSample } from "@project/types";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+// Debounce a fast-changing value (e.g. search input) — re-renders with the
+// settled value after `delayMs` of silence.
+export function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 // Exponential moving average for smoothing noisy real-time metrics (audit D-2).
 // alpha in (0,1]: higher = more responsive, lower = smoother. prev=null seeds.
 export function ema(prev: number | null, next: number, alpha = 0.3): number {

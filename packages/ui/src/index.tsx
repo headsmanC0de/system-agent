@@ -2,6 +2,7 @@ export { Bar } from "./components/bar";
 export { Output } from "./components/output";
 export { PageHeader } from "./components/page-header";
 export { SearchInput } from "./components/search-input";
+export { Modal } from "./components/modal"
 export { Sparkline } from "./components/sparkline";
 export { StaleDataNotice } from "./components/stale-data-notice";
 export { StatCard } from "./components/stat-card";

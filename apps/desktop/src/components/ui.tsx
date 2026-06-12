@@ -3,6 +3,7 @@ export {
   Bar,
   Button,
   Card,
+  Modal,
   Output,
   PageHeader,
   SearchInput,

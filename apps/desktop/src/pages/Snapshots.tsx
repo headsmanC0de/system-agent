@@ -1,4 +1,4 @@
-import { Camera, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Camera, GitCompare, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
 import { Badge, Card, Output, SearchInput, StatCard } from "../components/ui";
@@ -70,6 +70,22 @@ export function SnapshotsPage() {
       const res = await system.deleteSnapshot(num);
       setOutput(res);
       refresh();
+    } catch (err) {
+      setOutput(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const diff = async (num: string) => {
+    const cur = Number(num);
+    const prev = filtered
+      .map((s) => Number(s.number))
+      .filter((n) => !Number.isNaN(n) && n < cur)
+      .sort((a, b) => a - b)
+      .pop();
+    const from = prev !== undefined ? String(prev) : num;
+    try {
+      const res = await system.snapshotDiff(from, num);
+      setOutput(`Diff ${from}..${num}:\n${res}`);
     } catch (err) {
       setOutput(err instanceof Error ? err.message : String(err));
     }
@@ -153,6 +169,10 @@ export function SnapshotsPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => diff(s.number)} className="btn-ghost text-xs flex items-center gap-1">
+                <GitCompare size={12} />
+                Diff
+              </button>
               <button onClick={() => rollback(s.number)} className="btn-ghost text-xs flex items-center gap-1">
                 <RotateCcw size={12} />
                 Rollback

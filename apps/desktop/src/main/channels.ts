@@ -61,6 +61,8 @@ export const IPC_CHANNELS = [
   "system:rgb-devices",
   "system:rgb-set",
   "system:rollback-snapshot",
+  "system:save-report",
+  "system:snapshot-diff",
   "system:sensors",
   "system:service-action",
   "system:services",

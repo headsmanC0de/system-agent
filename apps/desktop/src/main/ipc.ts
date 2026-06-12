@@ -469,6 +469,27 @@ export function initIpc() {
     return authCmd(["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
   });
 
+  // Read-only diff between two snapshots — same unprivileged snapperd path as
+  // listing (LH-110); degrades to a readable message without ALLOW_USERS.
+  handle("system:snapshot-diff", async (_e, from: string, to: string) => {
+    if (!/^\d+$/.test(String(from)) || !/^\d+$/.test(String(to))) throw new Error("Invalid snapshot number");
+    return cmd("snapper", ["status", `${from}..${to}`]).catch(
+      () => "snapper status unavailable — add your user to ALLOW_USERS in the snapper config",
+    );
+  });
+
+  handle("system:save-report", async (_e, content: string, suggestedName: string) => {
+    const { dialog } = await import("electron");
+    const safeName = String(suggestedName).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      defaultPath: join(app.getPath("documents"), safeName),
+    });
+    if (canceled || !filePath) return "canceled";
+    const fs = await import("node:fs/promises");
+    await fs.writeFile(filePath, content, "utf8");
+    return filePath;
+  });
+
   handle("system:health", async () => {
     const [hostname, kernel, arch, uptime] = await Promise.all([
       os.hostname(),

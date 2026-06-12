@@ -1,1 +1,1 @@
-export { ema, useAsyncData, useCpuHistory, useCpuUsage, usePolling } from "@project/hooks";
+export { ema, useAsyncData, useCpuHistory, useCpuUsage, useDebounced, usePolling } from "@project/hooks";

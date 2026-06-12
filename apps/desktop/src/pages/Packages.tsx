@@ -1,8 +1,8 @@
 import { Package } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { system } from "../api";
-import { Card, Output, SearchInput, StatCard } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
+import { Card, Modal, Output, SearchInput, StatCard } from "../components/ui";
+import { useAsyncData, useDebounced } from "../lib/hooks";
 import type { OutdatedPackage, PackageInfo } from "../types";
 
 export function PackagesPage() {
@@ -14,6 +14,8 @@ export function PackagesPage() {
   const [output, setOutput] = useState("");
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [packageDetail, setPackageDetail] = useState<string | null>(null);
+  const detailRequestRef = useRef<string | null>(null);
+  const debouncedSearch = useDebounced(search, 200);
 
   const refresh = async () => {
     const [p, o, or] = await Promise.all([system.packages(), system.outdated(), system.orphans()]);
@@ -24,23 +26,27 @@ export function PackagesPage() {
 
   useAsyncData(refresh);
 
-  const filtered = search ? pkgs.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())) : pkgs;
+  const filtered = debouncedSearch
+    ? pkgs.filter((p) => p.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
+    : pkgs;
+
+  const closeDetail = () => {
+    detailRequestRef.current = null;
+    setSelectedPackage(null);
+    setPackageDetail(null);
+  };
 
   const handlePackageClick = async (name: string) => {
-    if (selectedPackage === name) {
-      setSelectedPackage(null);
-      setPackageDetail(null);
-      return;
-    }
+    detailRequestRef.current = name;
     setSelectedPackage(name);
-    setLoading(true);
+    setPackageDetail(null);
+    let detail: string;
     try {
-      const detail = await system.packageInfo(name);
-      setPackageDetail(detail);
+      detail = await system.packageInfo(name);
     } catch (err) {
-      setOutput(err instanceof Error ? err.message : String(err));
+      detail = err instanceof Error ? err.message : String(err);
     }
-    setLoading(false);
+    if (detailRequestRef.current === name) setPackageDetail(detail);
   };
 
   const run = async (fn: () => Promise<string>, label: string) => {
@@ -114,13 +120,12 @@ export function PackagesPage() {
             </div>
           )}
           {filtered.slice(0, 100).map((p) => (
-            <div key={p.name} className="flex items-center justify-between px-4 py-1.5 text-sm hover:bg-muted/50">
-              <span
-                className={`font-medium cursor-pointer ${selectedPackage === p.name ? "text-primary" : ""}`}
-                onClick={() => handlePackageClick(p.name)}
-              >
-                {p.name}
-              </span>
+            <div
+              key={p.name}
+              className="flex cursor-pointer items-center justify-between px-4 py-1.5 text-sm hover:bg-muted/50"
+              onClick={() => handlePackageClick(p.name)}
+            >
+              <span className={`font-medium ${selectedPackage === p.name ? "text-primary" : ""}`}>{p.name}</span>
               <span className="font-mono text-xs text-muted-foreground">{p.version}</span>
             </div>
           ))}
@@ -134,12 +139,13 @@ export function PackagesPage() {
 
       {output && <Output>{output}</Output>}
 
-      {selectedPackage && (
-        <Card>
-          <div className="border-b border-border/50 px-4 py-2 text-sm font-medium text-primary">{selectedPackage}</div>
-          <Output>{packageDetail ?? "Loading..."}</Output>
-        </Card>
-      )}
+      <Modal open={selectedPackage !== null} onClose={closeDetail} title={selectedPackage ?? ""}>
+        {packageDetail === null ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <Output className="whitespace-pre-wrap">{packageDetail}</Output>
+        )}
+      </Modal>
     </div>
   );
 }

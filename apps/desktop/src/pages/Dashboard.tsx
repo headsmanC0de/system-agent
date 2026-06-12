@@ -185,6 +185,35 @@ export function DashboardPage() {
     refresh();
   };
 
+  const [exportStatus, setExportStatus] = useState("");
+
+  const exportReport = async (format: "json" | "html") => {
+    try {
+      const [ov, memory, disks, gpu, services] = await Promise.all([
+        system.overview(),
+        system.memory(),
+        system.disk(),
+        system.gpu().catch(() => null),
+        system.services().catch(() => []),
+      ]);
+      const generatedAt = new Date().toISOString();
+      const report = { generatedAt, overview: ov, memory, disks, gpu, services };
+      const stamp = generatedAt.slice(0, 19).replace(/[:T]/g, "-");
+      let content: string;
+      if (format === "json") {
+        content = JSON.stringify(report, null, 2);
+      } else {
+        const section = (title: string, body: unknown) =>
+          `<h2>${title}</h2><pre>${JSON.stringify(body, null, 2).replace(/</g, "&lt;")}</pre>`;
+        content = `<!doctype html><html><head><meta charset="utf-8"><title>System Report ${generatedAt}</title><style>body{font:14px monospace;margin:2rem;background:#0b0b0d;color:#e4e4e7}pre{background:#18181b;padding:1rem;border-radius:8px;overflow:auto}</style></head><body><h1>System Report</h1><p>${generatedAt}</p>${section("Overview", ov)}${section("Memory", memory)}${section("Disks", disks)}${section("GPU", gpu)}${section("Services", services)}</body></html>`;
+      }
+      const result = await system.saveReport(content, `system-report-${stamp}.${format}`);
+      setExportStatus(result === "canceled" ? "" : `Report saved: ${result}`);
+    } catch (e) {
+      setExportStatus(`Export failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
   if (!overview) return <div className="text-muted-foreground">Loading...</div>;
 
   const cpuPercent = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1] : 0;
@@ -192,6 +221,15 @@ export function DashboardPage() {
   return (
     <div className="space-y-3">
       <StaleDataNotice error={pollError} />
+      <div className="flex items-center justify-end gap-2">
+        {exportStatus && <span className="text-xs text-muted-foreground">{exportStatus}</span>}
+        <button onClick={() => exportReport("json")} className="btn-ghost text-xs">
+          Export JSON
+        </button>
+        <button onClick={() => exportReport("html")} className="btn-ghost text-xs">
+          Export HTML
+        </button>
+      </div>
       <div className="grid grid-cols-4 gap-4">
         <OverviewCard label="Hostname" value={overview.hostname} sub={overview.arch} icon={<Server size={12} />} />
         <OverviewCard

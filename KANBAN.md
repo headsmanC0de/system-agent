@@ -116,6 +116,9 @@
 | LH-120a | **Linux packaging (LH-122 partial)**: `electron-builder.yml` — AppImage + pacman targets, asar, pinned electronVersion, `linux-agent-${version}` artifacts. Built & smoke-verified: packaged AppImage launches, renderer alive over CDP, loads from asar via file:// (CSP meta path). `npm run package`. | **Done** |
 | LH-116 | **Electron fuses flipped in packaged builds** (native `electronFuses` in electron-builder 26): RunAsNode/NodeOptions/NodeCliInspect **Disabled**, OnlyLoadAppFromAsar **Enabled** — verified by reading fuses from the built binary (`@electron/fuses read`). e2e unaffected (runs unpacked `out/`). Custom `protocol.handle` instead of file:// remains optional follow-up. | **Done** |
 | LH-121a | Branding: company site `https://moonrock.software` — ORG_URL/ORG_DOMAIN updated in branding SSOT; homepage in both package.json; openExternal allowlist and PoweredByBadge derive automatically. | **Done** |
+| LH-103 | **Package detail + debounced search**: 200ms `useDebounced` (new shared hook in @project/hooks); row click → shared `Modal` (new @project/ui component) with `system:package-info`; stale-response guard. 2 browser tests. | **Done** |
+| LH-108 | **Snapshot diff viewer**: per-row Diff button → `system:snapshot-diff` (`snapper status from..to`, unprivileged snapperd path, digit-validated, honest degrade); renders in the page Output. Browser test on mock diff. | **Done** |
+| LH-109 | **Export system report (JSON/HTML)**: Dashboard buttons gather overview/memory/disks/gpu/services → `system:save-report` (save dialog + fs write in main; mock = browser Blob download). Test asserts a real download event + filename. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -225,13 +228,12 @@ code change can perform — it requires the user's external account:
 |---|---|---|---|
 | LH-101 | Zig shared library (syscalls: sysinfo, /proc, statvfs, NVML) — Zig 0.16 migration | P1 | Pending |
 | LH-102 | Zig .so → Electron native addon (node-addon-api or ffi-napi) | P1 | Pending |
-| LH-103 | Package search with debounce + package detail modal | P1 | Pending |
-| LH-104 | GPU fan control slider, power limit adjustment | P1 | Pending |
+| LH-104a | **Fan curves — editor UI** (user request 2026-06-12): interactive temp→duty curve editor (draggable points, presets Silent/Balanced/Performance), persisted in localStorage, live preview against current temp | P1 | Pending |
+| LH-104b | **Fan curves — hwmon backend**: enumerate `/sys/class/hwmon` (pwmN ↔ temp pairing), apply-loop in main (read temp → interpolate curve → write pwm), writability detection + honest setup hint (udev rule), kill-switch restoring `pwm_enable` auto | P1 | Pending |
+| LH-104c | GPU (NVIDIA) duty control: needs Coolbits + X11 `nvidia-settings` (no Wayland path) — fan % stays read-only via nvidia-smi until an NVML write path; documented limitation | P2 | Pending |
 | LH-105 | BT Device Popup: volume, audio profile, PipeWire EQ presets, media controls (on device card click) | P1 | Pending |
 | LH-106 | Projects: real IPC (read package.json, npm outdated, cargo outdated) | P1 | Pending |
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
-| LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
-| LH-109 | Export system report (JSON/HTML) | P1 | Pending |
 | LH-117 | React Compiler (`@rolldown/plugin-babel` + `reactCompilerPreset`, babel BEFORE react plugin) + `useSyncExternalStore` for the chat stream — adopt once electron-vite officially supports Vite 8 | P2 | Pending |
 
 
@@ -280,7 +282,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 153 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 157 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -306,7 +308,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (153 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (157 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|
