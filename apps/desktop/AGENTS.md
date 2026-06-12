@@ -72,12 +72,12 @@ Output: `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed rend
 
 ## Known Issues
 - NVIDIA + Wayland GPU crash — workaround scoped via `needsGpuSandboxWorkaround()` (software rendering + `--no-sandbox` only on that combo; `LH_GPU_WORKAROUND=1|0` override)
-- sudo pipes password via stdin — needs polkit later
+- Privilege escalation: pkexec (polkit GUI prompt) for snapper mutations; snapshot listing needs ALLOW_USERS in snapper config
 - Zig native library (src/native/) pending Zig 0.16 API migration
 - Compromised Z_AI key in git history — rotation + `git filter-repo` is a USER ops action (see AUDIT.md)
 
 ## Test Suite
-150 browser-runner Playwright tests (incl. SSE unit + IPC contract specs) + 6 Electron-mode e2e:
+150 browser-runner Playwright tests (incl. SSE unit + IPC contract specs) + 7 Electron-mode e2e:
 - `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
 - `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, secrets/baseUrl validation, mock-mode banner)
 - `tests/projects.spec.ts` — project page tests (health, deps, checklist)

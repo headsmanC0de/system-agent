@@ -69,6 +69,34 @@ test("S-5: window.open is denied by setWindowOpenHandler", async () => {
   expect(opened).toBe(true);
 });
 
+// LH-066b smoke (real Arch host): the read-only handlers implemented from mock-only
+// channels actually execute their commands here. rollback-snapshot is intentionally
+// NOT invoked (destructive); create/delete need polkit auth (pkexec) — not headless-safe.
+test("LH-066b: read-only system handlers return sane data on a real host", async () => {
+  const invoke = (ch: string, ...args: unknown[]) =>
+    win.evaluate(([c, a]) => (window as any).electronAPI.invoke(c, ...(a as unknown[])), [ch, args] as const);
+
+  const logs = (await invoke("system:logs", 5)) as string;
+  expect(typeof logs).toBe("string");
+  expect(logs.length).toBeGreaterThan(0);
+
+  const ifaces = (await invoke("system:network-interfaces")) as unknown[];
+  expect(Array.isArray(ifaces)).toBe(true);
+  expect(ifaces.length).toBeGreaterThan(0); // at least loopback
+
+  const ports = (await invoke("system:open-ports")) as unknown[];
+  expect(Array.isArray(ports)).toBe(true);
+
+  const specs = (await invoke("system:hardware-specs")) as { category: string; model: string }[];
+  expect(Array.isArray(specs)).toBe(true);
+  expect(specs.some((s) => s.category === "cpu")).toBe(true);
+
+  // snapper list runs unprivileged now (LH-110); without ALLOW_USERS it must
+  // degrade to an empty array, never throw.
+  const snaps = (await invoke("system:snapshots")) as unknown[];
+  expect(Array.isArray(snaps)).toBe(true);
+});
+
 test("LH-073: secrets round-trip through safeStorage, names validated", async () => {
   const value = await win.evaluate(async () => {
     await (window as any).electronAPI.invoke("secrets:set", "e2e-test", "s3cret-roundtrip");

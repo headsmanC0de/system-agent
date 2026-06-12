@@ -101,6 +101,8 @@
 | LH-080 | **usePolling/useAsyncData error surfacing**: rejections captured into a returned `error` state (no more unhandled rejections from pages like GPU that don't try/catch); `intervalMs <= 0` now means "run once" — fixing BF-040; shared `<StaleDataNotice>` (`@project/ui`) rendered on Dashboard/GPU/Hardware/Network. | **Done** |
 | LH-081 | **SSE parser extracted** to `src/lib/sse.ts` (pure function, callbacks for streaming UI) — Chat.tsx slimmed by ~75 lines; 9 unit tests (`tests/sse.spec.ts`): chunk-boundary splits, multi-byte UTF-8 splits, tool-call accumulation, usage/cached tokens, malformed events, CRLF, [DONE], cumulative callbacks. | **Done** |
 | LH-082 | Board SSOT: backlog IDs renumbered (LH-101+) — old backlog reused LH-026…LH-055 already taken by completed tasks; polkit migration promoted to an explicit backlog item (LH-110). | **Done** |
+| LH-083 | **Polkit migration (S-7 closed)**: snapper mutations (create/delete/rollback) → `pkexec` via `authCmd()` (120s timeout so the GUI auth dialog isn’t killed mid-password); snapshot *listing* runs unprivileged through snapperd’s own D-Bus/polkit path (configure `ALLOW_USERS` in snapper config for data; degrades to empty list, never throws); `/etc/cron.d` read without sudo (world-readable on standard installs). The app never touches a password. | **Done** |
+| LH-084 | **LH-066b smoke closed**: Electron e2e now invokes the real read-only handlers on this Arch host (system:logs / network-interfaces / open-ports / hardware-specs / snapshots-degrade) — 7/7 e2e. rollback intentionally not auto-invoked (destructive); create/delete need interactive polkit auth. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -167,7 +169,7 @@ code change can perform — it requires the user's external account:
 | ID | Task | Status |
 |---|---|---|
 | LH-066a | `projects:add/list/remove/scan` — **done**: made `projects.*` renderer-local (localStorage, works in both browser & Electron), removed dead MOCK+IPC channels, allowlist now an exact 1:1 with api invoke set. Verified: typecheck + lint + build + 135/135 | **Done** |
-| LH-066b | `system:logs/open-ports/network-interfaces/hardware-specs/rollback-snapshot` — **implemented** real `ipcMain.handle` mirroring existing handlers (journalctl / `ss -tulnp` / `ip -j addr` + `/proc/net/dev` / cpuinfo+lspci+dmi / `sudo snapper rollback`). Typecheck + build + 135/135 pass. ⚠️ runtime needs real-Arch smoke test (same caveat as all 60 ipc handlers) | **Done (code); hardware smoke pending)** |
+| LH-066b | `system:logs/open-ports/network-interfaces/hardware-specs/rollback-snapshot` — **implemented** real `ipcMain.handle` mirroring existing handlers (journalctl / `ss -tulnp` / `ip -j addr` + `/proc/net/dev` / cpuinfo+lspci+dmi / snapper rollback via pkexec). Real-Arch smoke verified by e2e (LH-084). | **Done** |
 | LH-067 | **Electron-mode e2e** (`tests/electron.spec.ts`, `npm run test:e2e`) — launches the real built app via Playwright `_electron`, verifies preload IPC allowlist (real `system:overview` round-trip + unknown-channel rejection), CSP meta, and `window.open` denial. Closes the "Electron IPC boundary" gap. Found 3 production bugs (BF-035/036/037). Now 6/6 pass (secrets + recovered-sandbox tests added) | **Done** |
 
 ### Blindspot analysis (BF-038 / BF-039 — found during LH-073/LH-074, 2026-06-12)
@@ -200,7 +202,7 @@ code change can perform — it requires the user's external account:
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
 | LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
 | LH-109 | Export system report (JSON/HTML) | P1 | Pending |
-| LH-110 | **Polkit migration** — replace sudo-stdin password piping in IPC handlers (audit S-7, last open security item in code) | P1 | Pending |
+
 
 ## Backlog — P2 (Platform Maturity)
 
@@ -247,7 +249,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 150 browser + 6 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 150 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -273,7 +275,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (150 browser + 6 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (150 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|

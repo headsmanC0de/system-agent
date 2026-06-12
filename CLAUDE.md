@@ -96,5 +96,5 @@ Convention: `ipcMain.handle("ns:action")` in `ipc.ts` maps to `api.ns.action()` 
 ## Known issues / gotchas
 
 - **NVIDIA + Wayland GPU crash** — worked around with `app.disableHardwareAcceleration()` (software rendering) in `main.ts`.
-- `sudo` commands pipe the password via stdin — polkit migration is pending.
+- Privilege escalation uses `pkexec` (polkit GUI prompt) for snapper mutations; snapshot listing runs unprivileged via snapperd (add your user to `ALLOW_USERS` in the snapper config to see data).
 - Browser/test runs depend entirely on the mock layer; a missing MOCK entry shows up as a broken page only outside Electron.

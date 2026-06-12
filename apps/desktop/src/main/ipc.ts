@@ -66,6 +66,12 @@ function shell(script: string) {
   return exec("bash", ["-c", script], { timeout: 15000, maxBuffer: 1024 * 1024 }).then(({ stdout }) => stdout.trim());
 }
 
+// pkexec pops a graphical polkit auth dialog — the user may take a while to type
+// their password, so the regular 15s cmd() timeout would kill the prompt mid-entry.
+function authCmd(args: string[]) {
+  return exec("pkexec", args, { timeout: 120000, maxBuffer: 1024 * 1024 }).then(({ stdout }) => stdout.trim());
+}
+
 const VALID_SERVICE_ACTIONS = ["start", "stop", "restart", "reload", "status"];
 const SERVICE_NAME_RE = /^[a-zA-Z0-9@._-]+\.service$/;
 const BT_MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
@@ -176,9 +182,15 @@ export function initIpc() {
     return "Configure sudoers or use polkit for passwordless pacman. See Settings > Security.";
   });
 
+  // Snapper privilege model (LH-110, replaces sudo):
+  // - listing runs as the plain user via snapperd's own D-Bus/polkit path — works
+  //   once the user is in ALLOW_USERS of the snapper config (standard practice);
+  //   prompting a GUI auth dialog on every page load would be hostile.
+  // - mutations are explicit user actions → pkexec (graphical polkit prompt);
+  //   the app never sees or handles a password.
   ipcMain.handle("system:snapshots", async () => {
     const raw = await shell(
-      "sudo snapper list --type all --columns number,type,date,user,description 2>/dev/null || echo ''",
+      "snapper list --type all --columns number,type,date,user,description 2>/dev/null || echo ''",
     );
     const lines = raw.split("\n").slice(2).filter(Boolean);
     return lines.map((l) => {
@@ -189,12 +201,12 @@ export function initIpc() {
 
   ipcMain.handle("system:create-snapshot", async (_e, desc: string) => {
     const safeDesc = String(desc).replace(/[^a-zA-Z0-9 _.-]/g, "");
-    return cmd("sudo", ["snapper", "create", "-d", safeDesc]).catch((e) => `error: ${e}`);
+    return authCmd(["snapper", "create", "-d", safeDesc]).catch((e) => `error: ${e}`);
   });
 
   ipcMain.handle("system:delete-snapshot", async (_e, num: string) => {
     if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
-    return cmd("sudo", ["snapper", "delete", String(num)]).catch((e) => `error: ${e}`);
+    return authCmd(["snapper", "delete", String(num)]).catch((e) => `error: ${e}`);
   });
 
   ipcMain.handle("system:services", async () => {
@@ -263,9 +275,9 @@ export function initIpc() {
   ipcMain.handle("system:cron-list", async () => {
     const [user, system] = await Promise.all([
       shell("crontab -l 2>/dev/null || echo 'no user crontab'"),
-      shell(
-        "sudo ls /etc/cron.d/ 2>/dev/null && echo '---' && sudo cat /etc/cron.d/* 2>/dev/null || echo 'no system cron'",
-      ),
+      // /etc/cron.d files are world-readable (644) on a standard install — no
+      // privilege escalation needed just to display them.
+      shell("ls /etc/cron.d/ 2>/dev/null && echo '---' && cat /etc/cron.d/* 2>/dev/null || echo 'no system cron'"),
     ]);
     return { user, system };
   });
@@ -435,7 +447,7 @@ export function initIpc() {
 
   ipcMain.handle("system:rollback-snapshot", async (_e, num: string) => {
     if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
-    return cmd("sudo", ["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
+    return authCmd(["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
   });
 
   ipcMain.handle("system:health", async () => {
