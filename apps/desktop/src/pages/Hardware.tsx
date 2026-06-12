@@ -1,8 +1,9 @@
 import { Cpu, Fan, MemoryStick, Thermometer } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { system } from "../api";
-import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
-import { useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
+import { fans as fansApi, system } from "../api";
+import { Bar, Button, Card, Sparkline, StaleDataNotice } from "../components/ui";
+import { useAsyncData, useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
+import type { FanCurvePoint, FanInfo } from "../types";
 
 interface SensorReading {
   chip: string;
@@ -64,6 +65,191 @@ function tempBarColor(temp: number, max?: number): string {
   if (pct >= 0.9) return "bg-destructive";
   if (pct >= 0.7) return "bg-warning";
   return "bg-success";
+}
+
+const CURVE_TEMPS = [40, 55, 70, 85];
+const DEFAULT_DUTIES = [20, 35, 60, 100];
+const FAN_PRESETS: { name: string; duties: number[] }[] = [
+  { name: "Silent", duties: [10, 25, 45, 80] },
+  { name: "Balanced", duties: [20, 35, 60, 100] },
+  { name: "Performance", duties: [40, 60, 85, 100] },
+];
+const FAN_CURVES_KEY = "lh-fan-curves";
+
+function defaultCurve(): FanCurvePoint[] {
+  return CURVE_TEMPS.map((temp, i) => ({ temp, duty: DEFAULT_DUTIES[i] }));
+}
+
+function loadStoredCurves(): Record<string, FanCurvePoint[]> {
+  try {
+    const raw = localStorage.getItem(FAN_CURVES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function curveX(temp: number): number {
+  return Math.min(Math.max(((temp - 30) / 60) * 100, 0), 100);
+}
+
+function FanCurvePreview({ curve, tempC }: { curve: FanCurvePoint[]; tempC: number | null }) {
+  const points = curve.map((p) => `${curveX(p.temp)},${80 - (p.duty / 100) * 80}`).join(" ");
+  return (
+    <svg
+      className="w-full"
+      height={80}
+      viewBox="0 0 100 80"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Fan curve preview"
+    >
+      <polyline points={points} fill="none" stroke="var(--primary)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      {tempC !== null && (
+        <line
+          x1={curveX(tempC)}
+          x2={curveX(tempC)}
+          y1={0}
+          y2={80}
+          stroke="var(--destructive)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </svg>
+  );
+}
+
+function FanCurvesCard() {
+  const [fanList, setFanList] = useState<FanInfo[] | null>(null);
+  const [curves, setCurves] = useState<Record<string, FanCurvePoint[]>>(loadStoredCurves);
+  const [enabled, setEnabled] = useState(false);
+  const [status, setStatus] = useState("");
+
+  useAsyncData(
+    useCallback(async () => {
+      setFanList(await fansApi.list());
+    }, []),
+  );
+
+  const curveFor = useCallback((id: string) => curves[id] ?? defaultCurve(), [curves]);
+
+  const saveCurves = useCallback((next: Record<string, FanCurvePoint[]>) => {
+    setCurves(next);
+    try {
+      localStorage.setItem(FAN_CURVES_KEY, JSON.stringify(next));
+    } catch {}
+  }, []);
+
+  const setDuty = (id: string, idx: number, duty: number) => {
+    saveCurves({
+      ...curves,
+      [id]: curveFor(id).map((p, i) => (i === idx ? { ...p, duty } : p)),
+    });
+  };
+
+  const applyPreset = (id: string, duties: number[]) => {
+    saveCurves({
+      ...curves,
+      [id]: CURVE_TEMPS.map((temp, i) => ({ temp, duty: duties[i] })),
+    });
+  };
+
+  const toggleCurves = async () => {
+    const nextEnabled = !enabled;
+    const writableCurves: Record<string, FanCurvePoint[]> = {};
+    for (const fan of fanList ?? []) {
+      if (fan.writable) writableCurves[fan.id] = curveFor(fan.id);
+    }
+    try {
+      const result = await fansApi.setConfig({ enabled: nextEnabled, curves: writableCurves });
+      setEnabled(nextEnabled);
+      setStatus(result);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <Card className="p-0">
+      <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
+        <Fan size={14} className="text-foreground" />
+        <span className="text-sm font-medium">Fan Curves</span>
+        {fanList !== null && <span className="text-xs text-muted-foreground ml-auto">{fanList.length} PWM fans</span>}
+      </div>
+      {fanList !== null && fanList.length === 0 ? (
+        <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+          No controllable PWM fans detected (hwmon exposes none on this machine).
+        </div>
+      ) : (
+        <div className="divide-y divide-border/30">
+          {(fanList ?? []).map((fan) => {
+            const curve = curveFor(fan.id);
+            return (
+              <div key={fan.id} className="px-4 py-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {fan.label} <span className="text-muted-foreground font-normal">· {fan.chip}</span>
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {fan.rpm !== null && <span>{Math.round(fan.rpm)} RPM</span>}
+                    {fan.rpm !== null && fan.tempC !== null && <span> · </span>}
+                    {fan.tempC !== null && <span>{fan.tempC.toFixed(0)}°C</span>}
+                  </span>
+                </div>
+                {!fan.writable && (
+                  <div className="text-xs text-warning-foreground">
+                    pwm not writable — add a udev rule to allow user PWM control
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  {FAN_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.name}
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => applyPreset(fan.id, preset.duties)}
+                    >
+                      {preset.name}
+                    </Button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {curve.map((point, idx) => (
+                    <div key={point.temp} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+                        <span>{point.temp}°C</span>
+                        <span>{point.duty}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={point.duty}
+                        aria-label={`${point.temp}°C duty`}
+                        className="w-full accent-primary"
+                        onChange={(e) => setDuty(fan.id, idx, Number(e.target.value))}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <FanCurvePreview curve={curve} tempC={fan.tempC} />
+              </div>
+            );
+          })}
+          {fanList !== null && fanList.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3">
+              <Button variant={enabled ? "destructive" : "default"} size="sm" onClick={toggleCurves}>
+                {enabled ? "Disable curves" : "Enable curves"}
+              </Button>
+              {status && <span className="text-xs text-muted-foreground">{status}</span>}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function chipLabel(chip: string): string {
@@ -218,6 +404,8 @@ export function HardwarePage() {
           </div>
         </Card>
       )}
+
+      <FanCurvesCard />
     </div>
   );
 }

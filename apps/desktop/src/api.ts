@@ -696,6 +696,29 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
   "llm:stop": () => "Stopping Tesseract MoE inference server...",
   "llm:save-config": () => "Configuration saved",
   "system:battery-watch": () => undefined,
+  "fans:list": () => [
+    {
+      id: "hwmon2:pwm1",
+      chip: "nct6798",
+      label: "CPU Fan",
+      rpm: 980 + randInt(-50, 50),
+      tempC: 52 + randInt(-3, 3),
+      dutyPct: 38,
+      writable: true,
+    },
+    {
+      id: "hwmon2:pwm2",
+      chip: "nct6798",
+      label: "Case Fan",
+      rpm: 650 + randInt(-30, 30),
+      tempC: 41 + randInt(-2, 2),
+      dutyPct: 25,
+      writable: false,
+    },
+  ],
+  "fans:set-config": (cfg) =>
+    (cfg as { enabled: boolean }).enabled ? "fan curves active" : "fan curves disabled (auto mode restored)",
+  "fans:status": () => ({ enabled: false, fans: (MOCK["fans:list"] as () => unknown)() }),
   "system:snapshot-diff": (from, to) =>
     [
       `+..... /etc/pacman.conf`,
@@ -804,6 +827,12 @@ export const llm = {
   start: () => invoke<string>("llm:start"),
   stop: () => invoke<string>("llm:stop"),
   saveConfig: (cfg: import("./types").LLMConfig) => invoke<string>("llm:save-config", cfg),
+};
+
+export const fans = {
+  list: () => invoke<import("./types").FanInfo[]>("fans:list"),
+  setConfig: (cfg: import("./types").FanConfig) => invoke<string>("fans:set-config", cfg),
+  status: () => invoke<{ enabled: boolean; fans: import("./types").FanInfo[] }>("fans:status"),
 };
 
 export const secrets = {

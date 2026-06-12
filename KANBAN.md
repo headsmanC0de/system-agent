@@ -119,6 +119,8 @@
 | LH-103 | **Package detail + debounced search**: 200ms `useDebounced` (new shared hook in @project/hooks); row click → shared `Modal` (new @project/ui component) with `system:package-info`; stale-response guard. 2 browser tests. | **Done** |
 | LH-108 | **Snapshot diff viewer**: per-row Diff button → `system:snapshot-diff` (`snapper status from..to`, unprivileged snapperd path, digit-validated, honest degrade); renders in the page Output. Browser test on mock diff. | **Done** |
 | LH-109 | **Export system report (JSON/HTML)**: Dashboard buttons gather overview/memory/disks/gpu/services → `system:save-report` (save dialog + fs write in main; mock = browser Blob download). Test asserts a real download event + filename. | **Done** |
+| LH-104a | **Fan curves — editor UI** (Hardware page): per-fan 4-point curve (40/55/70/85°C sliders), presets Silent/Balanced/Performance, SVG preview with live temp marker, localStorage persist, enable/disable toggle, honest udev warning for non-writable pwm. 2 browser tests. | **Done** |
+| LH-104b | **Fan curves — hwmon backend**: `fans:list/set-config/status` IPC (contract-complete); 2s apply-loop in main (temp → linear interpolation → pwm write), `pwm_enable` original mode saved & restored on disable/app-quit (kill-switch), curve/id validation, no privilege prompts in the loop — non-writable pwm degrades to the UI hint. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -228,8 +230,6 @@ code change can perform — it requires the user's external account:
 |---|---|---|---|
 | LH-101 | Zig shared library (syscalls: sysinfo, /proc, statvfs, NVML) — Zig 0.16 migration | P1 | Pending |
 | LH-102 | Zig .so → Electron native addon (node-addon-api or ffi-napi) | P1 | Pending |
-| LH-104a | **Fan curves — editor UI** (user request 2026-06-12): interactive temp→duty curve editor (draggable points, presets Silent/Balanced/Performance), persisted in localStorage, live preview against current temp | P1 | Pending |
-| LH-104b | **Fan curves — hwmon backend**: enumerate `/sys/class/hwmon` (pwmN ↔ temp pairing), apply-loop in main (read temp → interpolate curve → write pwm), writability detection + honest setup hint (udev rule), kill-switch restoring `pwm_enable` auto | P1 | Pending |
 | LH-104c | GPU (NVIDIA) duty control: needs Coolbits + X11 `nvidia-settings` (no Wayland path) — fan % stays read-only via nvidia-smi until an NVML write path; documented limitation | P2 | Pending |
 | LH-105 | BT Device Popup: volume, audio profile, PipeWire EQ presets, media controls (on device card click) | P1 | Pending |
 | LH-106 | Projects: real IPC (read package.json, npm outdated, cargo outdated) | P1 | Pending |
@@ -282,7 +282,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 157 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 159 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -308,7 +308,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (157 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (159 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|

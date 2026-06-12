@@ -478,6 +478,144 @@ export function initIpc() {
     );
   });
 
+  // Fan curves (LH-104b). Direct sysfs writes only — no privilege prompts in a
+  // polling loop. If pwm files aren't writable the UI shows the udev hint; the
+  // original pwm_enable mode is saved before the first write and restored on
+  // disable and on app quit (kill-switch).
+  const HWMON = "/sys/class/hwmon";
+  const FAN_ID_RE = /^hwmon\d+:pwm\d+$/;
+  let fanConfig: { enabled: boolean; curves: Record<string, { temp: number; duty: number }[]> } = {
+    enabled: false,
+    curves: {},
+  };
+  let fanLoop: NodeJS.Timeout | null = null;
+  const pwmEnableRestore = new Map<string, string>();
+
+  const readNum = async (p: string) => {
+    try {
+      return Number.parseInt(await readFile(p, "utf8"), 10);
+    } catch {
+      return null;
+    }
+  };
+
+  async function listFans() {
+    const fs = await import("node:fs/promises");
+    const fans: import("@project/types").FanInfo[] = [];
+    const hwmons = await fs.readdir(HWMON).catch(() => [] as string[]);
+    for (const hw of hwmons) {
+      const dir = join(HWMON, hw);
+      const chip = (await readFile(join(dir, "name"), "utf8").catch(() => hw)).trim();
+      const entries = await fs.readdir(dir).catch(() => [] as string[]);
+      const tempPath = entries.includes("temp1_input") ? join(dir, "temp1_input") : null;
+      for (const entry of entries) {
+        if (!/^pwm\d+$/.test(entry)) continue;
+        const n = entry.slice(3);
+        const labelFile = join(dir, `fan${n}_label`);
+        const label = (await readFile(labelFile, "utf8").catch(() => `${chip} fan ${n}`)).trim();
+        const rpm = await readNum(join(dir, `fan${n}_input`));
+        const tempRaw = tempPath ? await readNum(tempPath) : null;
+        const pwmRaw = await readNum(join(dir, entry));
+        let writable = true;
+        try {
+          await fs.access(join(dir, entry), (await import("node:fs")).constants.W_OK);
+        } catch {
+          writable = false;
+        }
+        fans.push({
+          id: `${hw}:${entry}`,
+          chip,
+          label,
+          rpm,
+          tempC: tempRaw === null ? null : Math.round(tempRaw / 1000),
+          dutyPct: pwmRaw === null ? null : Math.round((pwmRaw / 255) * 100),
+          writable,
+        });
+      }
+    }
+    return fans;
+  }
+
+  function interpolateDuty(points: { temp: number; duty: number }[], temp: number): number {
+    const sorted = [...points].sort((a, b) => a.temp - b.temp);
+    if (sorted.length === 0) return 50;
+    if (temp <= sorted[0]!.temp) return sorted[0]!.duty;
+    const last = sorted[sorted.length - 1]!;
+    if (temp >= last.temp) return last.duty;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i]!;
+      const b = sorted[i + 1]!;
+      if (temp >= a.temp && temp <= b.temp) {
+        const t = (temp - a.temp) / (b.temp - a.temp || 1);
+        return Math.round(a.duty + t * (b.duty - a.duty));
+      }
+    }
+    return last.duty;
+  }
+
+  async function applyFanTick() {
+    const fs = await import("node:fs/promises");
+    for (const [id, points] of Object.entries(fanConfig.curves)) {
+      if (!FAN_ID_RE.test(id)) continue;
+      const [hw, pwm] = id.split(":") as [string, string];
+      const dir = join(HWMON, hw);
+      const temp = await readNum(join(dir, "temp1_input"));
+      if (temp === null) continue;
+      const duty = interpolateDuty(points, temp / 1000);
+      const enablePath = join(dir, `${pwm}_enable`);
+      try {
+        if (!pwmEnableRestore.has(id)) {
+          const orig = await readFile(enablePath, "utf8").catch(() => "");
+          if (orig) pwmEnableRestore.set(id, orig.trim());
+          await fs.writeFile(enablePath, "1").catch(() => {});
+        }
+        await fs.writeFile(join(dir, pwm), String(Math.round((duty / 100) * 255)));
+      } catch {
+        // not writable — surfaced via fans:list writable flag
+      }
+    }
+  }
+
+  async function restoreFanAuto() {
+    const fs = await import("node:fs/promises");
+    for (const [id, mode] of pwmEnableRestore) {
+      const [hw, pwm] = id.split(":") as [string, string];
+      await fs.writeFile(join(HWMON, hw, `${pwm}_enable`), mode).catch(() => {});
+    }
+    pwmEnableRestore.clear();
+  }
+
+  function stopFanLoop() {
+    if (fanLoop) clearInterval(fanLoop);
+    fanLoop = null;
+    void restoreFanAuto();
+  }
+
+  app.on("before-quit", stopFanLoop);
+
+  handle("fans:list", async () => listFans());
+
+  handle("fans:set-config", async (_e, cfg: typeof fanConfig) => {
+    if (typeof cfg?.enabled !== "boolean" || typeof cfg?.curves !== "object") throw new Error("Invalid fan config");
+    for (const [id, points] of Object.entries(cfg.curves)) {
+      if (!FAN_ID_RE.test(id)) throw new Error(`Invalid fan id: ${id}`);
+      if (
+        !Array.isArray(points) ||
+        points.some((p) => typeof p.temp !== "number" || typeof p.duty !== "number" || p.duty < 0 || p.duty > 100)
+      )
+        throw new Error("Invalid curve points");
+    }
+    fanConfig = cfg;
+    stopFanLoop();
+    if (cfg.enabled && Object.keys(cfg.curves).length > 0) {
+      void applyFanTick();
+      fanLoop = setInterval(() => void applyFanTick(), 2000);
+    }
+    return fanConfig.enabled ? "fan curves active" : "fan curves disabled (auto mode restored)";
+  });
+
+  handle("fans:status", async () => ({ enabled: fanConfig.enabled, fans: await listFans() }));
+
   handle("system:save-report", async (_e, content: string, suggestedName: string) => {
     const { dialog } = await import("electron");
     const safeName = String(suggestedName).replace(/[^a-zA-Z0-9._-]/g, "_");

@@ -342,3 +342,23 @@ export interface SystemHealth {
   diskUsage: number;
   memoryUsage: number;
 }
+
+export interface FanCurvePoint {
+  temp: number;
+  duty: number;
+}
+
+export interface FanInfo {
+  id: string;
+  chip: string;
+  label: string;
+  rpm: number | null;
+  tempC: number | null;
+  dutyPct: number | null;
+  writable: boolean;
+}
+
+export interface FanConfig {
+  enabled: boolean;
+  curves: Record<string, FanCurvePoint[]>;
+}

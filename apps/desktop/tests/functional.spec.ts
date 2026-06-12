@@ -316,6 +316,26 @@ test.describe("Hardware — Data Rendering", () => {
       expect(await preContent.textContent()).toBeTruthy();
     }
   });
+
+  test("fan curves card lists hwmon fans (LH-104a)", async ({ page, gotoPage }) => {
+    await gotoPage("Hardware");
+    await expect(page.locator("text=Fan Curves").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=CPU Fan").first()).toBeVisible();
+    await expect(
+      page.locator("text=pwm not writable — add a udev rule to allow user PWM control").first(),
+    ).toBeVisible();
+  });
+
+  test("fan curve preset updates sliders and enable applies (LH-104a)", async ({ page, gotoPage }) => {
+    await gotoPage("Hardware");
+    await expect(page.locator("text=Fan Curves").first()).toBeVisible({ timeout: 5000 });
+    await page.locator("button", { hasText: "Silent" }).first().click();
+    await expect(page.locator('input[type="range"]').first()).toHaveValue("10");
+    await page.locator("button", { hasText: "Enable curves" }).first().click();
+    await expect(page.locator("text=fan curves active").first()).toBeVisible();
+    await page.locator("button", { hasText: "Disable curves" }).first().click();
+    await expect(page.locator("text=auto mode restored").first()).toBeVisible();
+  });
 });
 
 test.describe("Logs — Data Rendering", () => {
