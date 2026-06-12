@@ -91,6 +91,7 @@ Convention: `ipcMain.handle("ns:action")` in `ipc.ts` maps to `api.ns.action()` 
 
 - `BLUEPRINT.md` — architecture rationale; maps each pattern (IPC bus, command wrapper, runtime abstraction, build-target config) to its Ghostty source. Read before large structural changes.
 - `KANBAN.md` — task board / what's done and planned.
+- `docs/TESTING.md` — the testing standard (pyramid, invariants, turbo config, Playwright-MCP audit procedure). The `qa-audit` agent (`.claude/agents/qa-audit.md`) executes it.
 - `apps/desktop/AGENTS.md` — per-app agent notes (refreshed 2026-06-12: Biome, CJS preload, secrets, e2e rule).
 
 ## Known issues / gotchas

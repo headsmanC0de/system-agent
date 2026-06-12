@@ -77,6 +77,8 @@ Output: `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed rend
 - Compromised Z_AI key in git history — rotation + `git filter-repo` is a USER ops action (see AUDIT.md)
 
 ## Test Suite
+
+The testing standard lives in `docs/TESTING.md` (root) — pyramid, invariants, and the Playwright-MCP audit procedure. Summary below.
 151 browser-runner Playwright tests (incl. SSE unit + IPC contract specs) + 7 Electron-mode e2e:
 - `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
 - `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, secrets/baseUrl validation, mock-mode banner)
