@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/moonrock-software/linux-agent.git"
   },
-  "homepage": "https://linux-agent.moonrock.dev",
+  "homepage": "https://moonrock.software",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

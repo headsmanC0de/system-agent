@@ -113,6 +113,9 @@
 | LH-115 | **TS 6 hardening**: `"strict": true` was silently MISSING from the desktop tsconfigs (CLAUDE.md claimed otherwise) — enabled with **0 resulting errors**; stale `@workspace/ui` path mapping removed; `erasableSyntaxOnly`/`bundler`/explicit `types` confirmed already present in `@project/config`. | **Done** |
 | LH-118 | **Testing standard + agentic QA**: `docs/TESTING.md` (SSOT: pyramid, 6 invariants, turbo test config, Playwright-MCP audit procedure — built on official Electron/Playwright/Turborepo/playwright-mcp docs); `.mcp.json` wires `@playwright/mcp`; `.claude/agents/qa-audit.md` defines the invocable audit agent; turbo `test` task got md-excluding `inputs` for cache stability. Real-Electron audit recipe documented (`--remote-debugging-port` + `--cdp-endpoint`, unofficial). | **Done** |
 | LH-119 | **Production-smoke gate** (`npm run smoke`, TESTING.md §6): typecheck → lint → unit/browser → build+Electron e2e → npm audit, one command, exit-code gated. First run: ALL GREEN (153 + 7 tests, 0 vulns). Release blockers explicitly listed outside the gate (S-1 key rotation, LH-116/122 packaging+fuses, LH-069 key choice). | **Done** |
+| LH-120a | **Linux packaging (LH-122 partial)**: `electron-builder.yml` — AppImage + pacman targets, asar, pinned electronVersion, `linux-agent-${version}` artifacts. Built & smoke-verified: packaged AppImage launches, renderer alive over CDP, loads from asar via file:// (CSP meta path). `npm run package`. | **Done** |
+| LH-116 | **Electron fuses flipped in packaged builds** (native `electronFuses` in electron-builder 26): RunAsNode/NodeOptions/NodeCliInspect **Disabled**, OnlyLoadAppFromAsar **Enabled** — verified by reading fuses from the built binary (`@electron/fuses read`). e2e unaffected (runs unpacked `out/`). Custom `protocol.handle` instead of file:// remains optional follow-up. | **Done** |
+| LH-121a | Branding: company site `https://moonrock.software` — ORG_URL/ORG_DOMAIN updated in branding SSOT; homepage in both package.json; openExternal allowlist and PoweredByBadge derive automatically. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -230,7 +233,6 @@ code change can perform — it requires the user's external account:
 | LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
 | LH-109 | Export system report (JSON/HTML) | P1 | Pending |
 | LH-117 | React Compiler (`@rolldown/plugin-babel` + `reactCompilerPreset`, babel BEFORE react plugin) + `useSyncExternalStore` for the chat stream — adopt once electron-vite officially supports Vite 8 | P2 | Pending |
-| LH-116 | Packaged-build hardening: Electron fuses (`runAsNode=off`, ASAR integrity) + custom `protocol.handle` instead of `file://` (checklist #18–19). **Blocked by**: no electron-builder config exists yet — fold into LH-122 (deploy configs) when packaging lands. | P2 | Blocked (needs LH-122) |
 
 
 ## Backlog — P2 (Platform Maturity)

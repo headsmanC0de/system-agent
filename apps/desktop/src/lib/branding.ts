@@ -1,6 +1,6 @@
 export const ORG_NAME = "moonrock-software";
-export const ORG_URL = "https://github.com/moonrock-software";
-export const ORG_DOMAIN = "moonrock.dev";
+export const ORG_URL = "https://moonrock.software";
+export const ORG_DOMAIN = "moonrock.software";
 
 export const BRAND_NAME = "Linux Agent";
 export const BRAND_SHORT = "LA";
