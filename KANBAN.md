@@ -103,6 +103,9 @@
 | LH-082 | Board SSOT: backlog IDs renumbered (LH-101+) — old backlog reused LH-026…LH-055 already taken by completed tasks; polkit migration promoted to an explicit backlog item (LH-110). | **Done** |
 | LH-083 | **Polkit migration (S-7 closed)**: snapper mutations (create/delete/rollback) → `pkexec` via `authCmd()` (120s timeout so the GUI auth dialog isn’t killed mid-password); snapshot *listing* runs unprivileged through snapperd’s own D-Bus/polkit path (configure `ALLOW_USERS` in snapper config for data; degrades to empty list, never throws); `/etc/cron.d` read without sudo (world-readable on standard installs). The app never touches a password. | **Done** |
 | LH-084 | **LH-066b smoke closed**: Electron e2e now invokes the real read-only handlers on this Arch host (system:logs / network-interfaces / open-ports / hardware-specs / snapshots-degrade) — 7/7 e2e. rollback intentionally not auto-invoked (destructive); create/delete need interactive polkit auth. | **Done** |
+| LH-085 | **openExternal allowlist (checklist #15, fixes BF-041)**: `setWindowOpenHandler` now opens only allowlisted https hosts (derived from branding SSOT + provider docs hosts); everything else is denied outright. | **Done** |
+| LH-086 | **IPC sender validation (checklist #17)**: every `ipcMain.handle` goes through a `handle()` wrapper that rejects invokes whose `senderFrame` isn’t the bundled `file://` renderer or the dev-server URL. Was the only outright Electron-security-checklist violation. | **Done** |
+| LH-087 | electron-vite 5: deprecated `externalizeDepsPlugin()` removed (externalization is the default via `build.externalizeDeps`); explicit `external: ["electron"]` for the CJS preload kept (BF-038 guard). Deprecation warnings gone. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -158,6 +161,7 @@ code change can perform — it requires the user's external account:
 | BF-038 | Switching the preload to CJS (LH-074) silently bundled the **electron npm launcher** (`node_modules/electron/index.js`) into `preload.cjs`: in the cjs-format override electron-vite skips its auto-externalization of `electron` → preload crashed at load, `window.electronAPI` undefined | Critical | Explicit `external: ["electron"]` in the preload `rollupOptions`. Caught immediately by the Electron-mode e2e (`npm run test:e2e`). |
 | BF-039 | `safeStorage.encryptString` throws "Encryption is not available" on Linux when no keyring (kwallet/libsecret) is unlocked — first `secrets:set` would crash | High | `getSafeStorage()` falls back to `setUsePlainTextEncryption(true)` (basic_text backend) when `isEncryptionAvailable()` is false; secrets file stays 0600. Caught by the new LH-073 e2e test. |
 | BF-040 | Logs page with "follow" OFF called `usePolling(refresh, 0)` → `setInterval(fn, 0)` fires every ~4ms → in real Electron a `journalctl` spawn storm (hundreds of processes/sec); also a duplicate initial fetch (own `useEffect` + the hook's immediate tick) | High | `usePolling` now treats `intervalMs <= 0` as "run once, no interval"; the redundant `useEffect` removed from Logs.tsx. |
+| BF-041 | Every `npm run test:e2e` run opened https://example.com in the user's default browser: the S-5 deny-test calls `window.open("https://example.com")` and `setWindowOpenHandler` forwarded ANY http/https URL to `shell.openExternal` before denying | Medium | Host allowlist (LH-085): only branding/provider https hosts reach `openExternal`; example.com is now denied with no side effect. |
 
 ### Blindspot analysis (BF-033)
 
@@ -202,6 +206,12 @@ code change can perform — it requires the user's external account:
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
 | LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
 | LH-109 | Export system report (JSON/HTML) | P1 | Pending |
+| LH-111 | Playwright: sweep `waitForTimeout` → web-first assertions/`expect.poll`; split config into projects (unit-node / browser-mock / electron-e2e); fixtures for nav + localStorage seeding (official best-practices doc flags our pattern as anti-pattern) | P1 | Pending |
+| LH-112 | safeStorage: detect `getSelectedStorageBackend() === "basic_text"` and surface a Settings warning (key is only obfuscated without a keyring); migrate to `encryptStringAsync`/`decryptStringAsync` | P1 | Pending |
+| LH-113 | Biome 2 monorepo: root `biome.json`, nested `"extends": "//"` in packages, retire the Prettier/ESLint split; `biome ci` in turbo lint | P2 | Pending |
+| LH-114 | React 19.2 modernization: `useEffectEvent` in usePolling, `<Activity>` for page routing (state survives nav), `useSyncExternalStore` for the chat stream; then React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset` (babel BEFORE react plugin) | P2 | Pending |
+| LH-115 | TS 6 config hardening in `@project/config`: `erasableSyntaxOnly`, `moduleResolution: "bundler"`, explicit `types`, drop `baseUrl` — free TS 7 migration | P2 | Pending |
+| LH-116 | Packaged-build hardening: Electron fuses (`runAsNode=off`, ASAR integrity) via electron-builder 26; consider custom `protocol.handle` scheme instead of `file://` (checklist #18–19) | P2 | Pending |
 
 
 ## Backlog — P2 (Platform Maturity)

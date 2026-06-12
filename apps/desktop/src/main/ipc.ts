@@ -89,8 +89,27 @@ function assertPassPath(p: string) {
   if (!PASS_PATH_RE.test(p)) throw new Error(`Invalid pass path: ${p}`);
 }
 
+// Electron security checklist #17: validate the sender of every IPC message.
+// The app is a single locked-down window, but a compromised/hijacked frame must
+// still never reach handlers that shell out. Trusted senders: the bundled
+// file:// renderer (prod) or the dev-server URL (electron-vite dev).
+const rawHandle = ipcMain.handle.bind(ipcMain);
+
+function trustedSender(frame: Electron.WebFrameMain | null): boolean {
+  if (!frame) return false;
+  const devUrl = process.env.ELECTRON_RENDERER_URL;
+  return frame.url.startsWith("file://") || (!!devUrl && frame.url.startsWith(devUrl));
+}
+
+function handle(channel: string, listener: (e: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) {
+  rawHandle(channel, (e, ...args) => {
+    if (!trustedSender(e.senderFrame)) throw new Error(`Untrusted IPC sender for ${channel}`);
+    return listener(e, ...args);
+  });
+}
+
 export function initIpc() {
-  ipcMain.handle("system:overview", async () => {
+  handle("system:overview", async () => {
     const [hostname, kernel, arch, uptime, cpuModel, cpuCores, totalMem, disk, load] = await Promise.all([
       os.hostname(),
       cmd("uname", ["-r"]),
@@ -106,7 +125,7 @@ export function initIpc() {
     return { hostname, kernel, arch, uptime, cpuModel: cpuModel.trim(), cpuCores, totalMem, disk: disk.trim(), load };
   });
 
-  ipcMain.handle("system:memory", async () => {
+  handle("system:memory", async () => {
     const raw = await cmd("free", ["--bytes"]);
     const lines = raw.split("\n").map((l) => l.split(/\s+/).filter(Boolean));
     const parse = (l: string[]) => ({
@@ -120,7 +139,7 @@ export function initIpc() {
     return { mem: parse(lines[1]!), swap: parse(lines[2]!) };
   });
 
-  ipcMain.handle("system:cpu-usage", async () => {
+  handle("system:cpu-usage", async () => {
     const raw = await shell("cat /proc/stat | head -1");
     const vals = raw.split(/\s+/).slice(1).map(Number);
     const idle = vals[3]! + (vals[4] || 0);
@@ -128,7 +147,7 @@ export function initIpc() {
     return { idle, total };
   });
 
-  ipcMain.handle("system:top-processes", async () => {
+  handle("system:top-processes", async () => {
     const raw = await shell(
       "ps aux --sort=-%mem | head -30 | awk '{printf \"%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n\", $1,$2,$3,$4,$6,$11}'",
     );
@@ -139,12 +158,12 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("system:kill-process", async (_e, pid: number) => {
+  handle("system:kill-process", async (_e, pid: number) => {
     if (typeof pid !== "number" || pid <= 1 || pid > 4194304) throw new Error("Invalid PID");
     return cmd("kill", [String(pid)]).catch(() => "failed");
   });
 
-  ipcMain.handle("system:packages", async () => {
+  handle("system:packages", async () => {
     const raw = await cmd("pacman", ["-Q", "--color", "never"]);
     return raw.split("\n").map((l) => {
       const [name, version] = l.split(/\s+/);
@@ -152,7 +171,7 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("system:outdated", async () => {
+  handle("system:outdated", async () => {
     const raw = await cmd("pacman", ["-Qu", "--color", "never"]).catch(() => "");
     if (!raw) return [];
     return raw
@@ -164,21 +183,21 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:orphans", async () => {
+  handle("system:orphans", async () => {
     const raw = await shell("pacman -Qdtq 2>/dev/null || echo ''");
     return raw ? raw.split("\n").filter(Boolean) : [];
   });
 
-  ipcMain.handle("system:remove-orphans", async () => {
+  handle("system:remove-orphans", async () => {
     return "Configure sudoers or use polkit for passwordless pacman. See Settings > Security.";
   });
 
-  ipcMain.handle("system:package-info", async (_e, name: string) => {
+  handle("system:package-info", async (_e, name: string) => {
     const raw = await cmd("pacman", ["-Qi", name]).catch(() => "");
     return raw || `Package ${name} not found`;
   });
 
-  ipcMain.handle("system:update-packages", async () => {
+  handle("system:update-packages", async () => {
     return "Configure sudoers or use polkit for passwordless pacman. See Settings > Security.";
   });
 
@@ -188,7 +207,7 @@ export function initIpc() {
   //   prompting a GUI auth dialog on every page load would be hostile.
   // - mutations are explicit user actions → pkexec (graphical polkit prompt);
   //   the app never sees or handles a password.
-  ipcMain.handle("system:snapshots", async () => {
+  handle("system:snapshots", async () => {
     const raw = await shell(
       "snapper list --type all --columns number,type,date,user,description 2>/dev/null || echo ''",
     );
@@ -199,17 +218,17 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("system:create-snapshot", async (_e, desc: string) => {
+  handle("system:create-snapshot", async (_e, desc: string) => {
     const safeDesc = String(desc).replace(/[^a-zA-Z0-9 _.-]/g, "");
     return authCmd(["snapper", "create", "-d", safeDesc]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:delete-snapshot", async (_e, num: string) => {
+  handle("system:delete-snapshot", async (_e, num: string) => {
     if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
     return authCmd(["snapper", "delete", String(num)]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:services", async () => {
+  handle("system:services", async () => {
     const raw = await cmd("systemctl", [
       "list-units",
       "--type=service",
@@ -226,7 +245,7 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:failed-services", async () => {
+  handle("system:failed-services", async () => {
     const raw = await cmd("systemctl", ["--failed", "--no-pager", "--no-legend"]);
     return raw
       .split("\n")
@@ -237,13 +256,13 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:service-action", async (_e, action: string, unit: string) => {
+  handle("system:service-action", async (_e, action: string, unit: string) => {
     if (!VALID_SERVICE_ACTIONS.includes(action)) throw new Error(`Invalid action: ${action}`);
     assertServiceName(unit);
     return cmd("systemctl", [action, unit]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:autostart-list", async () => {
+  handle("system:autostart-list", async () => {
     const [systemdUser, xdgRaw] = await Promise.all([
       shell(
         "systemctl list-unit-files --state=enabled --type=service --user --no-pager --no-legend 2>/dev/null || echo ''",
@@ -267,12 +286,12 @@ export function initIpc() {
     return [...services, ...desktops];
   });
 
-  ipcMain.handle("system:autostart-toggle", async (_e, name: string, enable: boolean) => {
+  handle("system:autostart-toggle", async (_e, name: string, enable: boolean) => {
     assertServiceName(name);
     return cmd("systemctl", ["--user", enable ? "enable" : "disable", name]).catch(() => "failed");
   });
 
-  ipcMain.handle("system:cron-list", async () => {
+  handle("system:cron-list", async () => {
     const [user, system] = await Promise.all([
       shell("crontab -l 2>/dev/null || echo 'no user crontab'"),
       // /etc/cron.d files are world-readable (644) on a standard install — no
@@ -282,11 +301,11 @@ export function initIpc() {
     return { user, system };
   });
 
-  ipcMain.handle("system:cron-save", async (_e, content: string) => {
+  handle("system:cron-save", async (_e, content: string) => {
     return shell(`echo '${content.replace(/'/g, "'\\''")}' | crontab - 2>&1`);
   });
 
-  ipcMain.handle("system:timers", async () => {
+  handle("system:timers", async () => {
     const raw = await cmd("systemctl", ["list-timers", "--all", "--no-pager", "--no-legend"]);
     return raw
       .split("\n")
@@ -304,7 +323,7 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:gpu", async () => {
+  handle("system:gpu", async () => {
     const raw = await cmd("nvidia-smi", [
       "--query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed",
       "--format=csv,noheader,nounits",
@@ -314,11 +333,11 @@ export function initIpc() {
     return { name, temp: Number(temp), util: Number(util), memUsed, memTotal, power, powerLimit, fan: Number(fan) };
   });
 
-  ipcMain.handle("system:sensors", async () => {
+  handle("system:sensors", async () => {
     return cmd("sensors", ["-j"]).catch(() => cmd("sensors"));
   });
 
-  ipcMain.handle("system:disk", async () => {
+  handle("system:disk", async () => {
     const raw = await shell("df -h -x tmpfs -x devtmpfs -x squashfs | tail -n +2");
     return raw
       .split("\n")
@@ -336,7 +355,7 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:net-connections", async () => {
+  handle("system:net-connections", async () => {
     const raw = await cmd("ss", ["-tunp", "--no-header"]);
     return raw
       .split("\n")
@@ -347,26 +366,26 @@ export function initIpc() {
       });
   });
 
-  ipcMain.handle("system:rgb-devices", async () => {
+  handle("system:rgb-devices", async () => {
     return cmd("openrgb", ["--list-devices"]).catch(() => "");
   });
 
-  ipcMain.handle("system:rgb-set", async (_e, args: string[]) => {
+  handle("system:rgb-set", async (_e, args: string[]) => {
     return cmd("openrgb", args).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:journal", async (_e, count: number) => {
+  handle("system:journal", async (_e, count: number) => {
     const n = Math.max(1, Math.min(10000, Number(count) || 50));
     return cmd("journalctl", ["-n", String(n), "--no-pager", "-p", "warning"]);
   });
 
   // Full journal (all priorities) — the Logs page filters by priority client-side.
-  ipcMain.handle("system:logs", async (_e, count: number) => {
+  handle("system:logs", async (_e, count: number) => {
     const n = Math.max(1, Math.min(10000, Number(count) || 200));
     return cmd("journalctl", ["-n", String(n), "--no-pager"]).catch(() => "");
   });
 
-  ipcMain.handle("system:open-ports", async () => {
+  handle("system:open-ports", async () => {
     const raw = await cmd("ss", ["-tulnp", "--no-header"]).catch(() => "");
     return raw
       .split("\n")
@@ -389,7 +408,7 @@ export function initIpc() {
       .filter((x) => x.port > 0);
   });
 
-  ipcMain.handle("system:network-interfaces", async () => {
+  handle("system:network-interfaces", async () => {
     const raw = await cmd("ip", ["-j", "addr"]).catch(() => "[]");
     let parsed: Array<Record<string, unknown>> = [];
     try {
@@ -431,7 +450,7 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("system:hardware-specs", async () => {
+  handle("system:hardware-specs", async () => {
     const [cpu, gpu, board, boardVendor] = await Promise.all([
       shell("grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs").catch(() => ""),
       shell("lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -1 | cut -d: -f3 | xargs").catch(() => ""),
@@ -445,12 +464,12 @@ export function initIpc() {
     return specs;
   });
 
-  ipcMain.handle("system:rollback-snapshot", async (_e, num: string) => {
+  handle("system:rollback-snapshot", async (_e, num: string) => {
     if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
     return authCmd(["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:health", async () => {
+  handle("system:health", async () => {
     const [hostname, kernel, arch, uptime] = await Promise.all([
       os.hostname(),
       cmd("uname", ["-r"]),
@@ -653,7 +672,7 @@ export function initIpc() {
     };
   });
 
-  ipcMain.handle("password:list", async () => {
+  handle("password:list", async () => {
     const raw = await shell("pass ls 2>/dev/null || echo ''").catch(() => "");
     if (!raw) return [];
     const lines = raw.split("\n").filter(Boolean);
@@ -668,7 +687,7 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("password:show", async (_e, path: string) => {
+  handle("password:show", async (_e, path: string) => {
     assertPassPath(path);
     const raw = await cmd("pass", ["show", path]).catch(() => "");
     if (!raw) return null;
@@ -690,13 +709,13 @@ export function initIpc() {
     return { password, username, fields, full: raw };
   });
 
-  ipcMain.handle("password:generate", async (_e, path: string, length: number) => {
+  handle("password:generate", async (_e, path: string, length: number) => {
     assertPassPath(path);
     const len = Math.max(8, Math.min(128, Number(length) || 20));
     return cmd("pass", ["generate", "-c", path, String(len)]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("password:insert", async (_e, path: string, content: string) => {
+  handle("password:insert", async (_e, path: string, content: string) => {
     assertPassPath(path);
     const { spawn } = await import("node:child_process");
     return new Promise((resolve, reject) => {
@@ -721,17 +740,17 @@ export function initIpc() {
     });
   });
 
-  ipcMain.handle("password:delete", async (_e, path: string) => {
+  handle("password:delete", async (_e, path: string) => {
     assertPassPath(path);
     return cmd("pass", ["rm", "-f", path]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("password:copy", async (_e, path: string) => {
+  handle("password:copy", async (_e, path: string) => {
     assertPassPath(path);
     return cmd("pass", ["-c", path]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("battery:upower-devices", async () => {
+  handle("battery:upower-devices", async () => {
     const raw = await shell("upower -e 2>/dev/null").catch(() => "");
     if (!raw) return [];
     const paths = raw
@@ -779,7 +798,7 @@ export function initIpc() {
     return devices.filter((d) => d.percentage >= 0);
   });
 
-  ipcMain.handle("battery:bt-devices", async () => {
+  handle("battery:bt-devices", async () => {
     const raw = await shell("bluetoothctl devices 2>/dev/null").catch(() => "");
     if (!raw) return [];
     const devices: Array<{
@@ -816,17 +835,17 @@ export function initIpc() {
     return devices;
   });
 
-  ipcMain.handle("battery:bt-connect", async (_e, mac: string) => {
+  handle("battery:bt-connect", async (_e, mac: string) => {
     assertBtMac(mac);
     return cmd("bluetoothctl", ["connect", mac]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("battery:bt-disconnect", async (_e, mac: string) => {
+  handle("battery:bt-disconnect", async (_e, mac: string) => {
     assertBtMac(mac);
     return cmd("bluetoothctl", ["disconnect", mac]).catch((e) => `error: ${e}`);
   });
 
-  ipcMain.handle("system:battery-watch", async (_e, action) => {
+  handle("system:battery-watch", async (_e, action) => {
     if (action === "start") {
       if (!batteryWatchInterval) {
         checkBatteryLevels();
@@ -840,7 +859,7 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("system:network", async () => {
+  handle("system:network", async () => {
     const raw = await shell("cat /proc/net/dev").catch(() => "");
     const lines = raw.split("\n").slice(2).filter(Boolean);
     const interfaces: Array<{ name: string; rxBytes: number; txBytes: number }> = [];
@@ -860,7 +879,7 @@ export function initIpc() {
     return { totalRx, totalTx, interfaces };
   });
 
-  ipcMain.handle("projects:outdated", async (_e, id: string) => {
+  handle("projects:outdated", async (_e, id: string) => {
     const projectsRaw = await shell(
       "find /home -maxdepth 4 -name 'package.json' -not -path '*/node_modules/*' 2>/dev/null",
     ).catch(() => "");
@@ -956,38 +975,35 @@ export function initIpc() {
     };
   }
 
-  ipcMain.handle("docs:init", async () => {
+  handle("docs:init", async () => {
     await initDocsDb();
     const result = docsDb!.exec("SELECT DISTINCT category FROM docs ORDER BY category");
     return result.length > 0 ? result[0].values.map((r: unknown[]) => r[0] as string) : [];
   });
 
-  ipcMain.handle(
-    "docs:list",
-    async (_e, opts?: { category?: string; search?: string; limit?: number; offset?: number }) => {
-      await initDocsDb();
-      const limit = opts?.limit ?? 50;
-      const offset = opts?.offset ?? 0;
-      let sql = "SELECT * FROM docs WHERE 1=1";
-      const params: unknown[] = [];
-      if (opts?.category) {
-        sql += " AND category = ?";
-        params.push(opts.category);
-      }
-      if (opts?.search) {
-        sql += " AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)";
-        const s = `%${opts.search}%`;
-        params.push(s, s, s);
-      }
-      sql += " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
-      params.push(limit, offset);
-      const result = docsDb!.exec(sql, params);
-      if (result.length === 0) return [];
-      return result[0].values.map(docFromRow);
-    },
-  );
+  handle("docs:list", async (_e, opts?: { category?: string; search?: string; limit?: number; offset?: number }) => {
+    await initDocsDb();
+    const limit = opts?.limit ?? 50;
+    const offset = opts?.offset ?? 0;
+    let sql = "SELECT * FROM docs WHERE 1=1";
+    const params: unknown[] = [];
+    if (opts?.category) {
+      sql += " AND category = ?";
+      params.push(opts.category);
+    }
+    if (opts?.search) {
+      sql += " AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)";
+      const s = `%${opts.search}%`;
+      params.push(s, s, s);
+    }
+    sql += " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+    const result = docsDb!.exec(sql, params);
+    if (result.length === 0) return [];
+    return result[0].values.map(docFromRow);
+  });
 
-  ipcMain.handle("docs:create", async (_e, doc: Partial<import("../types").DocEntry>) => {
+  handle("docs:create", async (_e, doc: Partial<import("../types").DocEntry>) => {
     await initDocsDb();
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -1004,7 +1020,7 @@ export function initIpc() {
     return docFromRow(result[0].values[0]);
   });
 
-  ipcMain.handle("docs:update", async (_e, id: string, doc: Partial<import("../types").DocEntry>) => {
+  handle("docs:update", async (_e, id: string, doc: Partial<import("../types").DocEntry>) => {
     await initDocsDb();
     const now = Date.now();
     const fields: string[] = [];
@@ -1034,19 +1050,19 @@ export function initIpc() {
     return docFromRow(result[0].values[0]);
   });
 
-  ipcMain.handle("docs:delete", async (_e, id: string) => {
+  handle("docs:delete", async (_e, id: string) => {
     await initDocsDb();
     docsDb!.run("DELETE FROM docs WHERE id = ?", [id]);
     saveDocsDb();
   });
 
-  ipcMain.handle("docs:categories", async () => {
+  handle("docs:categories", async () => {
     await initDocsDb();
     const result = docsDb!.exec("SELECT DISTINCT category FROM docs ORDER BY category");
     return result.length > 0 ? result[0].values.map((r: unknown[]) => r[0] as string) : [];
   });
 
-  ipcMain.handle("llm:model-info", async () => {
+  handle("llm:model-info", async () => {
     try {
       const raw = await shell("cat /etc/tesseract/model.json 2>/dev/null || echo '{}'");
       const parsed = JSON.parse(raw || "{}");
@@ -1074,7 +1090,7 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("llm:inference-status", async () => {
+  handle("llm:inference-status", async () => {
     try {
       const gpuRaw = await shell(
         "nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo '0,0'",
@@ -1111,7 +1127,7 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("llm:config", async () => {
+  handle("llm:config", async () => {
     try {
       const raw = await shell("cat ~/.config/tesseract/config.json 2>/dev/null || echo '{}'");
       return JSON.parse(raw || "{}");
@@ -1129,11 +1145,11 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("llm:start", async () => {
+  handle("llm:start", async () => {
     return "Starting Tesseract MoE inference server requires sudo. Configure in Settings.";
   });
 
-  ipcMain.handle("llm:stop", async () => {
+  handle("llm:stop", async () => {
     try {
       await shell("pkill -f 'tesseract-moe' 2>/dev/null || true");
       return "Tesseract MoE inference server stopped";
@@ -1142,7 +1158,7 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("llm:save-config", async (_e, cfg: Record<string, unknown>) => {
+  handle("llm:save-config", async (_e, cfg: Record<string, unknown>) => {
     try {
       const configDir = join(os.homedir(), ".config", "tesseract");
       const fs = await import("node:fs/promises");
@@ -1176,7 +1192,7 @@ export function initIpc() {
     }
   }
 
-  ipcMain.handle("secrets:get", async (_e, name: string) => {
+  handle("secrets:get", async (_e, name: string) => {
     if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
     const stored = (await readSecrets())[name];
@@ -1188,7 +1204,7 @@ export function initIpc() {
     }
   });
 
-  ipcMain.handle("secrets:set", async (_e, name: string, value: string) => {
+  handle("secrets:set", async (_e, name: string, value: string) => {
     if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
     const fs = await import("node:fs/promises");

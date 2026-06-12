@@ -21,7 +21,8 @@ const ipcSrc = readFileSync(join(SRC, "main", "ipc.ts"), "utf8");
 const channelsSrc = readFileSync(join(SRC, "main", "channels.ts"), "utf8");
 const apiSrc = readFileSync(join(SRC, "api.ts"), "utf8");
 
-const handlers = channelSet(ipcSrc, /ipcMain\.handle\(\s*"([a-z]+:[a-z0-9-]+)"/g);
+// registrations go through the sender-validating handle() wrapper (checklist #17)
+const handlers = channelSet(ipcSrc, /\bhandle\(\s*"([a-z]+:[a-z0-9-]+)"/g);
 const allowlist = channelSet(channelsSrc.split("] as const")[0]!, CHANNEL_RE);
 const mockBlock = apiSrc.slice(apiSrc.indexOf("const MOCK"), apiSrc.indexOf("export async function invoke"));
 const mocks = channelSet(mockBlock, /^\s+"([a-z]+:[a-z0-9-]+)":/gm);

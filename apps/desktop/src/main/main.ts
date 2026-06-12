@@ -2,7 +2,29 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, session, shell } from "electron";
+import { BRAND_URL, ORG_URL } from "../lib/branding.js";
 import { initIpc } from "./ipc.js";
+
+// Electron security checklist #15: shell.openExternal only for trusted URLs.
+// Previously ANY http/https window.open was forwarded to the default browser —
+// so even the e2e deny-test (window.open("https://example.com")) popped a real
+// browser tab on every test run (BF-041). Hosts derive from branding (SSOT)
+// plus the API-key providers linked from Settings.
+const TRUSTED_EXTERNAL_HOSTS = new Set([
+  new URL(ORG_URL).hostname,
+  new URL(BRAND_URL).hostname,
+  "z.ai",
+  "platform.openai.com",
+]);
+
+function isTrustedExternal(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && TRUSTED_EXTERNAL_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}
 
 // audit S-2 / LH-063: the Chromium sandbox flags below are ONLY needed for the
 // NVIDIA + Wayland GPU crash. Applying them unconditionally disabled the sandbox for
@@ -56,10 +78,10 @@ function createWindow() {
     win.show();
   });
 
-  // Navigation hardening (audit S-5): block in-app navigation away from the
-  // app origin and deny all window.open / target=_blank — open externally instead.
+  // Navigation hardening (audit S-5): deny all window.open / target=_blank;
+  // only allowlisted https hosts are handed to the default browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http:") || url.startsWith("https:")) shell.openExternal(url);
+    if (isTrustedExternal(url)) shell.openExternal(url);
     return { action: "deny" };
   });
   // The renderer is a SPA (client-side routing, no real navigations). Allow only

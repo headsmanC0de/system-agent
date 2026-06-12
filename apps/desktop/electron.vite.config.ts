@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { defineConfig } from "electron-vite";
 
 // The production renderer is loaded over file://, where session.onHeadersReceived
 // does NOT apply a CSP. Inject a strict CSP <meta> at build time only (a meta in the
@@ -18,8 +18,9 @@ const cspMetaPlugin = () => ({
 });
 
 export default defineConfig({
+  // externalizeDepsPlugin() is deprecated in electron-vite 5 — dependency
+  // externalization is the default via build.externalizeDeps.
   main: {
-    plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
         entry: resolve(__dirname, "src/main/main.ts"),
@@ -27,7 +28,6 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
         entry: resolve(__dirname, "src/main/preload.ts"),
