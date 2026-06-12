@@ -696,6 +696,7 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
   "llm:stop": () => "Stopping Tesseract MoE inference server...",
   "llm:save-config": () => "Configuration saved",
   "system:battery-watch": () => undefined,
+  "secrets:backend": () => "basic_text",
   "secrets:get": (name) => localStorage.getItem(`lh-secret-${name}`) ?? "",
   "secrets:set": (name, value) => {
     if (value) localStorage.setItem(`lh-secret-${name}`, String(value));
@@ -789,6 +790,7 @@ export const llm = {
 export const secrets = {
   get: (name: string) => invoke<string>("secrets:get", name),
   set: (name: string, value: string) => invoke<void>("secrets:set", name, value),
+  backend: () => invoke<string>("secrets:backend"),
 };
 
 const LINUX_HELPER_DEPS = [

@@ -1,6 +1,4 @@
-import { expect, test } from "@playwright/test";
-
-const BASE = "http://127.0.0.1:5173";
+import { expect, test } from "./fixtures";
 const SCREENSHOT_DIR = "/tmp/la-screenshots";
 
 const ALL_PAGES = [
@@ -27,10 +25,9 @@ const ALL_PAGES = [
 
 test.describe("Screenshots of all pages", () => {
   for (const pg of ALL_PAGES) {
-    test(`screenshot ${pg.id}`, async ({ page }) => {
-      await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-      await page.locator(`text=${pg.nav}`).first().click();
-      await page.waitForTimeout(1000);
+    test(`screenshot ${pg.id}`, async ({ page, gotoPage }) => {
+      await gotoPage(pg.nav);
+      await expect(page.locator("main").locator("*").first()).toBeVisible();
       await page.screenshot({
         path: `${SCREENSHOT_DIR}/${pg.id.toLowerCase().replace(/\s+/g, "-")}.png`,
         fullPage: true,

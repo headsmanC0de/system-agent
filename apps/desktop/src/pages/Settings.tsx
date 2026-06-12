@@ -1,5 +1,6 @@
 import { Check, Cpu, Eye, EyeOff, Info, Key, Moon, Palette, Plus, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { secrets as secretsApi } from "../api";
 import { Badge, Card } from "../components/ui";
 import { BRAND_COPYRIGHT, BRAND_NAME, BRAND_URL, ORG_NAME, ORG_URL } from "../lib/branding";
 import {
@@ -31,9 +32,11 @@ export function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [customModelId, setCustomModelId] = useState("");
   const [customModelName, setCustomModelName] = useState("");
+  const [secretsBackend, setSecretsBackend] = useState("");
 
   useEffect(() => {
     loadApiKey().then(() => setChatConfigState(getChatConfig()));
+    secretsApi.backend().then((b) => setSecretsBackend(b || ""));
   }, []);
 
   const select = (id: string) => {
@@ -201,6 +204,12 @@ export function SettingsPage() {
                       </button>
                     </div>
                   </div>
+                  {secretsBackend === "basic_text" && (
+                    <p className="mt-1 text-xs text-warning-foreground" data-testid="keyring-warning">
+                      No system keyring detected — the key is stored obfuscated, not encrypted. Unlock GNOME
+                      Keyring/KWallet for real encryption.
+                    </p>
+                  )}
                   {chatConfig.providerId.startsWith("zai") && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Get your API key from <span className="text-primary">z.ai</span>

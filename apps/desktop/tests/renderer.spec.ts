@@ -1,6 +1,4 @@
-import { expect, test } from "@playwright/test";
-
-const BASE = "http://127.0.0.1:5173";
+import { BASE, expect, test } from "./fixtures";
 
 test.describe("Linux Agent — Renderer Smoke Tests", () => {
   test.beforeEach(async ({ page }) => {
@@ -37,15 +35,12 @@ test.describe("Linux Agent — Renderer Smoke Tests", () => {
 
   test("sidebar collapse toggle works", async ({ page }) => {
     const aside = page.locator("aside");
-    const initialWidth = await aside.evaluate((el: HTMLElement) => el.offsetWidth);
+    const width = () => aside.evaluate((el: HTMLElement) => el.offsetWidth);
+    const initialWidth = await width();
     await page.locator("button >> svg").first().click();
-    await page.waitForTimeout(300);
-    const collapsedWidth = await aside.evaluate((el: HTMLElement) => el.offsetWidth);
-    expect(collapsedWidth).toBeLessThan(initialWidth);
+    await expect.poll(width).toBeLessThan(initialWidth);
     await page.locator("button >> svg").first().click();
-    await page.waitForTimeout(300);
-    const restoredWidth = await aside.evaluate((el: HTMLElement) => el.offsetWidth);
-    expect(restoredWidth).toBe(initialWidth);
+    await expect.poll(width).toBe(initialWidth);
   });
 });
 
@@ -71,10 +66,8 @@ const PAGES = [
 ];
 
 for (const pg of PAGES) {
-  test(`navigate to ${pg.id} renders ${pg.title}`, async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator(`text=${pg.id}`).first().click();
-    await page.waitForTimeout(500);
+  test(`navigate to ${pg.id} renders ${pg.title}`, async ({ page, gotoPage }) => {
+    await gotoPage(pg.id);
     await expect(page.locator("header")).toContainText(pg.title, { timeout: 5000 });
     await expect(page.locator("main")).toBeVisible();
     const mainContent = page.locator("main");
@@ -91,10 +84,8 @@ test.describe("Page-specific UI checks", () => {
     expect(hasContent).toBeGreaterThan(0);
   });
 
-  test("Passwords page has vault UI", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Passwords").first().click();
-    await page.waitForTimeout(500);
+  test("Passwords page has vault UI", async ({ page, gotoPage }) => {
+    await gotoPage("Passwords");
     await expect(page.locator("header")).toContainText("Password Vault");
     await expect(page.locator("text=Total Entries").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Backend").first()).toBeVisible();
@@ -103,10 +94,8 @@ test.describe("Page-specific UI checks", () => {
     await expect(addBtn).toBeVisible();
   });
 
-  test("Battery page has device monitoring UI", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Battery & BT").first().click();
-    await page.waitForTimeout(500);
+  test("Battery page has device monitoring UI", async ({ page, gotoPage }) => {
+    await gotoPage("Battery & BT");
     await expect(page.locator("header")).toContainText("Battery & Bluetooth");
     await expect(page.locator("text=Monitored").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Connected BT").first()).toBeVisible();
@@ -116,49 +105,39 @@ test.describe("Page-specific UI checks", () => {
     await expect(page.locator("text=Bluetooth").first()).toBeVisible();
   });
 
-  test("Settings page shows accent colors", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Settings").first().click();
-    await page.waitForTimeout(500);
+  test("Settings page shows accent colors", async ({ page, gotoPage }) => {
+    await gotoPage("Settings");
     await expect(page.locator("header")).toContainText("Settings");
     const colorButtons = page.locator("button[title]");
     await expect(colorButtons.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test("Chat page has session sidebar and welcome", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Agent Chat").first().click();
-    await page.waitForTimeout(500);
+  test("Chat page has session sidebar and welcome", async ({ page, gotoPage }) => {
+    await gotoPage("Agent Chat");
     await expect(page.locator("header")).toContainText("AI Assistant");
     await expect(page.locator("text=New chat").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Topics").first()).toBeVisible();
     await expect(page.locator("text=General").first()).toBeVisible();
   });
 
-  test("LLM page shows Tesseract MoE info", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Tesseract MoE").first().click();
-    await page.waitForTimeout(500);
+  test("LLM page shows Tesseract MoE info", async ({ page, gotoPage }) => {
+    await gotoPage("Tesseract MoE");
     await expect(page.locator("header")).toContainText("Tesseract MoE LLM");
     await expect(page.locator("main").getByText("Tesseract MoE LLM").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator('button[title="Start server"]')).toBeVisible();
     await expect(page.locator('button[title="Stop server"]')).toBeVisible();
   });
 
-  test("Docs page shows knowledge base UI", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Docs").first().click();
-    await page.waitForTimeout(500);
+  test("Docs page shows knowledge base UI", async ({ page, gotoPage }) => {
+    await gotoPage("Docs");
     await expect(page.locator("header")).toContainText("Docs");
     await expect(page.locator("text=Total Docs").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Categories").first()).toBeVisible();
     await expect(page.locator("text=New Doc")).toBeVisible();
   });
 
-  test("Packages page has search", async ({ page }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.locator("text=Packages").first().click();
-    await page.waitForTimeout(500);
+  test("Packages page has search", async ({ page, gotoPage }) => {
+    await gotoPage("Packages");
     await expect(page.locator("header")).toContainText("Package Manager");
     await expect(page.locator('input[placeholder*="Search"]')).toBeVisible({ timeout: 5000 });
   });
@@ -169,7 +148,8 @@ test.describe("No console errors on load", () => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("text=archlinux")).toBeVisible({ timeout: 10000 });
     const critical = errors.filter((e) => !e.includes("electronAPI") && !e.includes("invoke"));
     expect(critical).toHaveLength(0);
   });

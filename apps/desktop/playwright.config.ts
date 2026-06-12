@@ -17,9 +17,20 @@ export default defineConfig({
     timeout: 10000,
   },
   projects: [
+    // Pure-Node specs: no browser, no page.
     {
-      name: "chromium",
+      name: "unit",
+      testMatch: /(sse|ipc-contract)\.spec\.ts/,
+    },
+    {
+      name: "browser",
       use: { browserName: "chromium" },
+      testMatch: /(renderer|functional|projects|screenshots)\.spec\.ts/,
+    },
+    // Real built Electron app (requires `electron-vite build` first).
+    {
+      name: "e2e",
+      testMatch: /electron\.spec\.ts/,
     },
   ],
 });

@@ -106,6 +106,8 @@
 | LH-085 | **openExternal allowlist (checklist #15, fixes BF-041)**: `setWindowOpenHandler` now opens only allowlisted https hosts (derived from branding SSOT + provider docs hosts); everything else is denied outright. | **Done** |
 | LH-086 | **IPC sender validation (checklist #17)**: every `ipcMain.handle` goes through a `handle()` wrapper that rejects invokes whose `senderFrame` isn’t the bundled `file://` renderer or the dev-server URL. Was the only outright Electron-security-checklist violation. | **Done** |
 | LH-087 | electron-vite 5: deprecated `externalizeDepsPlugin()` removed (externalization is the default via `build.externalizeDeps`); explicit `external: ["electron"]` for the CJS preload kept (BF-038 guard). Deprecation warnings gone. | **Done** |
+| LH-111 | **Playwright modernization**: all 45 `waitForTimeout` swept (0 remain) → web-first assertions / `expect.poll`; shared fixtures (`tests/fixtures.ts`: `gotoPage`, `seedStorage`) replace 4 per-spec `navigateTo` copies (DRY); config split into projects `unit` / `browser` / `e2e`. **Browser suite: 1.7 min → ~20 s.** | **Done** |
+| LH-112 | **safeStorage honesty**: `secrets:backend` IPC reports `getSelectedStorageBackend()`; Settings shows a keyring warning when `basic_text` (key only obfuscated); handlers migrated to `encryptStringAsync`/`decryptStringAsync` with `shouldReEncrypt` key-rotation handling. Covered by functional + e2e tests. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -206,8 +208,6 @@ code change can perform — it requires the user's external account:
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
 | LH-108 | Snapshot diff viewer (compare snapshot vs current) | P1 | Pending |
 | LH-109 | Export system report (JSON/HTML) | P1 | Pending |
-| LH-111 | Playwright: sweep `waitForTimeout` → web-first assertions/`expect.poll`; split config into projects (unit-node / browser-mock / electron-e2e); fixtures for nav + localStorage seeding (official best-practices doc flags our pattern as anti-pattern) | P1 | Pending |
-| LH-112 | safeStorage: detect `getSelectedStorageBackend() === "basic_text"` and surface a Settings warning (key is only obfuscated without a keyring); migrate to `encryptStringAsync`/`decryptStringAsync` | P1 | Pending |
 | LH-113 | Biome 2 monorepo: root `biome.json`, nested `"extends": "//"` in packages, retire the Prettier/ESLint split; `biome ci` in turbo lint | P2 | Pending |
 | LH-114 | React 19.2 modernization: `useEffectEvent` in usePolling, `<Activity>` for page routing (state survives nav), `useSyncExternalStore` for the chat stream; then React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset` (babel BEFORE react plugin) | P2 | Pending |
 | LH-115 | TS 6 config hardening in `@project/config`: `erasableSyntaxOnly`, `moduleResolution: "bundler"`, explicit `types`, drop `baseUrl` — free TS 7 migration | P2 | Pending |
@@ -259,7 +259,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 150 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 151 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -285,7 +285,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (150 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (151 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|

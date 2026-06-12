@@ -115,6 +115,13 @@ test("LH-073: secrets round-trip through safeStorage, names validated", async ()
     }
   });
   expect(rejected).toContain("Invalid secret name");
+
+  // LH-112: the backend is reported so the UI can warn when keys are only
+  // obfuscated (basic_text = no unlocked keyring).
+  const backend = await win.evaluate(() => (window as any).electronAPI.invoke("secrets:backend"));
+  expect(["basic_text", "gnome_libsecret", "kwallet", "kwallet5", "kwallet6", "unknown", "os-keychain"]).toContain(
+    backend,
+  );
 });
 
 // LH-063: the recovered-sandbox path (GPU workaround disabled). The app must still

@@ -1192,13 +1192,31 @@ export function initIpc() {
     }
   }
 
+  async function writeSecrets(secrets: Record<string, string>) {
+    const fs = await import("node:fs/promises");
+    await fs.writeFile(secretsFile(), JSON.stringify(secrets), { mode: 0o600 });
+  }
+
+  // basic_text means no unlocked keyring — the value is only obfuscated, not
+  // encrypted. Settings shows an honest warning when this backend is active.
+  handle("secrets:backend", async () => {
+    const safeStorage = await getSafeStorage();
+    return process.platform === "linux" ? safeStorage.getSelectedStorageBackend() : "os-keychain";
+  });
+
   handle("secrets:get", async (_e, name: string) => {
     if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
     const stored = (await readSecrets())[name];
     if (!stored) return "";
     try {
-      return safeStorage.decryptString(Buffer.from(stored, "base64"));
+      const dec = await safeStorage.decryptStringAsync(Buffer.from(stored, "base64"));
+      if (dec.shouldReEncrypt) {
+        const secrets = await readSecrets();
+        secrets[name] = (await safeStorage.encryptStringAsync(dec.result)).toString("base64");
+        await writeSecrets(secrets);
+      }
+      return dec.result;
     } catch {
       return "";
     }
@@ -1207,13 +1225,12 @@ export function initIpc() {
   handle("secrets:set", async (_e, name: string, value: string) => {
     if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
-    const fs = await import("node:fs/promises");
     const secrets = await readSecrets();
     if (value) {
-      secrets[name] = safeStorage.encryptString(value).toString("base64");
+      secrets[name] = (await safeStorage.encryptStringAsync(value)).toString("base64");
     } else {
       delete secrets[name];
     }
-    await fs.writeFile(secretsFile(), JSON.stringify(secrets), { mode: 0o600 });
+    await writeSecrets(secrets);
   });
 }
