@@ -41,15 +41,14 @@ function createWindow() {
     frame: true,
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"),
+      preload: join(__dirname, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      // electron-vite emits an ESM (.mjs) preload; Electron only loads ESM preloads
-      // when the renderer sandbox is disabled. Without this the preload never runs and
-      // window.electronAPI is undefined → all IPC silently dead in production builds.
-      // (OS sandbox is already off via the --no-sandbox GPU workaround; contextIsolation
-      // remains the active isolation boundary.) Caught by the Electron-mode e2e.
-      sandbox: false,
+      // The preload is built as CJS specifically so the sandbox can stay on:
+      // Electron refuses ESM preloads in a sandboxed renderer (BF-035). Only the
+      // NVIDIA+Wayland combo (where the OS sandbox is already off via --no-sandbox)
+      // keeps sandbox: false. Caught by the Electron-mode e2e.
+      sandbox: !needsGpuSandboxWorkaround(),
     },
   });
 

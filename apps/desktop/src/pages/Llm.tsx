@@ -1,7 +1,7 @@
 import { Activity, Brain, Play, RefreshCw, Save, Settings2, Square, Zap } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { llm } from "../api";
-import { Bar, Card, Sparkline, StatCard } from "../components/ui";
+import { Bar, Card, Output, Sparkline, StatCard } from "../components/ui";
 import { usePolling } from "../lib/hooks";
 import type { LLMConfig, LLMInferenceStatus, LLMModelInfo } from "../types";
 
@@ -234,12 +234,7 @@ export function LlmPage() {
         </Card>
       )}
 
-      {output && (
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Output</div>
-          <pre className="text-xs whitespace-pre-wrap font-mono">{output}</pre>
-        </Card>
-      )}
+      {output && <Output className="whitespace-pre-wrap">{output}</Output>}
     </div>
   );
 }

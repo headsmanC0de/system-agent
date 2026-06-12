@@ -1,3 +1,5 @@
+import * as api from "../api";
+
 export interface ChatProvider {
   id: string;
   name: string;
@@ -123,22 +125,61 @@ If a command needs sudo, mention it. Prefer safe commands first.`,
   temperature: 0.7,
 };
 
+// The API key never touches localStorage: it lives in the main process encrypted
+// via Electron safeStorage (secrets:get/set IPC). The renderer keeps an in-memory
+// cache so getChatConfig() stays synchronous for components.
+const API_KEY_SECRET = "chat-api-key";
+let apiKeyCache = "";
+let apiKeyLoaded = false;
+
+export async function loadApiKey(): Promise<string> {
+  if (!apiKeyLoaded) {
+    apiKeyCache = (await api.secrets.get(API_KEY_SECRET)) || "";
+    apiKeyLoaded = true;
+  }
+  return apiKeyCache;
+}
+
+function saveApiKey(value: string) {
+  apiKeyCache = value;
+  apiKeyLoaded = true;
+  void api.secrets.set(API_KEY_SECRET, value);
+}
+
 export function getChatConfig(): ChatConfig {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...DEFAULT_CONFIG, ...parsed };
+      if (parsed.apiKey !== undefined) {
+        // Purge plaintext keys persisted by older builds.
+        delete parsed.apiKey;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+      return { ...DEFAULT_CONFIG, ...parsed, apiKey: apiKeyCache };
     }
   } catch {}
-  return { ...DEFAULT_CONFIG };
+  return { ...DEFAULT_CONFIG, apiKey: apiKeyCache };
 }
 
 export function saveChatConfig(config: Partial<ChatConfig>): ChatConfig {
+  if (config.apiKey !== undefined) saveApiKey(config.apiKey);
   const current = getChatConfig();
   const updated = { ...current, ...config };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  const { apiKey: _apiKey, ...persisted } = updated;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
   return updated;
+}
+
+export function isValidBaseUrl(url: string): boolean {
+  if (!url) return true;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:") return true;
+    return u.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function getProvider(id: string): ChatProvider | undefined {
@@ -259,8 +300,6 @@ export const SYSTEM_TOOLS = [
 ];
 
 export async function executeToolCall(name: string, args: Record<string, unknown>): Promise<string> {
-  const api = await import("../api");
-
   switch (name) {
     case "get_system_info": {
       const overview = await api.system.overview();

@@ -84,6 +84,20 @@
 | LH-062 (eng) | Secret removed from tracked files (`{env:Z_AI_API_KEY}` + gitignored `.env`) **+ `.githooks/pre-commit` secret-guard** (wired via `core.hooksPath`, set by root `prepare`) that blocks re-committing key/Bearer/secret-shaped strings (dogfood-verified: blocks the leaked key, allows `{env:…}`). | **Done** |
 | LH-068 | z.ai capability audit (docs vs code): integration is ~90% — thinking (Preserved, `reasoning_content` captured from stream **and** round-tripped across turns), streaming, `tool_stream`, function-calling (6 tools), automatic caching (`cached_tokens` shown), context compression all correct; model IDs match the Coding Plan. Gap: structured output (`response_format`) unused (minor, YAGNI). Added a policy-compliant **`zai-standard`** provider (`api/paas/v4`). | **Done** |
 
+## Completed — P2 (Audit follow-up — 2026-06-12)
+
+| ID | Task | Status |
+|---|---|---|
+| LH-070 | Last `shell()` interpolation removed: `llm:save-config` used `` shell(`mkdir -p ${configDir}`) `` → `fs.mkdir(recursive)`. S-6 is now fully closed (zero interpolated `shell()` calls). | **Done** |
+| LH-071 | `password:insert` hardening: 15s timeout + `proc.on("error")` rejection — a hung `pass`/pinentry no longer leaves the IPC call pending forever. | **Done** |
+| LH-072 | Chat base-URL validation: `isValidBaseUrl()` (https-only, http allowed for localhost/127.0.0.1/[::1]); Settings shows inline error, Chat refuses to send to an invalid endpoint. Covered by functional test. | **Done** |
+| LH-073 | **Chat API key off localStorage** → encrypted at rest via Electron `safeStorage` (`secrets:get/set` IPC, `userData/secrets.json` 0600). Renderer keeps an in-memory cache (`loadApiKey()`), `saveChatConfig` strips `apiKey` from the persisted JSON, legacy plaintext keys are purged on load (no backward compat — re-enter once). Browser/mock fallback keeps tests green. Covered: 3 functional tests + e2e round-trip + secret-name validation. | **Done** |
+| LH-074 | **Renderer sandbox recovered** (S-2 finalization): preload is now built as **CJS** (`preload.cjs`), removing the BF-035 root cause; `webPreferences.sandbox` is `true` everywhere except the NVIDIA+Wayland GPU-workaround combo (where the OS sandbox is already off). e2e-verified on both paths. | **Done** |
+| LH-075 | **CI**: `.github/workflows/ci.yml` — npm ci → typecheck → lint → build → browser tests → Electron e2e (xvfb) on push/PR to main; failure artifacts uploaded. | **Done** |
+| LH-076 | Cleanups: biome scripts referenced nonexistent `src/vite.config.ts`/`src/main.ts` (fixed → `src/main.tsx`); dead `tsdown.*.config.ts` removed; stale broken `@workspace/ui` alias removed from `vite.config.ts`; `executeToolCall` dynamic `import("../api")` → static (kills the Rolldown INEFFECTIVE_DYNAMIC_IMPORT warning); missing `system:battery-watch` MOCK added; `Llm.tsx` raw `<pre>` → shared `<Output>`. | **Done** |
+| LH-077 | Deps refreshed (2026-06-12): electron 42.4.0, react/react-dom 19.2.7, electron-builder 26.15.2, @types/node 24→**25**, turbo 2.9.18, prettier 3.8.4 — typecheck/build/tests green, `npm audit` 0 vulns. Projects-page mock dep matrix synced to real versions. | **Done** |
+| LH-078 | Root hygiene: 137 untracked PNG screenshots moved to `screenshots/`; AGENTS.md/CLAUDE.md refreshed to current reality (Biome, test counts, ui.tsx re-export). | **Done** |
+
 ## Handoff — single residual OPS action (not a code task)
 
 All board **dev/engineering tasks are Done and verified**. One operational action remains that no
@@ -135,6 +149,8 @@ code change can perform — it requires the user's external account:
 | BF-035 | **IPC completely dead in production builds** — `window.electronAPI` undefined because electron-vite emits an ESM (`.mjs`) preload which Electron won't load while the renderer sandbox is enabled (the default). App only ever worked under `electron-vite dev`. | Critical | `webPreferences.sandbox: false` in main.ts (OS sandbox already off via GPU workaround; contextIsolation still on). Caught by the new Electron-mode e2e (BF was invisible to browser/mock tests). |
 | BF-036 | `df --no-header` is not a valid GNU df flag → `system:overview` and `system:disk` handlers threw in real Electron, breaking the Dashboard overview + Disks page | High | Replaced with `df ... \| tail -n +2` (drop header line). Caught by the Electron-mode e2e doing a real `system:overview` round-trip. |
 | BF-037 | CSP was set only via `session.onHeadersReceived`, which does NOT fire for `file://` loads → the production renderer shipped with NO CSP | High | Inject a strict CSP `<meta>` at build time (electron.vite.config `transformIndexHtml`, `apply: build`); kept the header for dev/http. Caught by the Electron-mode e2e. |
+| BF-038 | Switching the preload to CJS (LH-074) silently bundled the **electron npm launcher** (`node_modules/electron/index.js`) into `preload.cjs`: in the cjs-format override electron-vite skips its auto-externalization of `electron` → preload crashed at load, `window.electronAPI` undefined | Critical | Explicit `external: ["electron"]` in the preload `rollupOptions`. Caught immediately by the Electron-mode e2e (`npm run test:e2e`). |
+| BF-039 | `safeStorage.encryptString` throws "Encryption is not available" on Linux when no keyring (kwallet/libsecret) is unlocked — first `secrets:set` would crash | High | `getSafeStorage()` falls back to `setUsePlainTextEncryption(true)` (basic_text backend) when `isEncryptionAvailable()` is false; secrets file stays 0600. Caught by the new LH-073 e2e test. |
 
 ### Blindspot analysis (BF-033)
 
@@ -147,7 +163,14 @@ code change can perform — it requires the user's external account:
 |---|---|---|
 | LH-066a | `projects:add/list/remove/scan` — **done**: made `projects.*` renderer-local (localStorage, works in both browser & Electron), removed dead MOCK+IPC channels, allowlist now an exact 1:1 with api invoke set. Verified: typecheck + lint + build + 135/135 | **Done** |
 | LH-066b | `system:logs/open-ports/network-interfaces/hardware-specs/rollback-snapshot` — **implemented** real `ipcMain.handle` mirroring existing handlers (journalctl / `ss -tulnp` / `ip -j addr` + `/proc/net/dev` / cpuinfo+lspci+dmi / `sudo snapper rollback`). Typecheck + build + 135/135 pass. ⚠️ runtime needs real-Arch smoke test (same caveat as all 60 ipc handlers) | **Done (code); hardware smoke pending)** |
-| LH-067 | **Electron-mode e2e** (`tests/electron.spec.ts`, `npm run test:e2e`) — launches the real built app via Playwright `_electron`, verifies preload IPC allowlist (real `system:overview` round-trip + unknown-channel rejection), CSP meta, and `window.open` denial. Closes the "Electron IPC boundary" gap. Found 3 production bugs (BF-035/036/037). 4/4 pass | **Done** |
+| LH-067 | **Electron-mode e2e** (`tests/electron.spec.ts`, `npm run test:e2e`) — launches the real built app via Playwright `_electron`, verifies preload IPC allowlist (real `system:overview` round-trip + unknown-channel rejection), CSP meta, and `window.open` denial. Closes the "Electron IPC boundary" gap. Found 3 production bugs (BF-035/036/037). Now 6/6 pass (secrets + recovered-sandbox tests added) | **Done** |
+
+### Blindspot analysis (BF-038 / BF-039 — found during LH-073/LH-074, 2026-06-12)
+
+- **Blindspot:** build-tool defaults are config-sensitive invariants. Overriding one rollup option (`output.format: "cjs"`) silently disabled an *unrelated* electron-vite behavior (auto-externalizing `electron`); and `safeStorage` availability depends on desktop session state (unlocked keyring), not on code.
+- **Why allowed:** both behaviors are implicit — nothing in the config or API types says "externalization is format-dependent" or "encryptString throws without a keyring". Unit-level reasoning could not catch either; only executing the real production build in a real session could.
+- **Matrix change to prevent recurrence:** the Electron-mode e2e is the standing guard for this class — **any change to `electron.vite.config.ts`, `main.ts` webPreferences, or preload must run `npm run test:e2e` before merge**. This is now enforced automatically: CI (LH-075) runs the e2e on every push/PR, so config-sensitive regressions can no longer land unnoticed.
+- **Wider-impact check performed:** verified the built `preload.cjs` no longer contains the npm launcher (`grep install.js` clean); both sandbox paths re-verified (`LH_GPU_WORKAROUND=0` launch test); secrets round-trip verified against real `safeStorage` in e2e; full browser suite re-run to confirm the mock fallback keeps non-Electron mode intact.
 
 ## Backlog — P1 (Feature)
 
@@ -208,7 +231,7 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 135 tests + tsc + 2026-06-02 security hardening (CSP, IPC allowlist, nav guards, shell→execFile) | Need Electron-mode e2e, contract validation, lint normalization |
+| Quality gates | Playwright 138 browser + 6 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
 
 ## Package Map
 
@@ -233,7 +256,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (135/135 PASS)
+## Test & Functionality Matrix (138 browser + 6 Electron e2e — ALL PASS, 2026-06-12)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|
@@ -260,7 +283,10 @@ apps/
 
 | Gap | Risk | Priority |
 |---|---|---|
-| Electron IPC boundary (preload allowlist, CSP, nav guards, real IPC round-trip) | Covered — `tests/electron.spec.ts` (`npm run test:e2e`), 4 tests | Done |
+| Electron IPC boundary (preload allowlist, CSP, nav guards, real IPC round-trip) | Covered — `tests/electron.spec.ts` (`npm run test:e2e`), 6 tests | Done |
+| Secrets at rest (safeStorage round-trip, plaintext purge, name validation) | Covered — functional (3) + e2e (1) | Done |
+| Base-URL validation (https-only custom endpoints) | Covered — functional | Done |
+| CI gate (typecheck/lint/build/tests on push) | Covered — `.github/workflows/ci.yml` | Done |
 | Chat SSE with real API | High | P1 |
 | Light mode screenshot test | Medium | P1 |
 | IPC failure error handling | Medium | P2 |

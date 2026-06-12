@@ -69,6 +69,26 @@ test("S-5: window.open is denied by setWindowOpenHandler", async () => {
   expect(opened).toBe(true);
 });
 
+test("LH-073: secrets round-trip through safeStorage, names validated", async () => {
+  const value = await win.evaluate(async () => {
+    await (window as any).electronAPI.invoke("secrets:set", "e2e-test", "s3cret-roundtrip");
+    const got = await (window as any).electronAPI.invoke("secrets:get", "e2e-test");
+    await (window as any).electronAPI.invoke("secrets:set", "e2e-test", "");
+    return got;
+  });
+  expect(value).toBe("s3cret-roundtrip");
+
+  const rejected = await win.evaluate(async () => {
+    try {
+      await (window as any).electronAPI.invoke("secrets:get", "../../etc/passwd");
+      return "ALLOWED";
+    } catch (e) {
+      return (e as Error).message;
+    }
+  });
+  expect(rejected).toContain("Invalid secret name");
+});
+
 // LH-063: the recovered-sandbox path (GPU workaround disabled). The app must still
 // launch and expose the preload API when the NVIDIA+Wayland sandbox flags are NOT set.
 test("S-2/LH-063: app launches with the GPU sandbox workaround disabled", async () => {

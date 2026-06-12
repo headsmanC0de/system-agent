@@ -32,6 +32,16 @@ export default defineConfig({
       lib: {
         entry: resolve(__dirname, "src/main/preload.ts"),
       },
+      rollupOptions: {
+        // CJS preload: Electron refuses to load ESM preloads in a sandboxed
+        // renderer, and we want sandbox: true wherever the NVIDIA+Wayland GPU
+        // workaround is not active (audit S-2 follow-up, BF-035 root cause).
+        // "electron" must stay external explicitly: in the cjs-format override
+        // electron-vite skips its auto-externalization and the npm launcher
+        // (node_modules/electron/index.js) gets bundled into the preload.
+        external: ["electron"],
+        output: { format: "cjs", entryFileNames: "[name].cjs" },
+      },
     },
   },
   renderer: {

@@ -8,7 +8,7 @@ Linux Agent — an Electron desktop app for managing an Arch Linux system (packa
 
 ## Monorepo layout
 
-Turborepo + npm workspaces. Node >= 18, npm 11.
+Turborepo + npm workspaces. Node >= 20.19, npm 11.
 
 - `apps/desktop` — the Electron app (`@project/desktop`). All real work happens here.
 - `packages/types` (`@project/types`) — shared pure-data interfaces, no logic.
@@ -18,7 +18,7 @@ Turborepo + npm workspaces. Node >= 18, npm 11.
 
 `turbo.json` enforces dependency **boundaries**: `config` ← `types` ← `ui`/`hooks` ← `app`. The app may depend on types/ui/hooks; packages may not depend on the app or sideways across peers except as listed. Respect this when adding imports.
 
-Note: the desktop app still has a local copy of some UI primitives at `apps/desktop/src/components/ui.tsx`. Shared versions live in `@project/ui`. When touching UI, prefer the shared package.
+Note: `apps/desktop/src/components/ui.tsx` is a pure re-export from `@project/ui` (same for `src/lib/hooks.ts` → `@project/hooks`, `src/types.ts` → `@project/types`). Component changes belong in the shared packages.
 
 ## Commands
 
@@ -29,11 +29,11 @@ Root (runs across workspaces via turbo):
 
 Inside `apps/desktop/` (the common case):
 - `npm run dev` — electron-vite dev (HMR renderer + hot-reload main).
-- `npm run build` — electron-vite build. Outputs `out/main/main.js`, `out/preload/preload.mjs`, `out/renderer/`.
+- `npm run build` — electron-vite build. Outputs `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed renderer can load it — do not switch back to ESM), `out/renderer/`.
 - `npm run preview` — run the production build.
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run lint` / `npm run lint:fix` / `npm run format` — **Biome** (config `apps/desktop/biome.json`), scoped to specific paths in the script. The renderer uses Biome; the rest of the repo uses Prettier+ESLint config from the turbo starter.
-- `npm run test` — Playwright.
+- `npm run test` — Playwright (browser mode); `npm run test:e2e` — real-Electron e2e (builds first). **Any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload must be verified with `test:e2e`** — this class of bug (BF-035/038/039) is invisible to browser tests. CI (`.github/workflows/ci.yml`) runs both suites on push/PR.
 
 ### Tests
 
@@ -91,7 +91,7 @@ Convention: `ipcMain.handle("ns:action")` in `ipc.ts` maps to `api.ns.action()` 
 
 - `BLUEPRINT.md` — architecture rationale; maps each pattern (IPC bus, command wrapper, runtime abstraction, build-target config) to its Ghostty source. Read before large structural changes.
 - `KANBAN.md` — task board / what's done and planned.
-- `apps/desktop/AGENTS.md` — older agent notes; mostly accurate but predates the monorepo split and the Biome switch (it still says eslint/Vite 8 — trust this file and `package.json` instead).
+- `apps/desktop/AGENTS.md` — per-app agent notes (refreshed 2026-06-12: Biome, CJS preload, secrets, e2e rule).
 
 ## Known issues / gotchas
 

@@ -1,8 +1,16 @@
 import { Check, Cpu, Eye, EyeOff, Info, Key, Moon, Palette, Plus, Sun } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Card } from "../components/ui";
 import { BRAND_COPYRIGHT, BRAND_NAME, BRAND_URL, ORG_NAME, ORG_URL } from "../lib/branding";
-import { type ChatConfig, getAvailableModels, getChatConfig, PROVIDERS, saveChatConfig } from "../lib/chat";
+import {
+  type ChatConfig,
+  getAvailableModels,
+  getChatConfig,
+  isValidBaseUrl,
+  loadApiKey,
+  PROVIDERS,
+  saveChatConfig,
+} from "../lib/chat";
 import {
   applyMode,
   applyTheme,
@@ -23,6 +31,10 @@ export function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [customModelId, setCustomModelId] = useState("");
   const [customModelName, setCustomModelName] = useState("");
+
+  useEffect(() => {
+    loadApiKey().then(() => setChatConfigState(getChatConfig()));
+  }, []);
 
   const select = (id: string) => {
     setActiveId(id);
@@ -212,6 +224,11 @@ export function SettingsPage() {
                     placeholder="https://api.example.com/v1/"
                     className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
                   />
+                  {!isValidBaseUrl(chatConfig.baseUrl) && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Only https:// (or http://localhost) endpoints are allowed.
+                    </p>
+                  )}
                 </div>
               )}
 

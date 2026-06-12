@@ -1,8 +1,26 @@
 # Linux Agent — Audit Report
 
-**Date:** 2026-06-02
+**Date:** 2026-06-02 (follow-up audit & remediation: 2026-06-12)
 **Scope:** `apps/desktop` (Electron app) + monorepo packages, dependency currency
 **Threat model:** local single-user desktop app managing the user's own machine
+
+---
+
+## Remediation status — follow-up audit (2026-06-12)
+
+| Item | Status |
+|---|---|
+| S-2 renderer sandbox (finalization) | **Done** — preload rebuilt as **CJS** (`preload.cjs`), removing the BF-035 ESM constraint; `webPreferences.sandbox: true` everywhere except the NVIDIA+Wayland workaround combo. Found+fixed BF-038 (electron npm launcher bundled into the CJS preload — explicit `external: ["electron"]`). e2e-verified on both paths. |
+| S-6 (residual) | **Done** — last interpolated `shell()` (`llm:save-config` mkdir) → `fs.mkdir`. Zero interpolated shell calls remain (sudo-stdin S-7 still pending polkit). |
+| API keys in localStorage | **Done (LH-073)** — chat API key now encrypted at rest via `safeStorage` (`secrets:get/set` IPC, 0600 file); plaintext purged from `lh-chat-config` on load; BF-039 (no-keyring Linux fallback) found+fixed via e2e. |
+| Custom base-URL validation | **Done (LH-072)** — https-only (http allowed for localhost); enforced in Chat send path + Settings inline warning. |
+| `password:insert` hang | **Done (LH-071)** — 15s timeout + error rejection. |
+| CI | **Done (LH-075)** — GitHub Actions: typecheck/lint/build/browser tests/Electron e2e on push & PR. |
+| Deps (2026-06-12) | **Done (LH-077)** — electron 42.4.0, react 19.2.7, electron-builder 26.15.2, @types/node 25, turbo 2.9.18; 0 vulns. |
+| Hygiene | **Done (LH-076/078)** — biome script paths fixed, dead tsdown configs + stale alias removed, dynamic-import warning fixed, root PNGs → `screenshots/`, AGENTS.md refreshed. |
+| S-1 key rotation | ⚠️ **STILL OPEN (USER ops)** — the compromised Z_AI key remains in `.env` and in pushed git history. Rotate at z.ai, then `git filter-repo` + force-push. Code-side guards (pre-commit hook) are in place. |
+
+Verification (2026-06-12): `tsc --noEmit` clean, lint exit 0, **138 browser + 6 Electron e2e** pass, build PASS, `npm audit` 0 vulns.
 
 ---
 

@@ -691,6 +691,12 @@ const MOCK: Record<string, (...args: unknown[]) => unknown> = {
   "llm:start": () => "Starting Tesseract MoE inference server...",
   "llm:stop": () => "Stopping Tesseract MoE inference server...",
   "llm:save-config": () => "Configuration saved",
+  "system:battery-watch": () => undefined,
+  "secrets:get": (name) => localStorage.getItem(`lh-secret-${name}`) ?? "",
+  "secrets:set": (name, value) => {
+    if (value) localStorage.setItem(`lh-secret-${name}`, String(value));
+    else localStorage.removeItem(`lh-secret-${name}`);
+  },
 };
 
 export async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -776,29 +782,33 @@ export const llm = {
   saveConfig: (cfg: import("./types").LLMConfig) => invoke<string>("llm:save-config", cfg),
 };
 
+export const secrets = {
+  get: (name: string) => invoke<string>("secrets:get", name),
+  set: (name: string, value: string) => invoke<void>("secrets:set", name, value),
+};
+
 const LINUX_HELPER_DEPS = [
-  { name: "react", current: "19.2.6", latest: "19.2.8", type: "prod" as const, risk: "patch" as const },
-  { name: "react-dom", current: "19.2.6", latest: "19.2.8", type: "prod" as const, risk: "patch" as const },
-  { name: "electron", current: "42.3.0", latest: "42.3.0", type: "dev" as const, risk: "none" as const },
-  { name: "vite", current: "8.0.12", latest: "8.1.0", type: "dev" as const, risk: "minor" as const },
+  { name: "react", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
+  { name: "react-dom", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
+  { name: "electron", current: "42.4.0", latest: "42.4.0", type: "dev" as const, risk: "none" as const },
+  { name: "vite", current: "8.0.16", latest: "8.0.16", type: "dev" as const, risk: "none" as const },
   { name: "tailwindcss", current: "4.3.0", latest: "4.3.0", type: "prod" as const, risk: "none" as const },
   { name: "lucide-react", current: "1.17.0", latest: "1.17.0", type: "prod" as const, risk: "none" as const },
-  { name: "typescript", current: "6.0.2", latest: "6.1.0", type: "dev" as const, risk: "minor" as const },
-  { name: "electron-vite", current: "3.2.0", latest: "3.2.0", type: "dev" as const, risk: "none" as const },
-  { name: "class-variance-authority", current: "0.7.1", latest: "0.7.1", type: "prod" as const, risk: "none" as const },
+  { name: "typescript", current: "6.0.3", latest: "6.0.3", type: "dev" as const, risk: "none" as const },
+  { name: "electron-vite", current: "5.0.0", latest: "5.0.0", type: "dev" as const, risk: "none" as const },
   { name: "clsx", current: "2.1.1", latest: "2.1.1", type: "prod" as const, risk: "none" as const },
   { name: "tailwind-merge", current: "3.6.0", latest: "3.6.0", type: "prod" as const, risk: "none" as const },
   {
     name: "@electron-toolkit/preload",
-    current: "3.0.1",
-    latest: "3.0.1",
+    current: "3.0.2",
+    latest: "3.0.2",
     type: "prod" as const,
     risk: "none" as const,
   },
   { name: "@electron-toolkit/utils", current: "4.0.0", latest: "4.0.0", type: "prod" as const, risk: "none" as const },
-  { name: "@vitejs/plugin-react", current: "6.0.1", latest: "6.0.1", type: "dev" as const, risk: "none" as const },
-  { name: "electron-builder", current: "26.8.1", latest: "26.8.1", type: "dev" as const, risk: "none" as const },
-  { name: "eslint", current: "10.3.0", latest: "10.3.0", type: "dev" as const, risk: "none" as const },
+  { name: "@vitejs/plugin-react", current: "6.0.2", latest: "6.0.2", type: "dev" as const, risk: "none" as const },
+  { name: "electron-builder", current: "26.15.2", latest: "26.15.2", type: "dev" as const, risk: "none" as const },
+  { name: "@biomejs/biome", current: "2.4.16", latest: "2.4.16", type: "dev" as const, risk: "none" as const },
 ];
 
 const LINUX_HELPER_CHECKS: import("./types").ProjectCheck[] = [

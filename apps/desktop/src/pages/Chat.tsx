@@ -4,7 +4,15 @@ import { ChatToolbar } from "../components/ChatToolbar";
 import { SessionSidebar } from "../components/SessionSidebar";
 import { BRAND_NAME } from "../lib/branding";
 import type { ChatConfig } from "../lib/chat";
-import { buildRequestBody, executeToolCall, getChatConfig, getEffectiveBaseUrl, getProvider } from "../lib/chat";
+import {
+  buildRequestBody,
+  executeToolCall,
+  getChatConfig,
+  getEffectiveBaseUrl,
+  getProvider,
+  isValidBaseUrl,
+  loadApiKey,
+} from "../lib/chat";
 import type { ChatSession, ChatTopic } from "../lib/sessions";
 import {
   calculateContextUsage,
@@ -57,11 +65,14 @@ export function ChatPage() {
   const provider = getProvider(config.providerId);
   const isConfigured = !!(getEffectiveBaseUrl(config) && (provider && !provider.apiKeyRequired ? true : config.apiKey));
 
+  const [, setApiKeyReady] = useState(false);
+
   useEffect(() => {
     setTopics(getTopics());
     setSessions(getSessions());
     const active = getActiveSessionId();
     if (active) setActiveSessionIdState(active);
+    loadApiKey().then(() => setApiKeyReady(true));
   }, []);
 
   useEffect(() => {
@@ -164,13 +175,16 @@ export function ChatPage() {
     scrollToBottom();
 
     const cfg = getChatConfig();
+    cfg.apiKey = await loadApiKey();
     const baseUrl = getEffectiveBaseUrl(cfg);
 
-    if (!baseUrl) {
+    if (!baseUrl || !isValidBaseUrl(baseUrl)) {
       const errMsg: ChatMessage = {
         id: Date.now().toString(),
         role: "assistant",
-        content: "No provider configured. Go to Settings → AI Provider.",
+        content: baseUrl
+          ? "Invalid base URL: only https:// (or http://localhost) endpoints are allowed. Go to Settings → AI Provider."
+          : "No provider configured. Go to Settings → AI Provider.",
         timestamp: Date.now(),
       };
       updateSession(updatedSession.id, { messages: [...updatedMessages, errMsg] });

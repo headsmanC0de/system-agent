@@ -28,6 +28,8 @@ export const IPC_CHANNELS = [
   "password:list",
   "password:show",
   "projects:outdated",
+  "secrets:get",
+  "secrets:set",
   "system:autostart-list",
   "system:autostart-toggle",
   "system:battery-watch",

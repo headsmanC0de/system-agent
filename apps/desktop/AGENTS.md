@@ -1,4 +1,4 @@
-# Linux Helper — Desktop App
+# Linux Agent — Desktop App
 
 ## Build & Run
 All commands from `apps/desktop/`:
@@ -6,34 +6,36 @@ All commands from `apps/desktop/`:
 - `npm run build` — electron-vite build
 - `npm run preview` — test production build
 - `npm run typecheck` — tsc --noEmit
-- `npm run lint` — Biome check (scoped to src/main, src/pages, src/components, src/lib, App.tsx, api.ts)
+- `npm run lint` — Biome check (scoped to src/main, src/pages, src/components, src/lib, App.tsx, api.ts, main.tsx, types.ts)
 - `npm run test` — Playwright (browser mode against mock layer; auto-starts vite :5173)
+- `npm run test:e2e` — Electron-mode e2e (builds first, launches the real app)
 
 ## Stack
 Electron 42 + React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + electron-vite 5 + Biome 2
 
 ## Architecture
 ```
-src/main/main.ts       — Electron main (window, GPU fix, dev/prod URL detection)
-src/main/preload.ts    — contextBridge via @electron-toolkit/preload
-src/main/ipc.ts        — 40+ IPC handlers (pacman, systemctl, nvidia-smi, snapper, llm, etc.)
-src/api.ts             — Typed IPC client + mock data layer (system.overview, system.gpu, llm.modelInfo, etc.)
-src/types.ts           — All interfaces + PageId union type (18 pages)
+src/main/main.ts       — Electron main (window, scoped GPU workaround, sandbox, CSP, nav guards)
+src/main/preload.ts    — contextBridge via @electron-toolkit/preload + channel allowlist gate
+src/main/channels.ts   — SSOT IPC channel allowlist (keep 1:1 with api.ts invokes)
+src/main/ipc.ts        — 60+ IPC handlers (pacman, systemctl, nvidia-smi, snapper, llm, secrets, etc.)
+src/api.ts             — Typed IPC client + mock data layer (system.*, llm.*, secrets.*, etc.)
+src/types.ts           — re-exports @project/types (interfaces + PageId union, 18 pages)
 src/App.tsx            — Collapsible sidebar (4 groups), page routing, theme init
 src/lib/theme.ts       — 12 accent color presets, light/dark mode, localStorage persistence
-src/lib/hooks.ts       — usePolling, useAsyncData, useCpuUsage (ref-based, safe)
-src/lib/chat.ts        — Provider config (z.ai/OpenAI/Ollama/Tesseract/Custom), model registry
+src/lib/hooks.ts       — re-exports @project/hooks (usePolling, useAsyncData, useCpuUsage)
+src/lib/chat.ts        — Provider config (z.ai/OpenAI/Ollama/Tesseract/Custom), API-key secrets, baseUrl validation
 src/pages/*.tsx        — 18 page components
-src/components/ui.tsx  — Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader
+src/components/ui.tsx  — pure re-export from @project/ui (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader, Sparkline)
 src/index.css          — Tailwind v4 @theme inline, CSS variables, semantic colors, noise texture
 ```
 
-Output: `out/main/main.js`, `out/preload/preload.mjs`, `out/renderer/`
+Output: `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed renderer can load it — never switch back to ESM), `out/renderer/`
 
 ## Key Conventions
 
 ### Component Rules
-- ALL pages MUST import from `ui.tsx` — never define Card/StatCard/Bar/Badge/SearchInput/Output locally
+- ALL pages MUST import from `ui.tsx` (re-export of `@project/ui`) — never define Card/StatCard/Bar/Badge/SearchInput/Output locally
 - Use `PageHeader` for page titles instead of raw `<h1>`
 - No inline `rounded-lg border border-border bg-card` — use `<Card>`
 - No inline search inputs — use `<SearchInput>`
@@ -53,32 +55,37 @@ Output: `out/main/main.js`, `out/preload/preload.mjs`, `out/renderer/`
 - Hooks are ref-based — safe with unmemoized callbacks (no infinite re-render risk)
 
 ### IPC Rules
-- `ipcMain.handle("system:xxx")` in ipc.ts → `system.xxx()` in api.ts
-- Shell commands: `execFile` for simple cmds, `bash -c` for pipes
+- `ipcMain.handle("system:xxx")` in ipc.ts → `system.xxx()` in api.ts → entry in `channels.ts` allowlist → MOCK entry in api.ts. All four or the browser/tests break.
+- Shell commands: `execFile` for simple cmds, `bash -c` for pipes — NEVER interpolate variables into shell strings (use arg arrays or node:fs APIs)
 - Mock data layer: `isElectron` check → falls back to `MOCK` record in api.ts
 - Case-sensitivity: always `.toLowerCase()` on BOTH sides in search filters
 
+### Secrets
+- API keys NEVER go to localStorage. Use `secrets:get`/`secrets:set` IPC (Electron `safeStorage`, encrypted file in userData, 0600). Renderer side: `loadApiKey()` in `lib/chat.ts`.
+- Custom chat base URLs must pass `isValidBaseUrl()` (https-only; http allowed for localhost).
+
 ### State Rules
 - Cursor pointer on all interactive elements (set in CSS base layer)
-- Provider config persisted in localStorage key `lh-chat-config`
+- Provider config persisted in localStorage key `lh-chat-config` (apiKey is stripped before persisting)
 - Theme persisted in localStorage key `lh-theme`
 - Projects list persisted in localStorage key `lh-projects`
 
 ## Known Issues
-- NVIDIA + Wayland GPU crash — workaround: software rendering (app.disableHardwareAcceleration)
+- NVIDIA + Wayland GPU crash — workaround scoped via `needsGpuSandboxWorkaround()` (software rendering + `--no-sandbox` only on that combo; `LH_GPU_WORKAROUND=1|0` override)
 - sudo pipes password via stdin — needs polkit later
 - Zig native library (src/native/) pending Zig 0.16 API migration
-- Dead deps: `class-variance-authority`, `clsx`, `tailwind-merge` — installed but unused, safe to remove
+- Compromised Z_AI key in git history — rotation + `git filter-repo` is a USER ops action (see AUDIT.md)
 
 ## Test Suite
-135 Playwright tests (browser mode, mock data):
+138 browser-mode Playwright tests + 6 Electron-mode e2e:
 - `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
-- `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, mock-mode banner)
+- `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, secrets/baseUrl validation, mock-mode banner)
 - `tests/projects.spec.ts` — project page tests (health, deps, checklist)
 - `tests/screenshots.spec.ts` — page screenshots
+- `tests/electron.spec.ts` — real built app: IPC allowlist, CSP, window.open denial, safeStorage secrets round-trip, recovered-sandbox launch (`npm run test:e2e`)
 
-Run: `npx playwright test` from `apps/desktop/` (config auto-starts vite at :5173).
+Run: `npm run test` from `apps/desktop/` (config auto-starts vite at :5173).
 
-NOTE: tests run in **browser mode** so they exercise the mock layer, not real IPC. The
-renderer↔main contract (preload allowlist in `src/main/channels.ts` ↔ `ipcMain.handle` in
-`src/main/ipc.ts`), CSP, and nav guards are NOT covered here — they need an Electron-mode e2e.
+RULE: any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload MUST be
+verified with `npm run test:e2e` — browser tests cannot see this class of bug (BF-035/038/039).
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, build, browser tests, and the e2e on every push/PR.

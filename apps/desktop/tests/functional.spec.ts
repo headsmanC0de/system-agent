@@ -583,6 +583,56 @@ test.describe("Security Checks", () => {
   });
 });
 
+test.describe("Chat secrets & base URL validation (audit LH-072/LH-073)", () => {
+  async function openAiProvider(page: any) {
+    await navigateTo(page, "Settings");
+    await page.locator('button:has-text("AI Provider")').first().click();
+    await page.waitForTimeout(300);
+  }
+
+  test("API key is never persisted to the plaintext chat config", async ({ page }) => {
+    await openAiProvider(page);
+    const keyInput = page.locator('input[placeholder*="API key"]');
+    await keyInput.fill("sk-test-secret-value");
+    await page.waitForTimeout(300);
+    const stored = await page.evaluate(() => ({
+      config: localStorage.getItem("lh-chat-config"),
+      secret: localStorage.getItem("lh-secret-chat-api-key"),
+    }));
+    expect(stored.config).not.toBeNull();
+    expect(JSON.parse(stored.config!)).not.toHaveProperty("apiKey");
+    expect(stored.config).not.toContain("sk-test-secret-value");
+    expect(stored.secret).toBe("sk-test-secret-value");
+  });
+
+  test("legacy plaintext apiKey is purged from stored config on load", async ({ page }) => {
+    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
+    await page.evaluate(() => {
+      localStorage.setItem("lh-chat-config", JSON.stringify({ providerId: "zai-standard", apiKey: "leaked-old-key" }));
+    });
+    await openAiProvider(page);
+    const config = await page.evaluate(() => localStorage.getItem("lh-chat-config"));
+    expect(config).not.toContain("leaked-old-key");
+  });
+
+  test("custom provider warns on non-https base URL and accepts https/localhost", async ({ page }) => {
+    await openAiProvider(page);
+    await page.locator('button:has-text("Custom (OpenAI-compatible)")').click();
+    await page.waitForTimeout(300);
+    const urlInput = page.locator('input[placeholder*="api.example.com"]');
+    const warning = page.locator("text=Only https://");
+
+    await urlInput.fill("http://evil.example.com/v1/");
+    await expect(warning).toBeVisible();
+
+    await urlInput.fill("https://api.example.com/v1/");
+    await expect(warning).toBeHidden();
+
+    await urlInput.fill("http://localhost:8080/v1/");
+    await expect(warning).toBeHidden();
+  });
+});
+
 test.describe("Mock-mode banner (audit D-1)", () => {
   test("shows demo-data banner when not running in Electron", async ({ page }) => {
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });

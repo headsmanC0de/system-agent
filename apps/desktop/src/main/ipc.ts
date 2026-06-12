@@ -687,14 +687,25 @@ export function initIpc() {
   ipcMain.handle("password:insert", async (_e, path: string, content: string) => {
     assertPassPath(path);
     const { spawn } = await import("node:child_process");
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const proc = spawn("pass", ["insert", "-m", path], { stdio: ["pipe", "pipe", "pipe"] });
+      const timer = setTimeout(() => {
+        proc.kill();
+        reject(new Error("pass insert timed out"));
+      }, 15000);
+      proc.on("error", (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
       proc.stdin.write(content);
       proc.stdin.end();
       let out = "";
       proc.stdout.on("data", (d: Buffer) => (out += d));
       proc.stderr.on("data", (d: Buffer) => (out += d));
-      proc.on("close", () => resolve(out.trim() || "inserted"));
+      proc.on("close", () => {
+        clearTimeout(timer);
+        resolve(out.trim() || "inserted");
+      });
     });
   });
 
@@ -1122,12 +1133,59 @@ export function initIpc() {
   ipcMain.handle("llm:save-config", async (_e, cfg: Record<string, unknown>) => {
     try {
       const configDir = join(os.homedir(), ".config", "tesseract");
-      await shell(`mkdir -p ${configDir}`);
       const fs = await import("node:fs/promises");
+      await fs.mkdir(configDir, { recursive: true });
       await fs.writeFile(join(configDir, "config.json"), JSON.stringify(cfg, null, 2));
       return "Configuration saved";
     } catch {
       return "Failed to save configuration";
     }
+  });
+
+  const SECRET_NAME_RE = /^[a-z][a-z0-9-]{0,63}$/;
+  const secretsFile = () => join(app.getPath("userData"), "secrets.json");
+
+  // Linux: safeStorage needs an unlocked keyring (kwallet/libsecret); without one
+  // encryptString throws. Fall back to the basic_text backend — obfuscated, not
+  // keyring-encrypted, but the file is 0600 and nothing lands in localStorage.
+  async function getSafeStorage() {
+    const { safeStorage } = await import("electron");
+    if (!safeStorage.isEncryptionAvailable() && process.platform === "linux") {
+      safeStorage.setUsePlainTextEncryption(true);
+    }
+    return safeStorage;
+  }
+
+  async function readSecrets(): Promise<Record<string, string>> {
+    try {
+      return JSON.parse(await readFile(secretsFile(), "utf8"));
+    } catch {
+      return {};
+    }
+  }
+
+  ipcMain.handle("secrets:get", async (_e, name: string) => {
+    if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
+    const safeStorage = await getSafeStorage();
+    const stored = (await readSecrets())[name];
+    if (!stored) return "";
+    try {
+      return safeStorage.decryptString(Buffer.from(stored, "base64"));
+    } catch {
+      return "";
+    }
+  });
+
+  ipcMain.handle("secrets:set", async (_e, name: string, value: string) => {
+    if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
+    const safeStorage = await getSafeStorage();
+    const fs = await import("node:fs/promises");
+    const secrets = await readSecrets();
+    if (value) {
+      secrets[name] = safeStorage.encryptString(value).toString("base64");
+    } else {
+      delete secrets[name];
+    }
+    await fs.writeFile(secretsFile(), JSON.stringify(secrets), { mode: 0o600 });
   });
 }
