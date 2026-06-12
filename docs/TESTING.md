@@ -94,3 +94,24 @@ CDP attach is a manual/exploratory tool only.
 Growing the suite agentically: `npx playwright init-agents --loop=claude`
 installs the official planner/generator/healer agents; generated specs must
 still satisfy §2 invariants before merge.
+
+## 6. Production-readiness smoke gate
+
+One command from `apps/desktop/`: `npm run smoke`. It must be FULLY green
+before any release-shaped event (tag, package, handoff). The gate is:
+
+1. `typecheck` — tsc strict, all workspaces compile.
+2. `lint` — Biome monorepo, zero diagnostics.
+3. `test` — unit + contract + browser suites (mock layer).
+4. `test:e2e` — production build + real Electron launch: preload exposure,
+   IPC allowlist round-trip, CSP meta, window.open denial, secrets/safeStorage
+   round-trip, BOTH sandbox paths (`LH_GPU_WORKAROUND=0` covered), real-host
+   read-only handler smoke.
+5. `npm audit` — 0 vulnerabilities.
+6. Build artifact sanity (covered inside test:e2e by launching `out/`): the
+   preload is `preload.cjs` and must not contain the npm electron launcher.
+
+Known release blockers tracked OUTSIDE the gate (ops/board, not code):
+compromised Z.AI key rotation + history scrub (S-1, USER action); packaging
+config + Electron fuses (LH-116, blocked by LH-122); z.ai standard-API key
+choice (LH-069). A green smoke gate does NOT clear these.
