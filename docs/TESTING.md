@@ -10,12 +10,12 @@ KANBAN LH-118).
 
 | Layer | Files | Project | Runs against | Budget |
 |---|---|---|---|---|
-| Unit (pure logic) | `tests/sse.spec.ts` | `unit` | Node only, no browser | ms |
+| Unit (pure logic) | `tests/sse.spec.ts`, `tests/ecoflow.spec.ts` | `unit` | Node only, no browser | ms |
 | Contract (IPC bus) | `tests/ipc-contract.spec.ts` | `unit` | source files (static) | ms |
 | Renderer integration | `tests/renderer,functional,projects,screenshots.spec.ts` | `browser` | vite :5173 + **mock layer** | ~20 s total |
 | Electron e2e (thin!) | `tests/electron.spec.ts` | `e2e` | real built app (`out/`) | ~10–20 tests max |
 
-Commands (from `apps/desktop/`): `npm run test` = unit+browser; `npm run test:e2e` = build + e2e.
+Commands (from `apps/desktop/`): `npm run test` = unit+browser; `npm run test:e2e` = build + e2e. On headless Linux without `$DISPLAY`, run `xvfb-run -a npm run test:e2e`.
 Monorepo: `turbo run test` (cached; `--affected` on PRs, full on main).
 
 Rationale: Electron officially maintains no test driver; Playwright `_electron`
@@ -97,8 +97,10 @@ still satisfy §2 invariants before merge.
 
 ## 6. Production-readiness smoke gate
 
-One command from `apps/desktop/`: `npm run smoke`. It must be FULLY green
-before any release-shaped event (tag, package, handoff). The gate is:
+One command from repo root: `npm run smoke` (delegates to the desktop workspace
+smoke after the root build). From `apps/desktop/`, `npm run smoke` remains the
+workspace-local equivalent. It must be FULLY green before any release-shaped
+event (tag, package, handoff). The gate is:
 
 1. `typecheck` — tsc strict, all workspaces compile.
 2. `lint` — Biome monorepo, zero diagnostics.

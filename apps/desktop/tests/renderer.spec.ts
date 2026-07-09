@@ -103,6 +103,7 @@ test.describe("Page-specific UI checks", () => {
     await expect(page.locator("text=Low Battery").first()).toBeVisible();
     await expect(page.locator("text=Power Devices").first()).toBeVisible();
     await expect(page.locator("text=Bluetooth").first()).toBeVisible();
+    await expect(page.locator("text=EcoFlow").first()).toBeVisible();
   });
 
   test("Settings page shows accent colors", async ({ page, gotoPage }) => {

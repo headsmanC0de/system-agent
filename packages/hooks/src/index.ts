@@ -115,3 +115,14 @@ export function useCpuHistory(maxPoints = 60) {
 
   return { cpuHistory: history, updateCpu: update };
 }
+
+// Rolling numeric history for sparklines: push a sample, get the trimmed series.
+export function useHistory(maxPoints = 60) {
+  const ref = useRef<number[]>([]);
+  const [, tick] = useState(0);
+  return (val: number) => {
+    ref.current = [...ref.current.slice(-(maxPoints - 1)), val];
+    tick((n) => n + 1);
+    return ref.current;
+  };
+}

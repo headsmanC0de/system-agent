@@ -44,3 +44,9 @@ test("every allowlisted channel has a browser-mode MOCK fallback", () => {
   const missingMock = [...allowlist].filter((c) => !mocks.has(c));
   expect(missingMock, "channels without a MOCK entry (breaks browser/tests)").toEqual([]);
 });
+
+test("EcoFlow IPC surface is read-only telemetry only", () => {
+  const ecoflowChannels = [...allowlist].filter((channel) => channel.includes("ecoflow"));
+  expect(ecoflowChannels).toEqual(["battery:ecoflow-devices"]);
+  expect(ecoflowChannels.filter((channel) => /control|set|toggle|shutdown|power|ports|charge/i.test(channel))).toEqual([]);
+});

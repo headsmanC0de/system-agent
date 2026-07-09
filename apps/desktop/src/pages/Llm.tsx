@@ -1,19 +1,9 @@
 import { Activity, Brain, Play, RefreshCw, Save, Settings2, Square, Zap } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { llm } from "../api";
 import { Bar, Card, Output, Sparkline, StatCard } from "../components/ui";
-import { usePolling } from "../lib/hooks";
+import { useHistory, usePolling } from "../lib/hooks";
 import type { LLMConfig, LLMInferenceStatus, LLMModelInfo } from "../types";
-
-function useHistory(maxPoints = 60) {
-  const ref = useRef<number[]>([]);
-  const [, tick] = useState(0);
-  return (val: number) => {
-    ref.current = [...ref.current.slice(-(maxPoints - 1)), val];
-    tick((n) => n + 1);
-    return ref.current;
-  };
-}
 
 function formatUptime(seconds: number): string {
   const h = Math.floor(seconds / 3600);

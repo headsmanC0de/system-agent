@@ -557,6 +557,56 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
       connection: "bluetooth",
     },
   ],
+  "battery:ecoflow-devices": () => ({
+    unavailableReason: null,
+    devices: [
+      {
+        serial: "R351MOCK1234",
+        model: "EcoFlow DELTA 2 Max",
+        connected: true,
+        source: "ble",
+        lastSeen: "2026-07-09 09:30:00",
+        batteryLevel: 75.44,
+        mainBatteryLevel: 75.44,
+        extraBatteries: [
+          {
+            index: 1,
+            serial: "R361MOCK5678",
+            batteryLevel: 76.1,
+            cellTemperature: 19,
+          },
+        ],
+        inputWatts: 0,
+        outputWatts: 0,
+        acInputWatts: 0,
+        acOutputWatts: 0,
+        dcOutputWatts: 0,
+        xt60InputWatts: 0,
+        xt60_2InputWatts: 0,
+        usbOutputWatts: 0,
+        acInputVolts: 0,
+        acInputAmps: 0,
+        acOutputVolts: 119.45,
+        acOutputAmps: 0.11,
+        dcInputVolts: 0,
+        dcInputAmps: 0,
+        dc12vOutputVolts: 0,
+        dc12vOutputAmps: 0,
+        acPorts: true,
+        usbPorts: false,
+        dc12vPort: false,
+        chargeLimitMin: 0,
+        chargeLimitMax: 100,
+        acChargingSpeedWatts: 300,
+        maxAcChargingPowerWatts: 1800,
+        energyBackup: false,
+        energyBackupBatteryLevel: null,
+        remainingTimeChargingMinutes: 5999,
+        remainingTimeDischargingMinutes: 5601,
+        error: null,
+      },
+    ],
+  }),
   "battery:bt-devices": () => [
     {
       mac: "58:18:62:16:D8:5D",
@@ -814,6 +864,7 @@ export const passwords = {
 
 export const battery = {
   upowerDevices: () => invoke<import("./types").BatteryDevice[]>("battery:upower-devices"),
+  ecoflowDevices: () => invoke<import("./types").EcoFlowTelemetryResult>("battery:ecoflow-devices"),
   btDevices: () => invoke<import("./types").BtDevice[]>("battery:bt-devices"),
   btConnect: (mac: string) => invoke<string>("battery:bt-connect", mac),
   btDisconnect: (mac: string) => invoke<string>("battery:bt-disconnect", mac),
@@ -844,14 +895,12 @@ export const secrets = {
 const LINUX_HELPER_DEPS = [
   { name: "react", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
   { name: "react-dom", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
-  { name: "electron", current: "42.4.0", latest: "42.4.0", type: "dev" as const, risk: "none" as const },
-  { name: "vite", current: "8.0.16", latest: "8.0.16", type: "dev" as const, risk: "none" as const },
-  { name: "tailwindcss", current: "4.3.0", latest: "4.3.0", type: "prod" as const, risk: "none" as const },
-  { name: "lucide-react", current: "1.17.0", latest: "1.17.0", type: "prod" as const, risk: "none" as const },
-  { name: "typescript", current: "6.0.3", latest: "6.0.3", type: "dev" as const, risk: "none" as const },
+  { name: "electron", current: "42.6.1", latest: "43.1.0", type: "dev" as const, risk: "major" as const },
+  { name: "vite", current: "8.1.4", latest: "8.1.4", type: "dev" as const, risk: "none" as const },
+  { name: "tailwindcss", current: "4.3.2", latest: "4.3.2", type: "prod" as const, risk: "none" as const },
+  { name: "lucide-react", current: "1.23.0", latest: "1.23.0", type: "prod" as const, risk: "none" as const },
+  { name: "typescript", current: "6.0.3", latest: "7.0.2", type: "dev" as const, risk: "major" as const },
   { name: "electron-vite", current: "5.0.0", latest: "5.0.0", type: "dev" as const, risk: "none" as const },
-  { name: "clsx", current: "2.1.1", latest: "2.1.1", type: "prod" as const, risk: "none" as const },
-  { name: "tailwind-merge", current: "3.6.0", latest: "3.6.0", type: "prod" as const, risk: "none" as const },
   {
     name: "@electron-toolkit/preload",
     current: "3.0.2",
@@ -860,9 +909,12 @@ const LINUX_HELPER_DEPS = [
     risk: "none" as const,
   },
   { name: "@electron-toolkit/utils", current: "4.0.0", latest: "4.0.0", type: "prod" as const, risk: "none" as const },
-  { name: "@vitejs/plugin-react", current: "6.0.2", latest: "6.0.2", type: "dev" as const, risk: "none" as const },
-  { name: "electron-builder", current: "26.15.2", latest: "26.15.2", type: "dev" as const, risk: "none" as const },
-  { name: "@biomejs/biome", current: "2.4.16", latest: "2.4.16", type: "dev" as const, risk: "none" as const },
+  { name: "@tailwindcss/vite", current: "4.3.2", latest: "4.3.2", type: "prod" as const, risk: "none" as const },
+  { name: "@vitejs/plugin-react", current: "6.0.3", latest: "6.0.3", type: "dev" as const, risk: "none" as const },
+  { name: "electron-builder", current: "26.15.3", latest: "26.15.3", type: "dev" as const, risk: "none" as const },
+  { name: "@biomejs/biome", current: "2.5.3", latest: "2.5.3", type: "dev" as const, risk: "none" as const },
+  { name: "@playwright/test", current: "1.61.1", latest: "1.61.1", type: "dev" as const, risk: "none" as const },
+  { name: "@types/node", current: "24.13.2", latest: "24.13.3", type: "dev" as const, risk: "patch" as const },
 ];
 
 const LINUX_HELPER_CHECKS: import("./types").ProjectCheck[] = [
@@ -880,8 +932,14 @@ const LINUX_HELPER_CHECKS: import("./types").ProjectCheck[] = [
     message: "All 3 targets built clean in 4.2s",
     category: "pipeline",
   },
-  { id: "tests", label: "Tests (playwright)", status: "pass", message: "101/101 passed (1.3m)", category: "pipeline" },
-  { id: "lint", label: "Lint (eslint)", status: "pass", message: "0 errors, 0 warnings", category: "pipeline" },
+  {
+    id: "tests",
+    label: "Tests (Playwright)",
+    status: "pass",
+    message: "173 unit/browser + 7 Electron e2e",
+    category: "pipeline",
+  },
+  { id: "lint", label: "Lint (Biome)", status: "pass", message: "0 errors, 0 warnings", category: "pipeline" },
   { id: "typecheck", label: "TypeCheck (tsc --noEmit)", status: "pass", message: "0 errors", category: "pipeline" },
   {
     id: "strict-ts",
@@ -965,7 +1023,7 @@ const LINUX_HELPER_WS_CHECKS: import("./types").ProjectCheck[] = [
     message: "main + preload + renderer built in 3.1s",
     category: "pipeline",
   },
-  { id: "ws-lint", label: "Lint (eslint)", status: "pass", message: "0 errors", category: "pipeline" },
+  { id: "ws-lint", label: "Lint (Biome)", status: "pass", message: "0 errors", category: "pipeline" },
   { id: "ws-typecheck", label: "TypeCheck (tsc --noEmit)", status: "pass", message: "0 errors", category: "pipeline" },
   {
     id: "ws-no-any",
@@ -1001,8 +1059,7 @@ function buildDefaultProjects(): import("./types").ProjectInfo[] {
   const allChecks = LINUX_HELPER_CHECKS;
   const wsChecks = LINUX_HELPER_WS_CHECKS;
   const rootOutdated = [
-    { name: "turbo", current: "2.9.16", latest: "2.9.18", type: "dev" as const, risk: "patch" as const },
-    { name: "prettier", current: "3.6.0", latest: "3.6.0", type: "dev" as const, risk: "none" as const },
+    { name: "npm", current: "11.16.0", latest: "12.0.0", type: "dev" as const, risk: "major" as const },
   ];
   const wsOutdated = LINUX_HELPER_DEPS.filter((d) => d.risk !== "none");
   const desktopChecks = wsChecks.map((c) => ({ ...c, id: `${c.id}-desktop` }));

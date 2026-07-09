@@ -8,6 +8,7 @@ export const IPC_CHANNELS = [
   "battery:bt-connect",
   "battery:bt-devices",
   "battery:bt-disconnect",
+  "battery:ecoflow-devices",
   "battery:upower-devices",
   "docs:categories",
   "docs:create",

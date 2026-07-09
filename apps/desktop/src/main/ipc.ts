@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { app, ipcMain, Notification } from "electron";
 import initSqlJs, { type Database } from "sql.js";
+import { readEcoFlowDevices } from "./ecoflow";
 
 const exec = promisify(execFile);
 
@@ -68,9 +69,11 @@ function shell(script: string) {
 
 // pkexec pops a graphical polkit auth dialog — the user may take a while to type
 // their password, so the regular 15s cmd() timeout would kill the prompt mid-entry.
-function authCmd(args: string[]) {
-  return exec("pkexec", args, { timeout: 120000, maxBuffer: 1024 * 1024 }).then(({ stdout }) => stdout.trim());
+function authCmd(args: string[], timeout = 120000) {
+  return exec("pkexec", args, { timeout, maxBuffer: 10 * 1024 * 1024 }).then(({ stdout }) => stdout.trim());
 }
+
+const PKG_NAME_RE = /^[a-zA-Z0-9@._+-]+$/;
 
 const VALID_SERVICE_ACTIONS = ["start", "stop", "restart", "reload", "status"];
 const SERVICE_NAME_RE = /^[a-zA-Z0-9@._-]+\.service$/;
@@ -188,8 +191,14 @@ export function initIpc() {
     return raw ? raw.split("\n").filter(Boolean) : [];
   });
 
+  // Explicit user actions → pkexec (polkit GUI prompt), same model as snapper.
+  // --noconfirm is required (no TTY); the UI shows a confirmation modal first.
   handle("system:remove-orphans", async () => {
-    return "Configure sudoers or use polkit for passwordless pacman. See Settings > Security.";
+    const raw = await shell("pacman -Qdtq 2>/dev/null || echo ''");
+    const orphans = raw.split("\n").filter(Boolean);
+    if (orphans.length === 0) return "no orphans to remove";
+    if (orphans.some((o) => !PKG_NAME_RE.test(o))) throw new Error("Unexpected package name in orphan list");
+    return authCmd(["pacman", "-Rns", "--noconfirm", ...orphans], 300000).catch((e) => `error: ${e}`);
   });
 
   handle("system:package-info", async (_e, name: string) => {
@@ -198,7 +207,7 @@ export function initIpc() {
   });
 
   handle("system:update-packages", async () => {
-    return "Configure sudoers or use polkit for passwordless pacman. See Settings > Security.";
+    return authCmd(["pacman", "-Syu", "--noconfirm"], 600000).catch((e) => `error: ${e}`);
   });
 
   // Snapper privilege model (LH-110, replaces sudo):
@@ -993,6 +1002,8 @@ export function initIpc() {
     }
     return devices;
   });
+
+  handle("battery:ecoflow-devices", async () => readEcoFlowDevices());
 
   handle("battery:bt-connect", async (_e, mac: string) => {
     assertBtMac(mac);

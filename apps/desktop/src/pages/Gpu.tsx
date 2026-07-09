@@ -1,18 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { system } from "../api";
 import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
-import { usePolling } from "../lib/hooks";
+import { useHistory, usePolling } from "../lib/hooks";
 import type { GpuData } from "../types";
-
-function useHistory(maxPoints = 60) {
-  const ref = useRef<number[]>([]);
-  const [, tick] = useState(0);
-  return (val: number) => {
-    ref.current = [...ref.current.slice(-(maxPoints - 1)), val];
-    tick((n) => n + 1);
-    return ref.current;
-  };
-}
 
 function tempColor(temp: number): string {
   if (temp >= 85) return "text-destructive";

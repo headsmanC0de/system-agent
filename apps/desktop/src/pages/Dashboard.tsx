@@ -216,7 +216,7 @@ export function DashboardPage() {
 
   if (!overview) return <div className="text-muted-foreground">Loading...</div>;
 
-  const cpuPercent = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1] : 0;
+  const cpuPercent = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1]! : null;
 
   return (
     <div className="space-y-3">
@@ -260,11 +260,11 @@ export function DashboardPage() {
               <span className="text-sm text-foreground font-medium">CPU Usage</span>
             </div>
             <span className="text-2xl font-bold tabular-nums">
-              {cpuPercent}
+              {cpuPercent ?? "—"}
               <span className="text-sm font-normal text-muted-foreground">%</span>
             </span>
           </div>
-          <Bar label="" value="" pct={cpuPercent} size="md" />
+          <Bar label="" value="" pct={cpuPercent ?? 0} size="md" />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Load: {overview.load}</span>
             <Sparkline data={cpuHistory} width={140} height={32} />

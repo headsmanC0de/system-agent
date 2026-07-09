@@ -211,6 +211,57 @@ export interface BtDevice {
   icon: string;
 }
 
+export interface EcoFlowExtraBattery {
+  index: number;
+  serial: string | null;
+  batteryLevel: number | null;
+  cellTemperature: number | null;
+}
+
+export interface EcoFlowDevice {
+  serial: string;
+  model: string;
+  connected: boolean;
+  source: "ble" | "cloud";
+  lastSeen: string | null;
+  batteryLevel: number | null;
+  mainBatteryLevel: number | null;
+  extraBatteries: EcoFlowExtraBattery[];
+  inputWatts: number | null;
+  outputWatts: number | null;
+  acInputWatts: number | null;
+  acOutputWatts: number | null;
+  dcOutputWatts: number | null;
+  xt60InputWatts: number | null;
+  xt60_2InputWatts: number | null;
+  usbOutputWatts: number | null;
+  acInputVolts: number | null;
+  acInputAmps: number | null;
+  acOutputVolts: number | null;
+  acOutputAmps: number | null;
+  dcInputVolts: number | null;
+  dcInputAmps: number | null;
+  dc12vOutputVolts: number | null;
+  dc12vOutputAmps: number | null;
+  acPorts: boolean | null;
+  usbPorts: boolean | null;
+  dc12vPort: boolean | null;
+  chargeLimitMin: number | null;
+  chargeLimitMax: number | null;
+  acChargingSpeedWatts: number | null;
+  maxAcChargingPowerWatts: number | null;
+  energyBackup: boolean | null;
+  energyBackupBatteryLevel: number | null;
+  remainingTimeChargingMinutes: number | null;
+  remainingTimeDischargingMinutes: number | null;
+  error: string | null;
+}
+
+export interface EcoFlowTelemetryResult {
+  devices: EcoFlowDevice[];
+  unavailableReason: string | null;
+}
+
 export type PageId =
   | "dashboard"
   | "projects"

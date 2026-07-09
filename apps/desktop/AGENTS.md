@@ -11,7 +11,7 @@ All commands from `apps/desktop/`:
 - `npm run test:e2e` — Electron-mode e2e (builds first, launches the real app)
 
 ## Stack
-Electron 42 + React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + electron-vite 5 + Biome 2
+Electron 42.6 + React 19 + Vite 8.1 + TypeScript 6 + Tailwind CSS v4 + electron-vite 5 + Biome 2.5
 
 ## Architecture
 ```
@@ -20,12 +20,12 @@ src/main/preload.ts    — contextBridge via @electron-toolkit/preload + channel
 src/main/channels.ts   — SSOT IPC channel allowlist (keep 1:1 with api.ts invokes)
 src/main/ipc.ts        — 60+ IPC handlers (pacman, systemctl, nvidia-smi, snapper, llm, secrets, etc.)
 src/api.ts             — Typed IPC client + mock data layer (system.*, llm.*, secrets.*, etc.)
-src/types.ts           — re-exports @project/types (interfaces + PageId union, 18 pages)
+src/types.ts           — re-exports @project/types (interfaces + PageId union, 19 pages)
 src/App.tsx            — Collapsible sidebar (4 groups), page routing, theme init
 src/lib/theme.ts       — 12 accent color presets, light/dark mode, localStorage persistence
 src/lib/hooks.ts       — re-exports @project/hooks (usePolling, useAsyncData, useCpuUsage)
 src/lib/chat.ts        — Provider config (z.ai/OpenAI/Ollama/Tesseract/Custom), API-key secrets, baseUrl validation
-src/pages/*.tsx        — 18 page components
+src/pages/*.tsx        — 19 page components
 src/components/ui.tsx  — pure re-export from @project/ui (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader, Sparkline)
 src/index.css          — Tailwind v4 @theme inline, CSS variables, semantic colors, noise texture
 ```
@@ -79,16 +79,18 @@ Output: `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed rend
 ## Test Suite
 
 The testing standard lives in `docs/TESTING.md` (root) — pyramid, invariants, and the Playwright-MCP audit procedure. Summary below.
-151 browser-runner Playwright tests (incl. SSE unit + IPC contract specs) + 7 Electron-mode e2e:
+173 unit/browser Playwright tests (incl. SSE, EcoFlow parser/helper/cloud, read-only EcoFlow guards, IPC contract specs) + 7 Electron-mode e2e:
 - `tests/renderer.spec.ts` — smoke tests (sidebar, navigation, page rendering)
 - `tests/functional.spec.ts` — functional tests (data rendering, interactions, edge cases, security, secrets/baseUrl validation, mock-mode banner)
 - `tests/projects.spec.ts` — project page tests (health, deps, checklist)
 - `tests/screenshots.spec.ts` — page screenshots
 - `tests/sse.spec.ts` — unit tests for `src/lib/sse.ts` (chunk splits, UTF-8, tool calls, usage, malformed events)
+- `tests/ecoflow.spec.ts` — unit tests for EcoFlow telemetry normalization (valid snapshot, malformed payloads, null defaults)
+- `tests/ecoflow-cloud.spec.ts` — unit tests for EcoFlow Cloud read-only GET telemetry, env degrade, and no-control source guard
 - `tests/ipc-contract.spec.ts` — contract guard: ipc.ts handlers ↔ channels.ts allowlist ↔ MOCK fallbacks
 - `tests/electron.spec.ts` — real built app: IPC allowlist, CSP, window.open denial, safeStorage secrets round-trip, recovered-sandbox launch (`npm run test:e2e`)
 
-Run: `npm run test` (projects `unit`+`browser`) / `npm run test:e2e` (project `e2e`). Shared fixtures in `tests/fixtures.ts` (`gotoPage`, `seedStorage`). RULE: no `page.waitForTimeout` — use web-first assertions or `expect.poll` (enforced by review; sweep done in LH-111).
+Run: `npm run test` (projects `unit`+`browser`) / `npm run test:e2e` (project `e2e`; use `xvfb-run -a npm run test:e2e` on headless Linux without `$DISPLAY`). Shared fixtures in `tests/fixtures.ts` (`gotoPage`, `seedStorage`). RULE: no `page.waitForTimeout` — use web-first assertions or `expect.poll` (enforced by review; sweep done in LH-111).
 
 RULE: any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload MUST be
 verified with `npm run test:e2e` — browser tests cannot see this class of bug (BF-035/038/039).

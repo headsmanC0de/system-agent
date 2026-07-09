@@ -6,7 +6,7 @@
 |---|---|---|
 | LH-001 | Electron app scaffold (React + Vite + TW4) | Done |
 | LH-002 | IPC backend: 40+ handlers (packages, snapshots, services, hardware, GPU, etc.) | Done |
-| LH-003 | 18 pages: Dashboard, Projects, Packages, Snapshots, Services, Autostart, Cron, Hardware, GPU, Disks, Network, Battery/BT, RGB, Logs, Passwords, Chat, LLM, Settings | Done |
+| LH-003 | 19 pages: Dashboard, Projects, Packages, Snapshots, Services, Autostart, Cron, Hardware, GPU, Disks, Network, Battery/BT, RGB, Logs, Passwords, Chat, LLM, Settings, Docs | Done |
 | LH-004 | Sidebar layout (4 nav groups, collapsible) + Tesseract MoE LLM in Assistant | Done |
 | LH-005 | CSS theme system (12 accent presets, semantic colors, noise texture) | Done |
 | LH-006 | GPU crash workaround (software rendering) | Done |
@@ -16,10 +16,10 @@
 | LH-010 | Projects page: dependency tracking, monorepo/turborepo support, production readiness checklist | Done |
 | LH-011 | Agent Chat: SSE streaming, z.ai provider (OpenAI-compatible), thinking mode | Done |
 | LH-012 | Settings page: AI Provider config (z.ai/OpenAI/Ollama/Custom), model picker, thinking toggle | Done |
-| LH-013 | Mock data layer for browser testing (all 18 pages work without Electron) | Done |
-| LH-014 | Playwright test suite: 133 tests (smoke + functional + screenshots + security) | Done |
+| LH-013 | Mock data layer for browser testing (all 19 pages work without Electron) | Done |
+| LH-014 | Playwright test suite: 173 unit/browser tests + 7 Electron e2e tests (smoke + functional + screenshots + security) | Done |
 | LH-015 | Real-time metrics: Dashboard/GPU/Hardware/Network at 1s refresh | Done |
-| LH-016 | DRY refactoring: all 18 pages use shared ui.tsx components (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader) | Done |
+| LH-016 | DRY refactoring: all 19 pages use shared ui.tsx components (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader) | Done |
 | LH-017 | Custom hooks extraction: usePolling, useAsyncData, useCpuUsage in lib/hooks.ts | Done |
 | LH-018 | Semantic CSS colors (success/warning/info) replacing 67 hardcoded colors | Done |
 | LH-019 | Bug fixes: case-sensitivity (Services/Autostart search), dead imports, unused API methods | Done |
@@ -32,8 +32,8 @@
 | LH-021 | Light/Dark theme toggle | Done |
 | LH-022 | Turbo tasks: typecheck, test, clean, preview in turbo.json | Done |
 | LH-023 | Shared TypeScript configs: `packages/config` with tsconfig.base.json, tsconfig.app.json | Done |
-| LH-024 | Turbo boundaries: tags (config/types/ui/hooks/app) + dependency rules in turbo.json | Done |
-| LH-024 | Dependency cleanup: removed dead deps (class-variance-authority, clsx, tailwind-merge) | Done |
+| LH-024a | Turbo boundaries: tags (config/types/ui/hooks/app) + dependency rules in turbo.json | Done |
+| LH-024b | Dependency cleanup: removed dead deps (class-variance-authority, clsx, tailwind-merge) | Done |
 | LH-025 | AGENTS.md updated: ui.tsx rules, hooks rules, semantic colors, DRY rules | Done |
 | LH-026 | Theme harmony: 12 spectrum-even hue presets, HSL palette generation (primary/secondary/muted/accent/border all derived) | Done |
 | LH-027 | White-label rename: `@linux-helper/*` → `@project/*` across all packages, source, tests | Done |
@@ -79,7 +79,7 @@
 
 | LH-064 | Lint normalization: Biome `check --write` + `--unsafe` across renderer (formatting, organizeImports, parseInt radix, unused imports/vars, autofocus); `noArrayIndexKey` disabled in biome.json (heuristic, static display lists); removed unused `Priority` type — **`npm run lint` now exits 0** | **Done** |
 | LH-065a | Dep upgrade: **tailwind-merge 2→3** (3.6.0, Tailwind v4 compat), `engines.node` →`>=20.19` | **Done** |
-| LH-065b | **Vite 6→8** (8.0.16) + **@vitejs/plugin-react 4→6** (6.0.2, Oxc/Rolldown) — the "upstream block" was a FALSE assumption from electron-vite's conservative peer range; forcing it via `overrides: { vite: ^8 }` **builds + runs**. Verified: typecheck + 135 browser (vite8 dev) + 4 Electron e2e (vite8 build) + 0 vuln. (Revisit the override once electron-vite lists `vite ^8` officially.) | **Done** |
+| LH-065b | **Vite 6→8** adoption — superseded by LH-132 currentness wave. Current state: Vite 8.1.4 + `@vitejs/plugin-react` 6.0.3; root `overrides.vite` derives from `$vite` instead of duplicating a hardcoded range. | **Done** |
 | LH-063 | **GPU sandbox workaround scoped** — was unconditional (sandbox off for everyone); now `needsGpuSandboxWorkaround()` applies `--no-sandbox`/`--disable-gpu-sandbox` **only** on detected NVIDIA+Wayland (`/proc/driver/nvidia` + `XDG_SESSION_TYPE=wayland`), with `LH_GPU_WORKAROUND=1\|0` override → **OS sandbox recovered on every other setup**; affected boxes still auto-get the workaround (no regression). Both paths e2e-verified (`LH_GPU_WORKAROUND=0` launch test). | **Done** |
 | LH-062 (eng) | Secret removed from tracked files (`{env:Z_AI_API_KEY}` + gitignored `.env`) **+ `.githooks/pre-commit` secret-guard** (wired via `core.hooksPath`, set by root `prepare`) that blocks re-committing key/Bearer/secret-shaped strings (dogfood-verified: blocks the leaked key, allows `{env:…}`). | **Done** |
 | LH-068 | z.ai capability audit (docs vs code): integration is ~90% — thinking (Preserved, `reasoning_content` captured from stream **and** round-tripped across turns), streaming, `tool_stream`, function-calling (6 tools), automatic caching (`cached_tokens` shown), context compression all correct; model IDs match the Coding Plan. Gap: structured output (`response_format`) unused (minor, YAGNI). Added a policy-compliant **`zai-standard`** provider (`api/paas/v4`). | **Done** |
@@ -95,7 +95,7 @@
 | LH-074 | **Renderer sandbox recovered** (S-2 finalization): preload is now built as **CJS** (`preload.cjs`), removing the BF-035 root cause; `webPreferences.sandbox` is `true` everywhere except the NVIDIA+Wayland GPU-workaround combo (where the OS sandbox is already off). e2e-verified on both paths. | **Done** |
 | LH-075 | **CI**: `.github/workflows/ci.yml` — npm ci → typecheck → lint → build → browser tests → Electron e2e (xvfb) on push/PR to main; failure artifacts uploaded. | **Done** |
 | LH-076 | Cleanups: biome scripts referenced nonexistent `src/vite.config.ts`/`src/main.ts` (fixed → `src/main.tsx`); dead `tsdown.*.config.ts` removed; stale broken `@workspace/ui` alias removed from `vite.config.ts`; `executeToolCall` dynamic `import("../api")` → static (kills the Rolldown INEFFECTIVE_DYNAMIC_IMPORT warning); missing `system:battery-watch` MOCK added; `Llm.tsx` raw `<pre>` → shared `<Output>`. | **Done** |
-| LH-077 | Deps refreshed (2026-06-12): electron 42.4.0, react/react-dom 19.2.7, electron-builder 26.15.2, @types/node 24→**25**, turbo 2.9.18, prettier 3.8.4 — typecheck/build/tests green, `npm audit` 0 vulns. Projects-page mock dep matrix synced to real versions. | **Done** |
+| LH-077 | Deps refreshed (2026-06-12) — superseded by LH-132 currentness wave. Current state: Electron 42.6.1, Vite 8.1.4, electron-builder 26.15.3, Biome 2.5.3, Playwright 1.61.1, `@types/node` aligned to Electron 42's Node 24 tree. | **Done** |
 | LH-078 | Root hygiene: 137 untracked PNG screenshots moved to `screenshots/`; AGENTS.md/CLAUDE.md refreshed to current reality (Biome, test counts, ui.tsx re-export). | **Done** |
 | LH-079 | **IPC contract guard**: `invoke(channel: IpcChannel)` + `MOCK: Partial<Record<IpcChannel, …>>` (compile-time, renderer side) + `tests/ipc-contract.spec.ts` (handlers ↔ allowlist ↔ MOCK set equality, main side). Hand-sync drift between ipc.ts/channels.ts/api.ts is now impossible to land. | **Done** |
 | LH-080 | **usePolling/useAsyncData error surfacing**: rejections captured into a returned `error` state (no more unhandled rejections from pages like GPU that don't try/catch); `intervalMs <= 0` now means "run once" — fixing BF-040; shared `<StaleDataNotice>` (`@project/ui`) rendered on Dashboard/GPU/Hardware/Network. | **Done** |
@@ -112,7 +112,7 @@
 | LH-114 | **React 19.2 modernization (scoped)**: hooks rewritten on `useEffectEvent` (official primitive replaces the ref dance); page routing wrapped in `<Activity>` — visited pages stay mounted hidden (filters/scroll/state survive navigation, effects/polling stop). React Compiler + useSyncExternalStore deliberately deferred (LH-117): compiler needs `@rolldown/plugin-babel` on an electron-vite/Vite-8 combo that upstream doesn’t list as supported yet — regression risk > benefit for a local desktop app. | **Done** |
 | LH-115 | **TS 6 hardening**: `"strict": true` was silently MISSING from the desktop tsconfigs (CLAUDE.md claimed otherwise) — enabled with **0 resulting errors**; stale `@workspace/ui` path mapping removed; `erasableSyntaxOnly`/`bundler`/explicit `types` confirmed already present in `@project/config`. | **Done** |
 | LH-118 | **Testing standard + agentic QA**: `docs/TESTING.md` (SSOT: pyramid, 6 invariants, turbo test config, Playwright-MCP audit procedure — built on official Electron/Playwright/Turborepo/playwright-mcp docs); `.mcp.json` wires `@playwright/mcp`; `.claude/agents/qa-audit.md` defines the invocable audit agent; turbo `test` task got md-excluding `inputs` for cache stability. Real-Electron audit recipe documented (`--remote-debugging-port` + `--cdp-endpoint`, unofficial). | **Done** |
-| LH-119 | **Production-smoke gate** (`npm run smoke`, TESTING.md §6): typecheck → lint → unit/browser → build+Electron e2e → npm audit, one command, exit-code gated. First run: ALL GREEN (153 + 7 tests, 0 vulns). Release blockers explicitly listed outside the gate (S-1 key rotation, LH-116/122 packaging+fuses, LH-069 key choice). | **Done** |
+| LH-119 | **Production-smoke gate** (`npm run smoke`, TESTING.md §6): typecheck → lint → unit/browser → build+Electron e2e → npm audit, one command, exit-code gated. Current gate: 173 unit/browser + 7 e2e tests; 0 vulns expected. Release blockers explicitly listed outside the gate (S-1 key rotation, LH-116/122 packaging+fuses, LH-069 key choice). | **Done** |
 | LH-120a | **Linux packaging (LH-122 partial)**: `electron-builder.yml` — AppImage + pacman targets, asar, pinned electronVersion, `linux-agent-${version}` artifacts. Built & smoke-verified: packaged AppImage launches, renderer alive over CDP, loads from asar via file:// (CSP meta path). `npm run package`. | **Done** |
 | LH-116 | **Electron fuses flipped in packaged builds** (native `electronFuses` in electron-builder 26): RunAsNode/NodeOptions/NodeCliInspect **Disabled**, OnlyLoadAppFromAsar **Enabled** — verified by reading fuses from the built binary (`@electron/fuses read`). e2e unaffected (runs unpacked `out/`). Custom `protocol.handle` instead of file:// remains optional follow-up. | **Done** |
 | LH-121a | Branding: company site `https://moonrock.software` — ORG_URL/ORG_DOMAIN updated in branding SSOT; homepage in both package.json; openExternal allowlist and PoweredByBadge derive automatically. | **Done** |
@@ -121,6 +121,12 @@
 | LH-109 | **Export system report (JSON/HTML)**: Dashboard buttons gather overview/memory/disks/gpu/services → `system:save-report` (save dialog + fs write in main; mock = browser Blob download). Test asserts a real download event + filename. | **Done** |
 | LH-104a | **Fan curves — editor UI** (Hardware page): per-fan 4-point curve (40/55/70/85°C sliders), presets Silent/Balanced/Performance, SVG preview with live temp marker, localStorage persist, enable/disable toggle, honest udev warning for non-writable pwm. 2 browser tests. | **Done** |
 | LH-104b | **Fan curves — hwmon backend**: `fans:list/set-config/status` IPC (contract-complete); 2s apply-loop in main (temp → linear interpolation → pwm write), `pwm_enable` original mode saved & restored on disable/app-quit (kill-switch), curve/id validation, no privilege prompts in the loop — non-writable pwm degrades to the UI hint. | **Done** |
+| LH-129 | **EcoFlow DELTA 2 Max BLE read-only battery telemetry**: Battery & BT page gained an EcoFlow tab; normalized `EcoFlowTelemetryResult` contract in `@project/types`; `battery:ecoflow-devices` IPC + allowlist + mock contract; Electron path calls only an absolute `ECOFLOW_BLE_HELPER` via `execFile` and degrades to explicit unavailable state when not configured. Covered by IPC contract, EcoFlow parser unit tests, and Battery functional/smoke tests. | **Done** |
+| LH-129a | **EcoFlow BLE helper contract**: added `scripts/ecoflow_ble_helper.py` as a read-only helper boundary. It normalizes fixture JSON for repeatable tests and supports optional real BLE reads through `source/ha-ef-ble/custom_components/ef_ble` imported as top-level `eflib`; no control packets are sent. Covered by helper fixture test plus read-only guards that reject EcoFlow control IPC channels and helper packet-control calls. | **Done** |
+| LH-129b | **EcoFlow Wi-Fi/Cloud read-only telemetry**: `readEcoFlowDevices()` now prefers EcoFlow Cloud when `ECOFLOW_CLOUD_ACCESS_KEY` + `ECOFLOW_CLOUD_SECRET_KEY` are present, optionally scoped by `ECOFLOW_DEVICE_SN`; it uses signed GET-only requests for device list/quota, maps cloud quota into the existing Battery tab, and never exposes control endpoints or secrets. Covered by `ecoflow-cloud.spec.ts` happy path, serial-only path, missing-credentials degrade, and read-only source guard. | **Done** |
+| LH-132a | **Node type drift fixed**: desktop `@types/node` is aligned to Electron 42's Node 24 dependency tree (`^24.13.2`) instead of the invalid 25.x range. Verified with `npm ls @types/node --workspace @project/desktop --depth=0` and `npm audit` 0 vulnerabilities. Patch-currentness to 24.13.3 remains part of LH-132. | **Done** |
+| LH-132 | **Dependency currentness wave**: updated low-risk patch/minor deps — `@biomejs/biome 2.5.3`, `@playwright/test 1.61.1`, `@tailwindcss/vite 4.3.2`, `tailwindcss 4.3.2`, `vite 8.1.4`, `@vitejs/plugin-react 6.0.3`, `electron 42.6.1`, `electron-builder 26.15.3`, `lucide-react 1.23.0`; root `overrides.vite` now points to `$vite` as the SSOT; root `smoke` script added; `packageManager` synced to tested `npm@11.16.0`. Verified: `check-types`, `lint`, `build`, 173 unit/browser, 7 e2e, `npm audit` 0. | **Done** |
+| LH-155 | **Destructure functional browser specs**: split `apps/desktop/tests/functional.spec.ts` (736 lines) into `functional-data.spec.ts` (331 lines) and `functional-system.spec.ts` (407 lines), preserving all assertions and updating Playwright browser `testMatch`. Verified: targeted 88 browser tests passed. | **Done** |
 
 ## Handoff — single residual OPS action (not a code task)
 
@@ -179,6 +185,12 @@ code change can perform — it requires the user's external account:
 | BF-041 | Every `npm run test:e2e` run opened https://example.com in the user's default browser: the S-5 deny-test calls `window.open("https://example.com")` and `setWindowOpenHandler` forwarded ANY http/https URL to `shell.openExternal` before denying | Medium | Host allowlist (LH-085): only branding/provider https hosts reach `openExternal`; example.com is now denied with no side effect. |
 | BF-042 | Hardware page rendered memory in MiB labeled "GB" ("64363.3 GB total" on a 63 GiB machine) — `formatGb` divided bytes by 1024² instead of 1024³; affected REAL Electron too (`free --bytes` returns bytes) | Medium | Divide by 1024³. Regression test: functional "memory totals render in GiB magnitude (BF-042)". **Found by the first qa-audit agent run.** |
 | BF-043 | GPU page showed "120W / 285W W" in browser mode — MOCK baked units into `power`/`powerLimit` while the real `nvidia-smi --nounits` handler returns unitless values; mock shape diverged from real output | Low | MOCK → "120"/"285" (matches real handler shape). Regression test: functional "power renders a single W unit (BF-043)". **Found by qa-audit.** |
+| BF-044 | `Gpu.tsx`/`Llm.tsx` imported `useHistory` from the app-local hooks facade, but `src/lib/hooks.ts` did not re-export the new shared hook from `@project/hooks`; Vite failed before any page rendered | High | Added `useHistory` to the app-local hooks re-export. Found while running Battery UI tests for LH-129; wider impact was full renderer startup failure, not just GPU/LLM. |
+| BF-045 | EcoFlow helper contract test referenced `scripts/ecoflow_ble_helper.py`, but the helper file was missing, so the unit suite could fail before any BLE behavior was exercised | Medium | Added a read-only helper with fixture normalization and optional BLE path; the helper test now validates the Electron JSON contract without requiring a real station. |
+| BF-046 | Dependency wave failed with `EOVERRIDE`: root `overrides.vite` hardcoded a second Vite range that conflicted with direct `vite@8.1.4` | Medium | Changed `overrides.vite` to `$vite`, making root `devDependencies.vite` the SSOT. Full build/browser/e2e gate verified Vite 8.1.4. |
+| BF-047 | Root `npm run smoke` failed in headless shells because desktop `test:e2e` did not wrap Electron Playwright with `xvfb-run` | High | Updated desktop `test:e2e` to `electron-vite build && xvfb-run -a playwright test --project e2e`; root `npm run smoke` now passes end-to-end. |
+| BF-048 | Unit `testMatch` only listed exact EcoFlow filenames, so a new `ecoflow-cloud.spec.ts` was ignored by the Playwright unit project before implementation | Medium | Expanded unit `testMatch` to include `ecoflow-*` specs; the first RED run now fails on the missing export instead of "No tests found". |
+| BF-049 | EcoFlow Cloud adapter used stale `/iot-service/open/api/...` paths and sorted auth fields together with data params, which would fail against the current signed API | High | Aligned with the current REST client contract: `/iot-open/sign/device/list`, `/iot-open/sign/device/quota/all`, and HMAC over sorted data params followed by `accessKey`, `nonce`, `timestamp`. Regression test now verifies endpoint paths and deterministic signature reconstruction. |
 
 ### Blindspot analysis (BF-033)
 
@@ -221,6 +233,48 @@ code change can perform — it requires the user's external account:
 - **Matrix change:** edge-of-contract values (`0`, negative, `NaN`) for shared hooks are now part of the hook's documented contract (JSDoc in `@project/hooks`); the "Electron IPC boundary" rule extends to **resource-cost behavior**: anything that spawns processes on a timer needs its interval semantics stated explicitly.
 - **Wider-impact check performed:** audited all 7 `usePolling` call sites — Logs.tsx was the only dynamic-interval caller (`follow ? 3000 : 0`); all others use constant 1000/30000. No other `setInterval`/`setTimeout` in pages takes a computed interval that can hit 0.
 
+### Blindspot analysis (BF-044 — found during LH-129, 2026-07-09)
+
+- **Blindspot:** the app-local re-export `apps/desktop/src/lib/hooks.ts` is a narrow SSOT boundary, but tests did not validate that newly added shared hooks remain exported through it. A shared hook existed in `@project/hooks`, while renderer imports from the app facade failed at runtime.
+- **Why allowed:** typecheck passed for the package that defined `useHistory`, but browser startup was the first full module-graph check of the app facade. The dirty worktree already had pages migrated to the shared hook without updating the facade.
+- **Matrix change:** renderer smoke remains mandatory after shared package facade changes; `renderer.spec.ts` and functional Battery tests now catch full app-load failures before page assertions.
+- **Wider-impact check performed:** `rg useHistory` showed only GPU and LLM imports through `../lib/hooks`; fixing the facade restored the whole renderer module graph.
+
+### Blindspot analysis (BF-045 — found during EcoFlow helper audit, 2026-07-09)
+
+- **Blindspot:** the integration boundary between Electron and the future BLE helper had a test before the executable helper existed. That made the suite report a missing file instead of validating telemetry behavior.
+- **Why allowed:** the read-only BLE implementation was split between Electron normalization and an external Python helper, but the board only tracked the Electron side as complete.
+- **Matrix change:** EcoFlow now has two explicit contracts: `battery:ecoflow-devices` in Electron and `scripts/ecoflow_ble_helper.py` for helper JSON stdout. Fixture-driven helper tests cover the process boundary without needing BLE hardware.
+- **Wider-impact check performed:** the helper only emits JSON to stdout, requires `ECOFLOW_USER_ID` for real BLE reads, imports vendored `eflib` without Home Assistant, and sends no control packets. Real-device auth/BlueZ behavior remains a separate dogfood gap.
+
+### Blindspot analysis (BF-046 — found during LH-132 dependency wave, 2026-07-09)
+
+- **Blindspot:** dependency overrides were treated as harmless plumbing, but `overrides.vite` duplicated the direct Vite dependency and blocked normal currentness updates.
+- **Why allowed:** the earlier Vite 8 adoption needed an override for electron-vite's conservative peer range, but the board did not require the override to derive from the root dependency spec.
+- **Matrix change:** dependency overrides must either reference a direct dependency with `$name` or carry an explicit Kanban task explaining why a duplicated hardcoded version is unavoidable.
+- **Wider-impact check performed:** updated Vite to 8.1.4, kept electron-vite 5, then ran typecheck, Biome, production build, 173 unit/browser tests, 7 Electron e2e tests, and `npm audit`.
+
+### Blindspot analysis (BF-047 — found during root smoke dogfood, 2026-07-09)
+
+- **Blindspot:** the documented smoke gate assumed a display server would exist, while prior local verification used `xvfb-run` manually around `npm run test:e2e`.
+- **Why allowed:** `test:e2e` was tested both with and without external wrappers, but only the wrapped command was reliable in a headless CI-like shell. The root smoke script exposed that the wrapper was not part of the SSOT command.
+- **Matrix change:** Electron e2e must own its display requirement. Callers should run `npm run test:e2e` or `npm run smoke`, not remember an external `xvfb-run` prefix.
+- **Wider-impact check performed:** reran root `npm run smoke`; it completed build, typecheck, lint, 173 unit/browser tests, 7 Electron e2e tests, and `npm audit` 0 vulnerabilities.
+
+### Blindspot analysis (BF-048 — found during EcoFlow Cloud TDD, 2026-07-09)
+
+- **Blindspot:** Playwright project routing was too literal. New unit specs that followed the `ecoflow-*.spec.ts` naming convention could be excluded before they reached assertions.
+- **Why allowed:** the prior helper/parser tests were added as explicit filenames, so the test matrix did not encode the broader EcoFlow contract family.
+- **Matrix change:** unit test routing now treats EcoFlow specs as a family with `ecoflow(?:-.+)?`, matching parser, helper, cloud, and future read-only contract specs.
+- **Wider-impact check performed:** reran the new cloud spec, the existing EcoFlow parser/helper specs, IPC contract specs, typecheck, lint, and root smoke.
+
+### Blindspot analysis (BF-049 — found before EcoFlow live auth, 2026-07-09)
+
+- **Blindspot:** Cloud contract tests validated our fake request shape, not the current public API path/signature contract.
+- **Why allowed:** the first adapter was based on mixed public snippets while the official docs are JavaScript-rendered; the test server accepted any signed GET and did not assert the exact string-to-sign.
+- **Matrix change:** EcoFlow Cloud tests now assert API paths and recompute the expected HMAC from observed `nonce`/`timestamp`, so path or signature drift fails before live dogfood.
+- **Wider-impact check performed:** compared against `@ecoflow-api/rest-client@0.6.0`, reran `ecoflow-cloud.spec.ts`, lint, typecheck, and smoke.
+
 ## Backlog — P1 (Feature)
 
 > Backlog IDs renumbered to LH-101+ (2026-06-12): the old backlog reused LH-026…LH-055,
@@ -232,9 +286,20 @@ code change can perform — it requires the user's external account:
 | LH-102 | Zig .so → Electron native addon (node-addon-api or ffi-napi) | P1 | Pending |
 | LH-104c | GPU (NVIDIA) duty control: needs Coolbits + X11 `nvidia-settings` (no Wayland path) — fan % stays read-only via nvidia-smi until an NVML write path; documented limitation | P2 | Pending |
 | LH-105 | BT Device Popup: volume, audio profile, PipeWire EQ presets, media controls (on device card click) | P1 | Pending |
+| LH-130 | EcoFlow BLE controls: AC/USB/DC toggles, charge limits, energy backup, AC charging speed. **Safety hold:** do not implement while the station powers the desktop; current contract is read-only telemetry only. Revisit only after explicit opt-in, real-device dogfood, and a physical safe shutdown test plan. | P1 | Blocked |
+| LH-131 | EcoFlow cloud/MQTT shutdown policy: Developer API + local Mosquitto + host-local shutdown agent integration, separate from local BLE telemetry | P1 | Pending |
 | LH-106 | Projects: real IPC (read package.json, npm outdated, cargo outdated) | P1 | Pending |
 | LH-107 | Projects: function calling integration (Chat agent can query project deps) | P1 | Pending |
 | LH-117 | React Compiler (`@rolldown/plugin-babel` + `reactCompilerPreset`, babel BEFORE react plugin) + `useSyncExternalStore` for the chat stream — adopt once electron-vite officially supports Vite 8 | P2 | Pending |
+| LH-133 | Electron 43 migration: update Electron from 42.x to 43.1.0, align Node typings with Electron runtime, verify packaged fuses/AppImage/e2e | P1 | Pending |
+| LH-134 | Tooling currentness: MCP version/root path are fixed; add reproducible LSP setup for TypeScript, Tailwind, and Biome, then evaluate npm 12.0.0 as a separate major toolchain migration | P1 | Pending |
+| LH-135 | Docs/matrix SSOT cleanup: replace starter READMEs, remove volatile page/test counts or generate them, fix stale ESLint references, reconcile release blockers | P1 | Pending |
+| LH-136 | Consolidate page registry: one app-local registry derives nav groups, component map, titles, and `PageId` guard tests | P1 | Pending |
+| LH-152 | Destructure `apps/desktop/src/main/ipc.ts` (1406 lines): split by domain while preserving channel names and `handle()` sender-validation; required guards: IPC contract spec + Electron e2e | P1 | Pending |
+| LH-153 | Destructure `apps/desktop/src/api.ts` (1148 lines): extract mock project/dependency data to `packages/mock-data` or app fixtures; required guards: browser mock-mode tests + Projects dependency tests | P1 | Pending |
+| LH-154 | Destructure `apps/desktop/src/pages/Projects.tsx` (755 lines): split tabs/checklist/dependency panels into page-local components; required guards: `projects.spec.ts` coverage stays green | P1 | Pending |
+| LH-155 | Done — moved to completed section | P1 | Done |
+| LH-156 | Destructure `apps/desktop/src/pages/Chat.tsx` (542 lines): extract message list/composer/session state view components without changing chat persistence/API-key contracts; required guards: chat functional tests + SSE unit tests | P1 | Pending |
 
 
 ## Backlog — P2 (Platform Maturity)
@@ -250,6 +315,9 @@ code change can perform — it requires the user's external account:
 | LH-126 | Docs structure: `docs/architecture/`, `docs/decisions/`, `docs/runbooks/` | P2 | Pending |
 | LH-127 | RGB custom color picker (hex input + color wheel) | P2 | Pending |
 | LH-128 | Mock data extraction to `packages/mock-data` | P2 | Pending |
+| LH-137 | Superseded by LH-152 (`ipc.ts` >500-line mandatory split) | P2 | Superseded |
+| LH-138 | Extract shared display utilities (`formatBytes`, `formatGb`, `formatWatts`, `formatPct`, `tempTone`, `percentTone`) and remove page-local formatter duplicates | P2 | Pending |
+| LH-139 | Generated artifact policy: untrack/ignore Zig cache outputs and decide whether root `snap-*.md` files are durable fixtures or transient audit artifacts | P2 | Pending |
 
 ## Backlog — P3 (Windows Installer + Advanced)
 
@@ -282,19 +350,19 @@ code change can perform — it requires the user's external account:
 | Brand packs | Theme system (12 spectrum-even presets + light/dark + HSL palette + Mono white) + branding.ts SSOT | Need brand.config.ts, feature flags |
 | Repo doctor | None | Need tools/repo-doctor |
 | Agent commands | None | Need .agents/commands/ |
-| Quality gates | Playwright 159 browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) | Need contract validation (Zod schemas) |
+| Quality gates | Playwright 173 unit/browser + 7 Electron e2e + tsc + Biome + GitHub Actions CI (typecheck/lint/build/tests on every push) + security hardening (CSP, IPC allowlist, nav guards, sandbox, safeStorage secrets) + root `npm run smoke` | Need contract validation (Zod schemas) |
 
 ## Package Map
 
 ```
 packages/
   config/  → @project/config  (tsconfig.base.json, tsconfig.app.json — shared TS configs)
-  types/   → @project/types  (all TS interfaces, PageId union (18 pages), CpuSample, TokenUsage, ToolCallInfo, LLMModelInfo, LLMInferenceStatus, LLMConfig, etc.)
+  types/   → @project/types  (all TS interfaces, PageId union (19 pages), CpuSample, TokenUsage, ToolCallInfo, LLMModelInfo, LLMInferenceStatus, LLMConfig, etc.)
   ui/      → @project/ui     (Card, StatCard, Bar, Badge, SearchInput, Output, PageHeader, Sparkline, StaleDataNotice + shadcn: Button, Separator, Skeleton)
   hooks/   → @project/hooks  (usePolling, useAsyncData, useCpuUsage, useCpuHistory, ema — polling/async hooks return { error })
 
 apps/
-  desktop/ → @project/desktop (Electron 42 + React 19 + Vite 8 + TW4 + Biome 2)
+  desktop/ → @project/desktop (Electron 42.6 + React 19 + Vite 8.1 + TW4 + Biome 2.5)
     src/main/channels.ts     → SSOT IPC channel allowlist (preload gate + ipc.ts handlers)
     src/components/ui.tsx    → re-exports from @project/ui
     src/components/ChatToolbar.tsx   → provider/model picker, feature toggles, context tracking
@@ -308,7 +376,7 @@ apps/
     src/types.ts             → re-exports from @project/types
 ```
 
-## Test & Functionality Matrix (159 browser + 7 Electron e2e — ALL PASS, 2026-06-12)
+## Test & Functionality Matrix (173 unit/browser + 7 Electron e2e — ALL PASS, 2026-07-09)
 
 | Page | UI | Mock Data | Interactive | Real-time | Shared UI | Dark/Light |
 |---|---|---|---|---|---|---|
@@ -323,7 +391,7 @@ apps/
 | GPU | yes | temp/util/fan/vram/power | - | 1s | Bar | yes |
 | Disks | yes | disk entries with 3-color bars | - | - | Bar (colorTiers) | yes |
 | Network | yes | connections table | - | 1s | Badge | yes |
-| Battery/BT | yes | UPower + BT devices | connect/disconnect, tabs | 30s | Card, Badge | yes |
+| Battery/BT | yes | UPower + BT devices + EcoFlow DELTA 2 Max BLE mock | BT connect/disconnect, UPower/BT/EcoFlow tabs, EcoFlow search; EcoFlow Cloud read-only when env credentials are present | 30s | Card, Badge | yes |
 | RGB | yes | devices with presets | apply color, all white/off | - | Output | yes |
 | Logs | yes | journal output | count selector, refresh | - | Output | yes |
 | Passwords | yes | vault entries + detail | show/copy/delete/generate | - | Card, Badge | yes |
@@ -335,13 +403,16 @@ apps/
 
 | Gap | Risk | Priority |
 |---|---|---|
-| Electron IPC boundary (preload allowlist, CSP, nav guards, real IPC round-trip) | Covered — `tests/electron.spec.ts` (`npm run test:e2e`), 6 tests | Done |
+| Electron IPC boundary (preload allowlist, CSP, nav guards, real IPC round-trip) | Covered — `tests/electron.spec.ts` (`npm run test:e2e`), 7 tests | Done |
 | Secrets at rest (safeStorage round-trip, plaintext purge, name validation) | Covered — functional (3) + e2e (1) | Done |
 | Base-URL validation (https-only custom endpoints) | Covered — functional | Done |
 | CI gate (typecheck/lint/build/tests on push) | Covered — `.github/workflows/ci.yml` | Done |
 | Chat SSE with real API | High | P1 |
 | Light mode screenshot test | Medium | P1 |
 | IPC failure error handling | Medium | P2 |
+| EcoFlow real helper dogfood | Browser/mock/parser/cloud-contract covered; real DELTA 2 Max still needs live verification with `ECOFLOW_CLOUD_ACCESS_KEY` + `ECOFLOW_CLOUD_SECRET_KEY` or `ECOFLOW_BLE_HELPER` | P1 |
+| EcoFlow browser auth environment | Current agent shell has no `$DISPLAY`, and Playwright MCP tools are not exposed; interactive EcoFlow Developer login needs a visible browser session or MCP browser namespace | P1 |
+| Playwright browser provisioning | Found during LH-129: browser tests failed before app load when Chromium was missing; local fix was `npx playwright install chromium`, CI should keep browser install/cache explicit | P2 |
 | Empty state pages | Low | P2 |
 | Keyboard a11y | Medium | P2 |
 | Mock-mode banner | Covered (functional.spec — D-1) | Done |

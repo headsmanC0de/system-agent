@@ -20,12 +20,12 @@ export default defineConfig({
     // Pure-Node specs: no browser, no page.
     {
       name: "unit",
-      testMatch: /(sse|ipc-contract)\.spec\.ts/,
+      testMatch: /(sse|ipc-contract|ecoflow(?:-.+)?|ecoflow-helper)\.spec\.ts/,
     },
     {
       name: "browser",
       use: { browserName: "chromium" },
-      testMatch: /(renderer|functional|projects|screenshots)\.spec\.ts/,
+      testMatch: /(renderer|functional-.+|projects|screenshots)\.spec\.ts/,
     },
     // Real built Electron app (requires `electron-vite build` first).
     {

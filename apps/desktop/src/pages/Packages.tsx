@@ -16,6 +16,11 @@ export function PackagesPage() {
   const [packageDetail, setPackageDetail] = useState<string | null>(null);
   const detailRequestRef = useRef<string | null>(null);
   const debouncedSearch = useDebounced(search, 200);
+  const [confirmAction, setConfirmAction] = useState<{
+    label: string;
+    message: string;
+    fn: () => Promise<string>;
+  } | null>(null);
 
   const refresh = async () => {
     const [p, o, or] = await Promise.all([system.packages(), system.outdated(), system.orphans()]);
@@ -67,7 +72,13 @@ export function PackagesPage() {
       <div className="flex justify-end">
         <div className="flex gap-2">
           <button
-            onClick={() => run(system.updatePackages, "system upgrade")}
+            onClick={() =>
+              setConfirmAction({
+                label: "system upgrade",
+                message: `Run a full system upgrade (pacman -Syu) for ${outdated.length} outdated package${outdated.length === 1 ? "" : "s"}? A polkit authentication prompt will appear.`,
+                fn: system.updatePackages,
+              })
+            }
             disabled={loading}
             className="btn-primary"
           >
@@ -75,7 +86,13 @@ export function PackagesPage() {
           </button>
           {orphans.length > 0 && (
             <button
-              onClick={() => run(system.removeOrphans, "remove orphans")}
+              onClick={() =>
+                setConfirmAction({
+                  label: "remove orphans",
+                  message: `Remove ${orphans.length} orphaned package${orphans.length === 1 ? "" : "s"} (pacman -Rns): ${orphans.join(", ")}?`,
+                  fn: system.removeOrphans,
+                })
+              }
               disabled={loading}
               className="btn-danger"
             >
@@ -145,6 +162,25 @@ export function PackagesPage() {
         ) : (
           <Output className="whitespace-pre-wrap">{packageDetail}</Output>
         )}
+      </Modal>
+
+      <Modal open={confirmAction !== null} onClose={() => setConfirmAction(null)} title="Confirm action">
+        <p className="text-sm">{confirmAction?.message}</p>
+        <div className="mt-3 flex justify-end gap-2">
+          <button onClick={() => setConfirmAction(null)} className="btn-ghost text-xs">
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              const action = confirmAction;
+              setConfirmAction(null);
+              if (action) run(action.fn, action.label);
+            }}
+            className="btn-danger text-xs"
+          >
+            Confirm
+          </button>
+        </div>
       </Modal>
     </div>
   );

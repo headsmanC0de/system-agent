@@ -14,7 +14,7 @@
   "mcp": {
     "filesystem": {
       "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/headsmanc0de/Documents/projects/linux-helper"],
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."],
       "enabled": true
     },
     "zai-mcp-server": {
@@ -44,7 +44,7 @@
     },
     "playwright": {
       "type": "local",
-      "command": ["npx", "-y", "@playwright/mcp@latest", "--no-sandbox"],
+      "command": ["npx", "-y", "@playwright/mcp@0.0.77", "--no-sandbox"],
       "enabled": true
     },
     "zread": {

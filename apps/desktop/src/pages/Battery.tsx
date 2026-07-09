@@ -15,12 +15,13 @@ import {
   Mouse,
   Plug,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { battery } from "../api";
 import { Badge, Card, SearchInput } from "../components/ui";
 import { usePolling } from "../lib/hooks";
-import type { BatteryDevice, BtDevice } from "../types";
+import type { BatteryDevice, BtDevice, EcoFlowDevice } from "../types";
 
 function batteryIcon(pct: number, charging: boolean, size = 20) {
   if (charging) return <BatteryCharging size={size} className="text-success-foreground" />;
@@ -58,17 +59,45 @@ function connectionLabel(conn: string) {
   }
 }
 
+function formatPct(value: number | null): string {
+  return value === null ? "N/A" : `${Number.isInteger(value) ? value : value.toFixed(2)}%`;
+}
+
+function formatWatts(value: number | null): string {
+  return value === null ? "N/A" : `${value} W`;
+}
+
+function formatMinutes(value: number | null): string {
+  if (value === null) return "N/A";
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function portBadge(label: string, enabled: boolean | null) {
+  if (enabled === null) return <Badge>{label} N/A</Badge>;
+  return <Badge variant={enabled ? "success" : "secondary"}>{`${label} ${enabled ? "On" : "Off"}`}</Badge>;
+}
+
 export function BatteryPage() {
   const [upowerDevices, setUpowerDevices] = useState<BatteryDevice[]>([]);
   const [btDevices, setBtDevices] = useState<BtDevice[]>([]);
+  const [ecoflowDevices, setEcoflowDevices] = useState<EcoFlowDevice[]>([]);
+  const [ecoflowUnavailable, setEcoflowUnavailable] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [output, setOutput] = useState("");
-  const [tab, setTab] = useState<"upower" | "bluetooth">("upower");
+  const [tab, setTab] = useState<"upower" | "ecoflow" | "bluetooth">("upower");
   const [watcherActive, setWatcherActive] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [up, bt] = await Promise.all([battery.upowerDevices(), battery.btDevices()]);
+    const [up, ecoflow, bt] = await Promise.all([
+      battery.upowerDevices(),
+      battery.ecoflowDevices(),
+      battery.btDevices(),
+    ]);
     setUpowerDevices(up);
+    setEcoflowDevices(ecoflow.devices);
+    setEcoflowUnavailable(ecoflow.unavailableReason);
     setBtDevices(bt);
   }, []);
 
@@ -104,11 +133,22 @@ export function BatteryPage() {
       )
     : btDevices;
 
+  const filteredEcoflow = search
+    ? ecoflowDevices.filter(
+        (d) =>
+          d.model.toLowerCase().includes(search.toLowerCase()) ||
+          d.serial.toLowerCase().includes(search.toLowerCase()) ||
+          d.extraBatteries.some((b) => b.serial?.toLowerCase().includes(search.toLowerCase())),
+      )
+    : ecoflowDevices;
+
   const connectedBt = btDevices.filter((d) => d.connected);
-  const totalDevices = upowerDevices.length + connectedBt.length;
+  const totalDevices = upowerDevices.length + connectedBt.length + ecoflowDevices.length;
   const lowBattery = [...upowerDevices, ...connectedBt].filter(
     (d) => ("percentage" in d ? d.percentage : d.batteryLevel) < 20,
   );
+  const lowEcoflow = ecoflowDevices.filter((d) => d.batteryLevel !== null && d.batteryLevel < 20);
+  const lowBatteryCount = lowBattery.length + lowEcoflow.length;
 
   return (
     <div className="space-y-3">
@@ -166,8 +206,8 @@ export function BatteryPage() {
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Low Battery</div>
-            <div className={`text-xl font-bold ${lowBattery.length > 0 ? "text-destructive" : ""}`}>
-              {lowBattery.length}
+            <div className={`text-xl font-bold ${lowBatteryCount > 0 ? "text-destructive" : ""}`}>
+              {lowBatteryCount}
             </div>
           </div>
         </Card>
@@ -189,6 +229,12 @@ export function BatteryPage() {
           className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${tab === "bluetooth" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}
         >
           Bluetooth ({btDevices.length})
+        </button>
+        <button
+          onClick={() => setTab("ecoflow")}
+          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${tab === "ecoflow" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}
+        >
+          EcoFlow ({ecoflowDevices.length})
         </button>
       </div>
 
@@ -245,6 +291,124 @@ export function BatteryPage() {
                 </Card>
               );
             })
+          )}
+        </div>
+      )}
+
+      {tab === "ecoflow" && (
+        <div className="space-y-3">
+          {ecoflowUnavailable && (
+            <Card className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                <Zap size={18} className="text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-sm font-medium">EcoFlow BLE unavailable</div>
+                <div className="text-xs text-muted-foreground">{ecoflowUnavailable}</div>
+              </div>
+            </Card>
+          )}
+          {filteredEcoflow.length === 0 ? (
+            <Card className="flex h-32 items-center justify-center">
+              <div className="text-center">
+                <Zap size={32} className="mx-auto mb-2 text-muted-foreground/30" />
+                <div className="text-sm text-muted-foreground">
+                  {search ? "No EcoFlow devices match your search" : "No EcoFlow devices detected"}
+                </div>
+              </div>
+            </Card>
+          ) : (
+            filteredEcoflow.map((dev) => (
+              <Card key={dev.serial} className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">{batteryIcon(dev.batteryLevel ?? 0, false, 30)}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{dev.model}</span>
+                      <Badge variant={dev.connected ? "success" : "secondary"}>
+                        {dev.connected ? "Connected" : "Offline"}
+                      </Badge>
+                      {portBadge("AC", dev.acPorts)}
+                      {portBadge("USB", dev.usbPorts)}
+                      {portBadge("DC", dev.dc12vPort)}
+                    </div>
+                    <div className="mt-1 text-xs font-mono text-muted-foreground">{dev.serial}</div>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="h-2.5 flex-1 rounded-full bg-secondary">
+                        <div
+                          className={`h-2.5 rounded-full transition-all duration-500 ${pctColor(dev.batteryLevel ?? 0)}`}
+                          style={{ width: `${Math.max(0, Math.min(100, dev.batteryLevel ?? 0))}%` }}
+                        />
+                      </div>
+                      <span className="w-16 text-right font-mono text-sm font-bold">{formatPct(dev.batteryLevel)}</span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Input</div>
+                        <div className="font-mono">{formatWatts(dev.inputWatts)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Output</div>
+                        <div className="font-mono">{formatWatts(dev.outputWatts)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">AC Charge</div>
+                        <div className="font-mono">{formatWatts(dev.acChargingSpeedWatts)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Runtime</div>
+                        <div className="font-mono">{formatMinutes(dev.remainingTimeDischargingMinutes)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">AC Out</div>
+                        <div className="font-mono">
+                          {formatWatts(dev.acOutputWatts)} / {dev.acOutputVolts ?? "N/A"} V
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">XT60</div>
+                        <div className="font-mono">
+                          {formatWatts(dev.xt60InputWatts)} + {formatWatts(dev.xt60_2InputWatts)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Charge Limit</div>
+                        <div className="font-mono">
+                          {formatPct(dev.chargeLimitMin)} - {formatPct(dev.chargeLimitMax)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Main Battery</div>
+                        <div className="font-mono">{formatPct(dev.mainBatteryLevel)}</div>
+                      </div>
+                    </div>
+                    {dev.extraBatteries.length > 0 && (
+                      <div className="mt-4 divide-y divide-border/50 rounded-md border border-border/60">
+                        {dev.extraBatteries.map((extra) => (
+                          <div
+                            key={`${dev.serial}-${extra.index}`}
+                            className="flex items-center justify-between px-3 py-2"
+                          >
+                            <div>
+                              <div className="text-sm font-medium">Extra Battery {extra.index}</div>
+                              <div className="text-xs font-mono text-muted-foreground">
+                                {extra.serial ?? "Unknown serial"}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-mono text-sm font-bold">{formatPct(extra.batteryLevel)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {extra.cellTemperature === null ? "N/A" : `${extra.cellTemperature} C`}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))
           )}
         </div>
       )}
