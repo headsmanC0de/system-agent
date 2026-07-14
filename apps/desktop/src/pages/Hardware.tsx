@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { fans as fansApi, system } from "../api";
 import { Bar, Button, Card, Sparkline, StaleDataNotice } from "../components/ui";
 import { useAsyncData, useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
+import { getStorageItem, STORAGE_KEYS, setStorageItem } from "../lib/storage";
 import type { FanCurvePoint, FanInfo } from "../types";
 
 interface SensorReading {
@@ -74,15 +75,13 @@ const FAN_PRESETS: { name: string; duties: number[] }[] = [
   { name: "Balanced", duties: [20, 35, 60, 100] },
   { name: "Performance", duties: [40, 60, 85, 100] },
 ];
-const FAN_CURVES_KEY = "lh-fan-curves";
-
 function defaultCurve(): FanCurvePoint[] {
   return CURVE_TEMPS.map((temp, i) => ({ temp, duty: DEFAULT_DUTIES[i] }));
 }
 
 function loadStoredCurves(): Record<string, FanCurvePoint[]> {
   try {
-    const raw = localStorage.getItem(FAN_CURVES_KEY);
+    const raw = getStorageItem(STORAGE_KEYS.fanCurves);
     const parsed = raw ? JSON.parse(raw) : {};
     return typeof parsed === "object" && parsed !== null ? parsed : {};
   } catch {
@@ -138,7 +137,7 @@ function FanCurvesCard() {
   const saveCurves = useCallback((next: Record<string, FanCurvePoint[]>) => {
     setCurves(next);
     try {
-      localStorage.setItem(FAN_CURVES_KEY, JSON.stringify(next));
+      setStorageItem(STORAGE_KEYS.fanCurves, JSON.stringify(next));
     } catch {}
   }, []);
 

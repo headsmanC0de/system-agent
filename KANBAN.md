@@ -1,4 +1,4 @@
-# Linux Agent — Kanban Board
+# System Agent — Kanban Board
 
 ## Completed — P0 (MVP Desktop App)
 
@@ -58,7 +58,7 @@
 | LH-043 | Chat sessions sidebar: topics + sessions, CRUD, rename, delete | Done |
 | LH-044 | ChatToolbar: provider/model picker, Reason/Tools/Stream toggles, context bar | Done |
 | LH-045 | Auto context compression: 75% threshold triggers archival + continuation session | Done |
-| LH-046 | Branding SSOT: `lib/branding.ts` — 1 line rebrand (Linux Helper → Linux Agent) | Done |
+| LH-046 | Branding SSOT: root `branding.json` with runtime, packaging, and storage adapters | Done |
 | LH-047 | Mono theme fix: white accent instead of grey | Done |
 | LH-048 | Tesseract MoE LLM page: model info, inference status, VRAM/throughput monitoring, config editor, start/stop | Done |
 | LH-049 | Tesseract MoE LLM Chat provider: OpenAI-compatible endpoint, selectable in ChatToolbar | Done |
@@ -113,7 +113,7 @@
 | LH-115 | **TS 6 hardening**: `"strict": true` was silently MISSING from the desktop tsconfigs (CLAUDE.md claimed otherwise) — enabled with **0 resulting errors**; stale `@workspace/ui` path mapping removed; `erasableSyntaxOnly`/`bundler`/explicit `types` confirmed already present in `@project/config`. | **Done** |
 | LH-118 | **Testing standard + agentic QA**: `docs/TESTING.md` (SSOT: pyramid, 6 invariants, turbo test config, Playwright-MCP audit procedure — built on official Electron/Playwright/Turborepo/playwright-mcp docs); `.mcp.json` wires `@playwright/mcp`; `.claude/agents/qa-audit.md` defines the invocable audit agent; turbo `test` task got md-excluding `inputs` for cache stability. Real-Electron audit recipe documented (`--remote-debugging-port` + `--cdp-endpoint`, unofficial). | **Done** |
 | LH-119 | **Production-smoke gate** (`npm run smoke`, TESTING.md §6): typecheck → lint → unit/browser → build+Electron e2e → npm audit, one command, exit-code gated. Current gate: 173 unit/browser + 7 e2e tests; 0 vulns expected. Release blockers explicitly listed outside the gate (S-1 key rotation, LH-116/122 packaging+fuses, LH-069 key choice). | **Done** |
-| LH-120a | **Linux packaging (LH-122 partial)**: `electron-builder.yml` — AppImage + pacman targets, asar, pinned electronVersion, `linux-agent-${version}` artifacts. Built & smoke-verified: packaged AppImage launches, renderer alive over CDP, loads from asar via file:// (CSP meta path). `npm run package`. | **Done** |
+| LH-120a | **Linux packaging (LH-122 partial)**: `electron-builder.config.cjs` derives product/executable/artifact identity from `branding.json`; AppImage + pacman targets, asar, pinned Electron, and packaged smoke coverage. | **Done** |
 | LH-116 | **Electron fuses flipped in packaged builds** (native `electronFuses` in electron-builder 26): RunAsNode/NodeOptions/NodeCliInspect **Disabled**, OnlyLoadAppFromAsar **Enabled** — verified by reading fuses from the built binary (`@electron/fuses read`). e2e unaffected (runs unpacked `out/`). Custom `protocol.handle` instead of file:// remains optional follow-up. | **Done** |
 | LH-121a | Branding: company site `https://moonrock.software` — ORG_URL/ORG_DOMAIN updated in branding SSOT; homepage in both package.json; openExternal allowlist and PoweredByBadge derive automatically. | **Done** |
 | LH-103 | **Package detail + debounced search**: 200ms `useDebounced` (new shared hook in @project/hooks); row click → shared `Modal` (new @project/ui component) with `system:package-info`; stale-response guard. 2 browser tests. | **Done** |

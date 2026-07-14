@@ -20,7 +20,7 @@ export default defineConfig({
     // Pure-Node specs: no browser, no page.
     {
       name: "unit",
-      testMatch: /(sse|ipc-contract|ecoflow(?:-.+)?|ecoflow-helper)\.spec\.ts/,
+      testMatch: /(branding|sse|ipc-contract|ecoflow(?:-.+)?|ecoflow-helper)\.spec\.ts/,
     },
     {
       name: "browser",

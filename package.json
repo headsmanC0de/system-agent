@@ -1,11 +1,11 @@
 {
-  "name": "linux-agent",
+  "name": "system-agent",
   "private": true,
   "author": "moonrock-software",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "https://github.com/moonrock-software/linux-agent.git"
+    "url": "http://192.168.8.160:3000/headsmanc0de/system-agent.git"
   },
   "homepage": "https://moonrock.software",
   "scripts": {

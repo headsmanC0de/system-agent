@@ -1,7 +1,7 @@
 ---
 name: qa-audit
 description: >
-  UI/functional audit of the Linux Agent app via Playwright MCP. Use when asked
+  UI/functional audit of the System Agent app via Playwright MCP. Use when asked
   to audit pages, verify visuals or functionality, run exploratory QA, or check
   the app after UI changes. Follows the procedure in docs/TESTING.md §5.
 ---

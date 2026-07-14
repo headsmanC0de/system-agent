@@ -30,6 +30,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { system } from "../api";
 import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
 import { ema, useCpuHistory, usePolling } from "../lib/hooks";
+import { getStorageItem, STORAGE_KEYS, setStorageItem } from "../lib/storage";
 import type { HardwareSpec, OverviewData, ProcessInfo } from "../types";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -145,7 +146,7 @@ export function DashboardPage() {
 
   const loadSpecs = useCallback(async () => {
     const auto = await system.hardwareSpecs();
-    const manual: HardwareSpec[] = JSON.parse(localStorage.getItem("lh-manual-specs") || "[]");
+    const manual: HardwareSpec[] = JSON.parse(getStorageItem(STORAGE_KEYS.manualSpecs) || "[]");
     setSpecs([TESSERACT_SPEC, ...auto, ...manual]);
   }, []);
 
@@ -156,9 +157,9 @@ export function DashboardPage() {
   const addManualSpec = () => {
     if (!addCategory.trim() || !addModel.trim()) return;
     const entry: HardwareSpec = { category: addCategory.trim(), model: addModel.trim(), source: "manual" };
-    const manual: HardwareSpec[] = JSON.parse(localStorage.getItem("lh-manual-specs") || "[]");
+    const manual: HardwareSpec[] = JSON.parse(getStorageItem(STORAGE_KEYS.manualSpecs) || "[]");
     manual.push(entry);
-    localStorage.setItem("lh-manual-specs", JSON.stringify(manual));
+    setStorageItem(STORAGE_KEYS.manualSpecs, JSON.stringify(manual));
     setAddCategory("");
     setAddModel("");
     setShowAddSpec(false);
@@ -166,9 +167,9 @@ export function DashboardPage() {
   };
 
   const removeManualSpec = (index: number) => {
-    const manual: HardwareSpec[] = JSON.parse(localStorage.getItem("lh-manual-specs") || "[]");
+    const manual: HardwareSpec[] = JSON.parse(getStorageItem(STORAGE_KEYS.manualSpecs) || "[]");
     manual.splice(index, 1);
-    localStorage.setItem("lh-manual-specs", JSON.stringify(manual));
+    setStorageItem(STORAGE_KEYS.manualSpecs, JSON.stringify(manual));
     loadSpecs();
   };
 

@@ -1,3 +1,4 @@
+import { getStorageItem, removeStorageItem, STORAGE_KEYS, setStorageItem, storageKey } from "./lib/storage";
 import type { IpcChannel } from "./main/channels";
 
 export const isElectron = !!(window as any).electronAPI;
@@ -787,10 +788,11 @@ const MOCK: Partial<Record<IpcChannel, (...args: unknown[]) => unknown>> = {
     return `downloaded: ${suggestedName}`;
   },
   "secrets:backend": () => "basic_text",
-  "secrets:get": (name) => localStorage.getItem(`lh-secret-${name}`) ?? "",
+  "secrets:get": (name) => getStorageItem(storageKey(`secret-${name}`)) ?? "",
   "secrets:set": (name, value) => {
-    if (value) localStorage.setItem(`lh-secret-${name}`, String(value));
-    else localStorage.removeItem(`lh-secret-${name}`);
+    const key = storageKey(`secret-${name}`);
+    if (value) setStorageItem(key, String(value));
+    else removeStorageItem(key);
   },
 };
 
@@ -892,7 +894,7 @@ export const secrets = {
   backend: () => invoke<string>("secrets:backend"),
 };
 
-const LINUX_HELPER_DEPS = [
+const SYSTEM_AGENT_DEPS = [
   { name: "react", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
   { name: "react-dom", current: "19.2.7", latest: "19.2.7", type: "prod" as const, risk: "none" as const },
   { name: "electron", current: "42.6.1", latest: "43.1.0", type: "dev" as const, risk: "major" as const },
@@ -917,7 +919,7 @@ const LINUX_HELPER_DEPS = [
   { name: "@types/node", current: "24.13.2", latest: "24.13.3", type: "dev" as const, risk: "patch" as const },
 ];
 
-const LINUX_HELPER_CHECKS: import("./types").ProjectCheck[] = [
+const SYSTEM_AGENT_CHECKS: import("./types").ProjectCheck[] = [
   {
     id: "turbo-cache",
     label: "Turborepo Remote Cache",
@@ -1015,7 +1017,7 @@ const LINUX_HELPER_CHECKS: import("./types").ProjectCheck[] = [
   },
 ];
 
-const LINUX_HELPER_WS_CHECKS: import("./types").ProjectCheck[] = [
+const SYSTEM_AGENT_WS_CHECKS: import("./types").ProjectCheck[] = [
   {
     id: "ws-build",
     label: "Build (electron-vite build)",
@@ -1042,38 +1044,36 @@ const LINUX_HELPER_WS_CHECKS: import("./types").ProjectCheck[] = [
   },
 ];
 
-const MOCK_PROJECTS_STORAGE_KEY = "lh-projects";
-
 function getMockProjects(): import("./types").ProjectInfo[] {
   try {
-    const stored = localStorage.getItem(MOCK_PROJECTS_STORAGE_KEY);
+    const stored = getStorageItem(STORAGE_KEYS.projects);
     if (stored) return JSON.parse(stored);
   } catch {}
   const defaults = buildDefaultProjects();
-  localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(defaults));
+  setStorageItem(STORAGE_KEYS.projects, JSON.stringify(defaults));
   return defaults;
 }
 
 function buildDefaultProjects(): import("./types").ProjectInfo[] {
-  const outdated = LINUX_HELPER_DEPS.filter((d) => d.risk !== "none");
-  const allChecks = LINUX_HELPER_CHECKS;
-  const wsChecks = LINUX_HELPER_WS_CHECKS;
+  const outdated = SYSTEM_AGENT_DEPS.filter((d) => d.risk !== "none");
+  const allChecks = SYSTEM_AGENT_CHECKS;
+  const wsChecks = SYSTEM_AGENT_WS_CHECKS;
   const rootOutdated = [
     { name: "npm", current: "11.16.0", latest: "12.0.0", type: "dev" as const, risk: "major" as const },
   ];
-  const wsOutdated = LINUX_HELPER_DEPS.filter((d) => d.risk !== "none");
+  const wsOutdated = SYSTEM_AGENT_DEPS.filter((d) => d.risk !== "none");
   const desktopChecks = wsChecks.map((c) => ({ ...c, id: `${c.id}-desktop` }));
 
   return [
     {
       id: "project",
       name: "Project",
-      path: "/home/user/projects/linux-helper",
+      path: "/home/user/projects/system-agent",
       isMonorepo: true,
       monorepoTool: "turborepo",
       types: ["node"],
       lastScanned: new Date().toISOString(),
-      totalDeps: rootOutdated.length + LINUX_HELPER_DEPS.length,
+      totalDeps: rootOutdated.length + SYSTEM_AGENT_DEPS.length,
       outdatedDeps: outdated.length + 1,
       healthScore: 92,
       deps: rootOutdated,
@@ -1083,10 +1083,10 @@ function buildDefaultProjects(): import("./types").ProjectInfo[] {
           name: "@project/desktop",
           path: "apps/desktop",
           types: ["node"],
-          totalDeps: LINUX_HELPER_DEPS.length,
+          totalDeps: SYSTEM_AGENT_DEPS.length,
           outdatedDeps: wsOutdated.length,
           healthScore: 90,
-          deps: LINUX_HELPER_DEPS,
+          deps: SYSTEM_AGENT_DEPS,
           checks: desktopChecks,
         },
       ],
@@ -1118,19 +1118,19 @@ export const projects = {
     };
     const existing = getMockProjects();
     existing.push(proj);
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    setStorageItem(STORAGE_KEYS.projects, JSON.stringify(existing));
     return proj;
   },
   remove: async (id: string): Promise<string> => {
     const existing = getMockProjects().filter((p) => p.id !== id);
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    setStorageItem(STORAGE_KEYS.projects, JSON.stringify(existing));
     return "removed";
   },
   scan: async (id: string): Promise<import("./types").ProjectInfo | undefined> => {
     const existing = getMockProjects();
     const proj = existing.find((p) => p.id === id);
     if (proj) proj.lastScanned = new Date().toISOString();
-    localStorage.setItem(MOCK_PROJECTS_STORAGE_KEY, JSON.stringify(existing));
+    setStorageItem(STORAGE_KEYS.projects, JSON.stringify(existing));
     return proj;
   },
   outdated: (id: string) => invoke<import("./types").ProjectDep[]>("projects:outdated", id),

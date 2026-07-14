@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Linux Agent — an Electron desktop app for managing an Arch Linux system (packages, snapshots, services, hardware/GPU, network, RGB, password vault, cron, an AI agent chat, etc.). 19 pages, all backed by shell commands run in the Electron main process over a typed IPC bus. White-label: keep product/branding names out of `src/` logic (branding lives in `src/lib/branding.ts`).
+System Agent — an Electron desktop app for managing an Arch Linux system (packages, snapshots, services, hardware/GPU, network, RGB, password vault, cron, an AI agent chat, etc.). All pages are backed by shell commands run in the Electron main process over a typed IPC bus. Product identity lives in the root `branding.json`; `src/lib/branding.ts` is its runtime adapter and `src/lib/storage.ts` owns namespaced local-storage migration.
 
 ## Monorepo layout
 

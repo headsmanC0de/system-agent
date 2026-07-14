@@ -1,4 +1,6 @@
 import { BASE, expect, test } from "./fixtures";
+import { BRAND_NAME } from "../src/lib/branding";
+import { STORAGE_KEYS, storageKey } from "../src/lib/storage";
 
 test.describe("Hardware — Data Rendering", () => {
   test("memory totals render in GiB magnitude, not MiB (BF-042)", async ({ page, gotoPage }) => {
@@ -116,7 +118,7 @@ test.describe("Chat — Data & Interactions", () => {
   test("shows welcome message when session has no messages", async ({ page, gotoPage }) => {
     await gotoPage("Agent Chat");
     await expect(page.locator("main")).toBeVisible();
-    const welcome = page.locator("text=Linux Agent Agent");
+    const welcome = page.locator(`text=${BRAND_NAME} Agent`);
     if (await welcome.isVisible()) {
       await expect(welcome).toBeVisible();
     }
@@ -343,13 +345,17 @@ test.describe("Chat secrets & base URL validation (audit LH-072/LH-073)", () => 
     await openAiProvider(page, gotoPage);
     const keyInput = page.locator('input[placeholder*="API key"]');
     await keyInput.fill("sk-test-secret-value");
+    const secretKey = storageKey("secret-chat-api-key");
     await expect
-      .poll(() => page.evaluate(() => localStorage.getItem("lh-secret-chat-api-key")))
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), secretKey))
       .toBe("sk-test-secret-value");
-    const stored = await page.evaluate(() => ({
-      config: localStorage.getItem("lh-chat-config"),
-      secret: localStorage.getItem("lh-secret-chat-api-key"),
-    }));
+    const stored = await page.evaluate(
+      ({ configKey, secretKey }) => ({
+        config: localStorage.getItem(configKey),
+        secret: localStorage.getItem(secretKey),
+      }),
+      { configKey: STORAGE_KEYS.chatConfig, secretKey },
+    );
     expect(stored.config).not.toBeNull();
     expect(JSON.parse(stored.config!)).not.toHaveProperty("apiKey");
     expect(stored.config).not.toContain("sk-test-secret-value");
@@ -363,8 +369,9 @@ test.describe("Chat secrets & base URL validation (audit LH-072/LH-073)", () => 
     });
     await openAiProvider(page, gotoPage);
     await expect
-      .poll(() => page.evaluate(() => localStorage.getItem("lh-chat-config")))
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.chatConfig))
       .not.toContain("leaked-old-key");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("lh-chat-config"))).toBeNull();
   });
 
   test("keyring warning shown when secrets backend is basic_text (LH-112)", async ({ page, gotoPage }) => {

@@ -1,5 +1,7 @@
 import { expect, test } from "./fixtures";
-const SCREENSHOT_DIR = "/tmp/la-screenshots";
+import { BRAND_ID } from "../src/lib/branding";
+
+const SCREENSHOT_DIR = `/tmp/${BRAND_ID}-screenshots`;
 
 const ALL_PAGES = [
   { id: "Dashboard", nav: "Dashboard" },

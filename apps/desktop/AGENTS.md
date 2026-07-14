@@ -1,4 +1,4 @@
-# Linux Agent — Desktop App
+# System Agent — Desktop App
 
 ## Build & Run
 All commands from `apps/desktop/`:

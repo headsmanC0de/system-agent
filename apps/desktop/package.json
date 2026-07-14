@@ -18,7 +18,7 @@
     "test:e2e": "electron-vite build && xvfb-run -a playwright test --project e2e",
     "clean": "rm -rf out dist .turbo test-results node_modules/.vite",
     "smoke": "npm run typecheck && npm run lint && npm run test && npm run test:e2e && npm audit",
-    "package": "electron-vite build && electron-builder --linux"
+    "package": "electron-vite build && electron-builder --config electron-builder.config.cjs --linux"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",

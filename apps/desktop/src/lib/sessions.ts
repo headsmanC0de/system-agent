@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../types";
+import { getStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
 
 export interface ChatSession {
   id: string;
@@ -25,21 +26,18 @@ export interface SessionTokenStats {
   lastMessageTokens: number;
 }
 
-const TOPICS_KEY = "lh-chat-topics";
-const SESSIONS_KEY = "lh-chat-sessions";
-const ACTIVE_SESSION_KEY = "lh-chat-active-session";
 const CONTEXT_WINDOW = 128000;
 
 export function getTopics(): ChatTopic[] {
   try {
-    const stored = localStorage.getItem(TOPICS_KEY);
+    const stored = getStorageItem(STORAGE_KEYS.chatTopics);
     if (stored) return JSON.parse(stored);
   } catch {}
   return [DEFAULT_TOPIC];
 }
 
 export function saveTopics(topics: ChatTopic[]): void {
-  localStorage.setItem(TOPICS_KEY, JSON.stringify(topics));
+  setStorageItem(STORAGE_KEYS.chatTopics, JSON.stringify(topics));
 }
 
 export function createTopic(name: string, systemPrompt?: string): ChatTopic {
@@ -73,14 +71,14 @@ export function deleteTopic(id: string): void {
 
 export function getSessions(): ChatSession[] {
   try {
-    const stored = localStorage.getItem(SESSIONS_KEY);
+    const stored = getStorageItem(STORAGE_KEYS.chatSessions);
     if (stored) return JSON.parse(stored);
   } catch {}
   return [];
 }
 
 export function saveSessions(sessions: ChatSession[]): void {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+  setStorageItem(STORAGE_KEYS.chatSessions, JSON.stringify(sessions));
 }
 
 export function getSessionsByTopic(topicId: string): ChatSession[] {
@@ -128,11 +126,11 @@ export function deleteSession(id: string): void {
 }
 
 export function getActiveSessionId(): string | null {
-  return localStorage.getItem(ACTIVE_SESSION_KEY);
+  return getStorageItem(STORAGE_KEYS.activeSession);
 }
 
 export function setActiveSessionId(id: string): void {
-  localStorage.setItem(ACTIVE_SESSION_KEY, id);
+  setStorageItem(STORAGE_KEYS.activeSession, id);
 }
 
 export function calculateContextUsage(session: ChatSession): { used: number; total: number; percent: number } {

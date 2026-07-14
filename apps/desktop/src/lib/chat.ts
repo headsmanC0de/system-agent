@@ -1,4 +1,5 @@
 import * as api from "../api";
+import { getStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
 
 export interface ChatProvider {
   id: string;
@@ -98,8 +99,6 @@ export const PROVIDERS: ChatProvider[] = [
   },
 ];
 
-const STORAGE_KEY = "lh-chat-config";
-
 const DEFAULT_CONFIG: ChatConfig = {
   // Default to the policy-compliant standard API, not the Coding Plan endpoint
   // (which z.ai restricts to official tools). Existing users keep their saved config.
@@ -148,13 +147,13 @@ function saveApiKey(value: string) {
 
 export function getChatConfig(): ChatConfig {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getStorageItem(STORAGE_KEYS.chatConfig);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.apiKey !== undefined) {
         // Purge plaintext keys persisted by older builds.
         delete parsed.apiKey;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        setStorageItem(STORAGE_KEYS.chatConfig, JSON.stringify(parsed));
       }
       return { ...DEFAULT_CONFIG, ...parsed, apiKey: apiKeyCache };
     }
@@ -167,7 +166,7 @@ export function saveChatConfig(config: Partial<ChatConfig>): ChatConfig {
   const current = getChatConfig();
   const updated = { ...current, ...config };
   const { apiKey: _apiKey, ...persisted } = updated;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  setStorageItem(STORAGE_KEYS.chatConfig, JSON.stringify(persisted));
   return updated;
 }
 

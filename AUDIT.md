@@ -1,4 +1,4 @@
-# Linux Agent — Audit Report
+# System Agent — Audit Report
 
 **Date:** 2026-06-02 (follow-up audit & remediation: 2026-06-12)
 **Scope:** `apps/desktop` (Electron app) + monorepo packages, dependency currency

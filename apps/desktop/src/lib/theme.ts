@@ -1,3 +1,5 @@
+import { getStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
+
 export type ThemeMode = "dark" | "light";
 
 export interface ThemePreset {
@@ -24,7 +26,6 @@ export const THEME_PRESETS: ThemePreset[] = [
 
 const DEFAULT_ACCENT = "orange";
 const DEFAULT_MODE: ThemeMode = "dark";
-const STORAGE_KEY = "lh-theme";
 
 function hsl(h: number, s: number, l: number): string {
   return `hsl(${h}, ${s}%, ${l}%)`;
@@ -108,7 +109,7 @@ interface StoredTheme {
 
 function readStored(): StoredTheme {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = getStorageItem(STORAGE_KEYS.theme);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object") return parsed as StoredTheme;
@@ -119,7 +120,7 @@ function readStored(): StoredTheme {
 
 function writeStored(theme: StoredTheme): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(theme));
+    setStorageItem(STORAGE_KEYS.theme, JSON.stringify(theme));
   } catch {}
 }
 

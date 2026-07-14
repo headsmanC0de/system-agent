@@ -1,6 +1,7 @@
 import { BASE, expect, test } from "./fixtures";
+import { BRAND_NAME } from "../src/lib/branding";
 
-test.describe("Linux Agent — Renderer Smoke Tests", () => {
+test.describe(`${BRAND_NAME} — Renderer Smoke Tests`, () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
   });
@@ -10,14 +11,14 @@ test.describe("Linux Agent — Renderer Smoke Tests", () => {
     await expect(page.locator("main")).toBeVisible();
   });
 
-  test("sidebar has Linux Agent brand", async ({ page }) => {
+  test("sidebar has the configured brand", async ({ page }) => {
     const aside = page.locator("aside");
-    await expect(aside.locator("div.text-sm.font-semibold")).toContainText("Linux Agent");
+    await expect(aside.locator("div.text-sm.font-semibold")).toContainText(BRAND_NAME);
     await expect(aside.getByText("System Manager")).toBeVisible();
   });
 
   test("sidebar logo visible", async ({ page }) => {
-    const logo = page.locator('svg[aria-label="Linux Agent logo"]');
+    const logo = page.locator(`svg[aria-label="${BRAND_NAME} logo"]`);
     await expect(logo).toBeVisible({ timeout: 5000 });
   });
 
@@ -27,10 +28,11 @@ test.describe("Linux Agent — Renderer Smoke Tests", () => {
   });
 
   test("sidebar has all 4 nav groups", async ({ page }) => {
-    await expect(page.locator("text=Overview").first()).toBeVisible();
-    await expect(page.locator("text=System").first()).toBeVisible();
-    await expect(page.locator("text=Peripherals").first()).toBeVisible();
-    await expect(page.locator("text=Assistant").first()).toBeVisible();
+    const sidebar = page.locator("aside");
+    await expect(sidebar.getByText("Overview", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("System", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Peripherals", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Assistant", { exact: true })).toBeVisible();
   });
 
   test("sidebar collapse toggle works", async ({ page }) => {

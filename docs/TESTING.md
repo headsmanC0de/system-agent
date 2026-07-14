@@ -1,4 +1,4 @@
-# Testing Standard — Linux Agent
+# Testing Standard — System Agent
 
 SSOT for how this repo is tested. Agents and humans follow this document; the
 `qa-audit` agent (`.claude/agents/qa-audit.md`) executes the audit procedure in §5.

@@ -1,58 +1,53 @@
-# Turborepo Tailwind CSS starter
+# System Agent
 
-This Turborepo starter is maintained by the Turborepo core team.
+System Agent is an Electron desktop application for observing and managing an Arch Linux workstation. It provides typed IPC-backed pages for packages, snapshots, services, hardware, GPU, disks, networking, Bluetooth, logs, credentials, local LLMs, and system automation.
 
-## Using this example
+## Source of truth
 
-Run the following command:
+- `branding.json` is the branding and application-identity SSOT.
+- `apps/desktop/src/lib/branding.ts` exposes that data to the application.
+- `apps/desktop/src/lib/storage.ts` owns namespaced browser storage and migrates legacy `lh-*`/`la-*` keys.
+- `apps/desktop/src/main/channels.ts` is the IPC allowlist SSOT.
+- `biome.json` is the lint and formatting SSOT.
+- `docs/TESTING.md` is the testing standard.
+- `KANBAN.md` is the delivery board.
 
-```sh
-npx create-turbo@latest -e with-tailwind
+Do not duplicate product identity or storage-key literals in application code. Packaging metadata is derived from `branding.json` by `apps/desktop/electron-builder.config.cjs`.
+
+## Layout
+
+- `apps/desktop` — Electron main, preload, React renderer, Playwright suites.
+- `packages/types` — shared data contracts.
+- `packages/hooks` — shared React hooks.
+- `packages/ui` — shared UI components.
+- `packages/config` — shared TypeScript configuration.
+- `docs` — testing, integrations, designs, and implementation plans.
+
+## Development
+
+Requirements: Node.js 20.19 or newer and npm 11.
+
+```bash
+npm install
+npm run dev
 ```
 
-## What's inside?
+Useful root commands:
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `web`: another [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `ui`: a stub React component library with [Tailwind CSS](https://tailwindcss.com/) shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Building packages/ui
-
-This example is set up to produce compiled styles for `ui` components into the `dist` directory. The component `.tsx` files are consumed by the Next.js apps directly using `transpilePackages` in `next.config.ts`. This was chosen for several reasons:
-
-- Make sharing one `tailwind.config.ts` to apps and packages as easy as possible.
-- Make package compilation simple by only depending on the Next.js Compiler and `tailwindcss`.
-- Ensure Tailwind classes do not overwrite each other. The `ui` package uses a `ui-` prefix for it's classes.
-- Maintain clear package export boundaries.
-
-Another option is to consume `packages/ui` directly from source without building. If using this option, you will need to update the `tailwind.config.ts` in your apps to be aware of your package locations, so it can find all usages of the `tailwindcss` class names for CSS compilation.
-
-For example, in [tailwind.config.ts](packages/tailwind-config/tailwind.config.ts):
-
-```js
-  content: [
-    // app content
-    `src/**/*.{js,ts,jsx,tsx}`,
-    // include packages if not transpiling
-    "../../packages/ui/*.{js,ts,jsx,tsx}",
-  ],
+```bash
+npm run check-types
+npm run lint
+npm run build
+npm run smoke
 ```
 
-If you choose this strategy, you can remove the `tailwindcss` and `autoprefixer` dependencies from the `ui` package.
+Browser and Electron Playwright tests can also be run directly:
 
-### Utilities
+```bash
+npm --workspace @project/desktop run test
+npm --workspace @project/desktop run test:e2e
+```
 
-This Turborepo has some additional tools already setup for you:
+## Safety model
 
-- [Tailwind CSS](https://tailwindcss.com/) for styles
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+The renderer cannot access the OS directly. System operations cross a typed, sender-validated IPC boundary. Destructive privileged actions use explicit polkit flows; browser-mode tests use clearly labelled mock data.

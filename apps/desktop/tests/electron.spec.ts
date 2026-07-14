@@ -5,6 +5,7 @@
 import { type ElectronApplication, _electron as electron, expect, type Page, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { BRAND_NAME } from "../src/lib/branding";
 
 const mainEntry = join(dirname(fileURLToPath(import.meta.url)), "..", "out", "main", "main.js");
 
@@ -22,7 +23,7 @@ test.afterAll(async () => {
 });
 
 test("app launches and renders the real window", async () => {
-  expect(await win.title()).toBe("Linux Agent");
+  expect(await win.title()).toBe(BRAND_NAME);
   // electronAPI must be exposed by the preload (this is the real Electron path).
   expect(await win.evaluate(() => typeof (window as any).electronAPI?.invoke)).toBe("function");
 });
@@ -134,7 +135,7 @@ test("S-2/LH-063: app launches with the GPU sandbox workaround disabled", async 
   try {
     const w2 = await app2.firstWindow();
     await w2.waitForLoadState("domcontentloaded");
-    expect(await w2.title()).toBe("Linux Agent");
+    expect(await w2.title()).toBe(BRAND_NAME);
     expect(await w2.evaluate(() => typeof (window as any).electronAPI?.invoke)).toBe("function");
   } finally {
     await app2.close();
