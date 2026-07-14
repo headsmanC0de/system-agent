@@ -14,6 +14,7 @@ import type {
   UpdateDocInput,
 } from "@project/types";
 import { app, ipcMain, Notification } from "electron";
+import { HEALTH_THRESHOLDS, metricHealthLevel } from "../health-policy";
 import { IPC_CHANNELS, type IpcChannel } from "./channels";
 import { CommandRunner } from "./command-runner";
 import { DocsRepository } from "./docs-repository";
@@ -170,6 +171,24 @@ function cmdAllowNoMatches(command: string, args: string[]) {
 
 function shell(operation: string, script: string) {
   return commands.run({ operation, executable: "bash", args: ["-c", script] });
+}
+
+async function userServiceProblemUnits(): Promise<string[]> {
+  const raw = await cmd("systemctl", [
+    "--user",
+    "list-units",
+    "--type=service",
+    "--state=failed,activating",
+    "--no-pager",
+    "--no-legend",
+    "--plain",
+  ]);
+  return raw
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts[2] === "failed" || parts[3] === "auto-restart")
+    .map((parts) => parts[0]!);
 }
 
 function journalPriority(value: unknown): LogPriority {
@@ -360,13 +379,7 @@ export function initIpc() {
   });
 
   handle("system:services", async () => {
-    const raw = await cmd("systemctl", [
-      "list-units",
-      "--type=service",
-      "--state=running",
-      "--no-pager",
-      "--no-legend",
-    ]);
+    const raw = await cmd("systemctl", ["list-units", "--type=service", "--all", "--no-pager", "--no-legend"]);
     return raw
       .split("\n")
       .filter(Boolean)
@@ -377,7 +390,7 @@ export function initIpc() {
   });
 
   handle("system:failed-services", async () => {
-    const raw = await cmd("systemctl", ["--failed", "--no-pager", "--no-legend"]);
+    const raw = await cmd("systemctl", ["--failed", "--type=service", "--no-pager", "--no-legend"]);
     return raw
       .split("\n")
       .filter(Boolean)
@@ -831,7 +844,8 @@ export function initIpc() {
       cmdAllowNoMatches("pacman", ["-Qdtq", "--color", "never"]),
       cmd("systemctl", ["list-units", "--failed", "--no-legend", "--no-pager"]),
       cmd("df", ["/", "--output=pcent"]),
-    ]);
+      userServiceProblemUnits(),
+    ] as const);
     const countLines = (index: number): number | null => {
       const probe = probes[index];
       if (!probe || probe.status === "rejected") return null;
@@ -840,6 +854,8 @@ export function initIpc() {
     const outdatedPackages = countLines(0);
     const orphansCount = countLines(1);
     const failedServices = countLines(2);
+    const userServiceProbe = probes[4];
+    const userServiceProblems = userServiceProbe.status === "fulfilled" ? userServiceProbe.value.length : null;
     const diskProbe = probes[3];
     const diskUsage = diskProbe?.status === "fulfilled" ? Number(diskProbe.value.match(/\d+/)?.[0]) || null : null;
     const totalMemory = os.totalmem();
@@ -917,9 +933,31 @@ export function initIpc() {
       });
     }
 
-    if (diskUsage === null) {
+    if (userServiceProblems === null) {
+      checks.push(unavailable("svc-user-problems", "User Service Problems", "services"));
+    } else if (userServiceProblems > 0) {
+      checks.push({
+        id: "svc-user-problems",
+        label: "User Service Problems",
+        status: "fail",
+        message: `${userServiceProblems} failed or crash-looping user service${userServiceProblems > 1 ? "s" : ""}`,
+        category: "services",
+        fix: "Inspect systemctl --user --failed and auto-restart units",
+      });
+    } else {
+      checks.push({
+        id: "svc-user-problems",
+        label: "User Service Problems",
+        status: "pass",
+        message: "No failed or crash-looping user services",
+        category: "services",
+      });
+    }
+
+    const diskLevel = diskUsage === null ? null : metricHealthLevel(diskUsage, HEALTH_THRESHOLDS.diskUsagePercent);
+    if (diskLevel === null) {
       checks.push(unavailable("disk-health", "Disk Usage", "storage"));
-    } else if (diskUsage > 90) {
+    } else if (diskLevel === "fail") {
       checks.push({
         id: "disk-health",
         label: "Disk Usage",
@@ -927,7 +965,7 @@ export function initIpc() {
         message: `Root at ${diskUsage}%`,
         category: "storage",
       });
-    } else if (diskUsage > 75) {
+    } else if (diskLevel === "warn") {
       checks.push({
         id: "disk-health",
         label: "Disk Usage",
@@ -945,9 +983,11 @@ export function initIpc() {
       });
     }
 
-    if (memoryUsage === null) {
+    const memoryLevel =
+      memoryUsage === null ? null : metricHealthLevel(memoryUsage, HEALTH_THRESHOLDS.memoryUsagePercent);
+    if (memoryLevel === null) {
       checks.push(unavailable("mem-health", "Memory", "storage"));
-    } else if (memoryUsage > 90) {
+    } else if (memoryLevel === "fail") {
       checks.push({
         id: "mem-health",
         label: "Memory",
@@ -955,7 +995,7 @@ export function initIpc() {
         message: `${memoryUsage}% memory used — critical`,
         category: "storage",
       });
-    } else if (memoryUsage > 75) {
+    } else if (memoryLevel === "warn") {
       checks.push({
         id: "mem-health",
         label: "Memory",
@@ -990,6 +1030,7 @@ export function initIpc() {
       outdatedPackages,
       orphansCount,
       failedServices,
+      userServiceProblems,
       stoppedCritical: null,
       snapshotsCount: null,
       autostartCount: null,

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { projects, system } from "../api";
+import { HEALTH_THRESHOLDS, metricHealthLevel } from "../health-policy";
 
 type ProjectTab = "readiness" | "deps" | "workspaces" | "system";
 
@@ -385,21 +386,44 @@ export function ProjectsPage() {
                 selectedId === "system" ? "border-primary bg-muted" : "border-border hover:bg-muted/50"
               }`}
             >
-              <HealthRing score={systemHealth?.healthScore ?? 0} size={36} />
+              {systemHealth ? (
+                <HealthRing score={systemHealth.healthScore} size={36} />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground">
+                  —
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate flex items-center gap-1">
                   <span className="text-amber-500">★</span> System
                 </div>
-                <div className="text-xs text-muted-foreground truncate">{systemHealth?.hostname ?? "archlinux"}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {systemHealth?.hostname ?? "Not collected"}
+                </div>
                 <div className="mt-0.5 flex items-center gap-1 flex-wrap">
-                  <Badge variant={systemHealth && systemHealth.outdatedPackages > 0 ? "warning" : "default"}>
-                    {systemHealth?.outdatedPackages ?? 0} outdated
-                  </Badge>
-                  {systemHealth && systemHealth.failedServices > 0 && (
-                    <Badge variant="danger">{systemHealth.failedServices} failed svc</Badge>
-                  )}
-                  {systemHealth && systemHealth.orphansCount > 0 && (
-                    <Badge variant="danger">{systemHealth.orphansCount} orphans</Badge>
+                  {systemHealth ? (
+                    <>
+                      <Badge
+                        variant={
+                          systemHealth.outdatedPackages !== null && systemHealth.outdatedPackages > 0
+                            ? "warning"
+                            : "default"
+                        }
+                      >
+                        {systemHealth.outdatedPackages ?? "Unavailable"} outdated
+                      </Badge>
+                      {systemHealth.failedServices !== null && systemHealth.failedServices > 0 && (
+                        <Badge variant="danger">{systemHealth.failedServices} failed svc</Badge>
+                      )}
+                      {systemHealth.orphansCount !== null && systemHealth.orphansCount > 0 && (
+                        <Badge variant="danger">{systemHealth.orphansCount} orphans</Badge>
+                      )}
+                      {systemHealth.userServiceProblems !== null && systemHealth.userServiceProblems > 0 && (
+                        <Badge variant="danger">{systemHealth.userServiceProblems} user svc</Badge>
+                      )}
+                    </>
+                  ) : (
+                    <Badge variant="default">Collecting…</Badge>
                   )}
                 </div>
               </div>
@@ -473,12 +497,12 @@ export function ProjectsPage() {
                   <Bar label="" value="" pct={systemHealth.healthScore} colorTiers={READINESS_TIERS} size="md" />
                 </div>
               </div>
-              <div className="mt-4 grid grid-cols-4 gap-3">
+              <div className="mt-4 grid grid-cols-5 gap-3">
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
                   <div
                     className={`text-lg font-bold ${systemHealth.outdatedPackages > 0 ? "text-warning-foreground" : "text-success-foreground"}`}
                   >
-                    {systemHealth.outdatedPackages}
+                    {systemHealth.outdatedPackages ?? "Unavailable"}
                   </div>
                   <div className="text-xs text-muted-foreground">Outdated</div>
                 </div>
@@ -486,7 +510,7 @@ export function ProjectsPage() {
                   <div
                     className={`text-lg font-bold ${systemHealth.failedServices > 0 ? "text-destructive" : "text-success-foreground"}`}
                   >
-                    {systemHealth.failedServices}
+                    {systemHealth.failedServices ?? "Unavailable"}
                   </div>
                   <div className="text-xs text-muted-foreground">Failed Svc</div>
                 </div>
@@ -494,15 +518,32 @@ export function ProjectsPage() {
                   <div
                     className={`text-lg font-bold ${systemHealth.orphansCount > 0 ? "text-destructive" : "text-success-foreground"}`}
                   >
-                    {systemHealth.orphansCount}
+                    {systemHealth.orphansCount ?? "Unavailable"}
                   </div>
                   <div className="text-xs text-muted-foreground">Orphans</div>
                 </div>
                 <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
                   <div
-                    className={`text-lg font-bold ${systemHealth.diskUsage > 75 ? "text-warning-foreground" : "text-success-foreground"}`}
+                    className={`text-lg font-bold ${
+                      systemHealth.userServiceProblems !== null && systemHealth.userServiceProblems > 0
+                        ? "text-destructive"
+                        : "text-success-foreground"
+                    }`}
                   >
-                    {systemHealth.diskUsage}%
+                    {systemHealth.userServiceProblems ?? "Unavailable"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">User Svc</div>
+                </div>
+                <div className="rounded-lg bg-secondary/50 px-3 py-2 text-center">
+                  <div
+                    className={`text-lg font-bold ${
+                      systemHealth.diskUsage !== null &&
+                      metricHealthLevel(systemHealth.diskUsage, HEALTH_THRESHOLDS.diskUsagePercent) !== "pass"
+                        ? "text-warning-foreground"
+                        : "text-success-foreground"
+                    }`}
+                  >
+                    {systemHealth.diskUsage === null ? "Unavailable" : `${systemHealth.diskUsage}%`}
                   </div>
                   <div className="text-xs text-muted-foreground">Disk</div>
                 </div>

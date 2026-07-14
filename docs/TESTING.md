@@ -35,6 +35,9 @@ is the artifact release gate. Root `npm run smoke` covers source/build checks bu
    page registry and retain a keyboard-only focus/activation test.
 10. Secret tests use isolated temporary profiles and prove atomic 0600 persistence plus explicit
     corruption failure; they never write credentials into a developer profile.
+11. Installed live-metric tests use independent host oracles (`/proc`, Node OS APIs, `df`, `free`,
+    `ip`, `pacman`, and both system/user `systemctl` scopes), tolerate only measured sampling drift,
+    and assert that the renderer displays the same values.
 
 ## Scenario coverage
 

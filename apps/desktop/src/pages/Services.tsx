@@ -1,6 +1,6 @@
 import { useAsyncData } from "@project/hooks";
 import type { FailedService, ServiceInfo } from "@project/types";
-import { Card, Output, SearchInput, StatCard } from "@project/ui";
+import { Card, Output, SearchInput, StaleDataNotice, StatCard } from "@project/ui";
 import { useMemo, useState } from "react";
 import { system } from "../api";
 
@@ -30,16 +30,12 @@ export function ServicesPage() {
   const [tab, setTab] = useState<Tab>("all");
 
   const refresh = async () => {
-    try {
-      const [s, f] = await Promise.all([system.services(), system.failedServices()]);
-      setServices(s);
-      setFailed(f);
-    } catch (err) {
-      console.error("Failed to refresh services:", err);
-    }
+    const [s, f] = await Promise.all([system.services(), system.failedServices()]);
+    setServices(s);
+    setFailed(f);
   };
 
-  useAsyncData(refresh);
+  const { error: collectionError } = useAsyncData(refresh);
 
   const act = async (action: string, unit: string) => {
     try {
@@ -89,6 +85,7 @@ export function ServicesPage() {
 
   return (
     <div className="space-y-3">
+      <StaleDataNotice error={collectionError} />
       <div className="grid grid-cols-4 gap-3">
         <StatCard label="Total" value={counts.total} />
         <StatCard label="Running" value={counts.running} />

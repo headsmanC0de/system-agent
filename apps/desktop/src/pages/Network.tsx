@@ -96,9 +96,7 @@ export function NetworkPage() {
   }, []);
 
   const refreshConns = useCallback(async () => {
-    try {
-      setConns(await system.netConnections());
-    } catch {}
+    setConns(await system.netConnections());
   }, []);
 
   useAsyncData(refreshAll);
@@ -167,7 +165,7 @@ export function NetworkPage() {
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Signal size={14} className="text-foreground" />
-            <span>Connectivity</span>
+            <span>Collection Status</span>
           </div>
           <div className="mt-1.5 text-sm font-semibold capitalize">{netInfo?.status ?? "Loading"}</div>
           <div className="mt-1 text-xs text-muted-foreground">Hostname: {netInfo?.hostname ?? "Unavailable"}</div>

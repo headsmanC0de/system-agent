@@ -41,6 +41,12 @@ in Git rather than accumulating here.
 - Blind spots that caused this wave were success-shaped IPC fallbacks, environment-dependent tests,
   hand-synchronized page metadata, facade imports, and an incorrect assumption that pacman directly
   owned `/usr/bin/system-agent`. Regression tests now cover each boundary.
+- Installed live-metric tests compare overview, memory, CPU counters, disk, network, package health,
+  service health, and rendered UI values against independent host sources. Collection success is
+  labelled separately from internet reachability and system-health severity.
+- Service health distinguishes system failed units from user failed/crash-looping units. This closed
+  a live blind spot where `systemctl --failed` reported zero while a user watchdog was continuously
+  auto-restarting; Services now loads all system units and exposes collection failures.
 
 ## Active risks
 

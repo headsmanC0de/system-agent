@@ -365,6 +365,7 @@ export const DEMO_HANDLERS: Record<IpcChannel, (...args: unknown[]) => unknown> 
     outdatedPackages: 12,
     orphansCount: 2,
     failedServices: 1,
+    userServiceProblems: 1,
     stoppedCritical: 0,
     snapshotsCount: 5,
     autostartCount: 14,
@@ -388,6 +389,13 @@ export const DEMO_HANDLERS: Record<IpcChannel, (...args: unknown[]) => unknown> 
         message: "1 failed service",
         category: "services",
         fix: "sudo systemctl reset-failed",
+      },
+      {
+        id: "svc-user-problems",
+        label: "User Service Problems",
+        status: "fail",
+        message: "1 crash-looping user service",
+        category: "services",
       },
       {
         id: "svc-critical",

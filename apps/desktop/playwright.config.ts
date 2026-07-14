@@ -21,7 +21,7 @@ export default defineConfig({
     {
       name: "unit",
       testMatch:
-        /(branding|command-runner|docs-repository|polling|security|ssot|sse|telemetry|ipc-contract|ecoflow(?:-.+)?|ecoflow-helper)\.spec\.ts/,
+        /(branding|command-runner|docs-repository|health-policy|polling|security|ssot|sse|telemetry|ipc-contract|ecoflow(?:-.+)?|ecoflow-helper)\.spec\.ts/,
     },
     {
       name: "browser",

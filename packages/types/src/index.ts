@@ -423,6 +423,7 @@ export interface SystemHealth {
   outdatedPackages: number | null;
   orphansCount: number | null;
   failedServices: number | null;
+  userServiceProblems: number | null;
   stoppedCritical: number | null;
   snapshotsCount: number | null;
   autostartCount: number | null;
