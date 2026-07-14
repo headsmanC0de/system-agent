@@ -51,7 +51,7 @@ async function startInstalledApp(): Promise<void> {
 
 async function stopInstalledApp(): Promise<void> {
   await browser?.close();
-  if (!processHandle?.killed) {
+  if (processHandle && !processHandle.killed) {
     const exited = new Promise<void>((resolve) => processHandle.once("exit", () => resolve()));
     processHandle.kill("SIGTERM");
     await exited;
@@ -215,8 +215,16 @@ test("live production metrics agree with independent host sources", async () => 
   const systemCard = page.locator("main").getByRole("button").filter({ hasText: "System" });
   await systemCard.evaluate((element: HTMLButtonElement) => element.click());
   await expect(page.locator("main")).toContainText(`${health.outdatedPackages} outdated`);
-  await expect(page.locator("main")).toContainText(`${health.orphansCount} orphans`);
-  await expect(page.locator("main")).toContainText(`${health.userServiceProblems} user svc`);
+  if (health.orphansCount && health.orphansCount > 0) {
+    await expect(page.locator("main")).toContainText(`${health.orphansCount} orphans`);
+  } else {
+    await expect(page.locator("main")).toContainText("No orphaned packages");
+  }
+  if (health.userServiceProblems && health.userServiceProblems > 0) {
+    await expect(page.locator("main")).toContainText(`${health.userServiceProblems} user svc`);
+  } else {
+    await expect(page.locator("main")).toContainText("No failed or crash-looping user services");
+  }
   await expect(page.locator("main")).toContainText(`${health.diskUsage}%`);
 
   console.log(
