@@ -1,19 +1,23 @@
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
+import { PRODUCTION_CSP } from "./src/security-policy";
 
-// The production renderer is loaded over file://, where session.onHeadersReceived
-// does NOT apply a CSP. Inject a strict CSP <meta> at build time only (a meta in the
+const applicationPackage = createRequire(import.meta.url)("./package.json") as { version: string };
+
+// Inject a strict CSP <meta> at build time as defense in depth (a meta in the
 // dev HTML would block Vite's inline React-refresh preamble). 'self' covers the
 // bundled assets; omitting 'unsafe-eval' blocks eval; connect-src allows LLM providers.
 const cspMetaPlugin = () => ({
   name: "inject-csp-meta",
   apply: "build" as const,
   transformIndexHtml(html: string) {
-    const csp =
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
-    return html.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`);
+    return html.replace(
+      "<head>",
+      `<head>\n    <meta http-equiv="Content-Security-Policy" content="${PRODUCTION_CSP}" />`,
+    );
   },
 });
 
@@ -34,8 +38,7 @@ export default defineConfig({
       },
       rollupOptions: {
         // CJS preload: Electron refuses to load ESM preloads in a sandboxed
-        // renderer, and we want sandbox: true wherever the NVIDIA+Wayland GPU
-        // workaround is not active (audit S-2 follow-up, BF-035 root cause).
+        // renderer while keeping the preload contract compatible with sandboxing.
         // "electron" must stay external explicitly: in the cjs-format override
         // electron-vite skips its auto-externalization and the npm launcher
         // (node_modules/electron/index.js) gets bundled into the preload.
@@ -46,6 +49,7 @@ export default defineConfig({
   },
   renderer: {
     root: ".",
+    define: { "import.meta.env.APP_VERSION": JSON.stringify(applicationPackage.version) },
     plugins: [react(), tailwindcss(), cspMetaPlugin()],
     resolve: {
       alias: {

@@ -1,4 +1,4 @@
-import type { ChatMessage } from "../types";
+import type { ChatMessage } from "@project/types";
 import { getStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
 
 export interface ChatSession {
@@ -81,12 +81,7 @@ export function saveSessions(sessions: ChatSession[]): void {
   setStorageItem(STORAGE_KEYS.chatSessions, JSON.stringify(sessions));
 }
 
-export function getSessionsByTopic(topicId: string): ChatSession[] {
-  return getSessions().filter((s) => s.topicId === topicId);
-}
-
 export function createSession(topicId: string, name?: string): ChatSession {
-  const _topic = getTopics().find((t) => t.id === topicId);
   const session: ChatSession = {
     id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: name || "New chat",

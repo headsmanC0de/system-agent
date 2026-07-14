@@ -40,10 +40,9 @@ test.describe("Dashboard — Data Rendering", () => {
     await gotoPage("Dashboard");
     await expect(page.locator("text=Hardware Configuration").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=AMD Ryzen 9 9950X").first()).toBeVisible();
-    await expect(page.locator("text=Tesseract MoE LLM").first()).toBeVisible();
   });
 
-  test("export report downloads JSON in mock mode (LH-109)", async ({ page, gotoPage }) => {
+  test("export report downloads JSON in demo mode", async ({ page, gotoPage }) => {
     await gotoPage("Dashboard");
     const download = page.waitForEvent("download");
     await page.locator('button:has-text("Export JSON")').click();
@@ -89,7 +88,7 @@ test.describe("Packages — Data & Interactions", () => {
     await expect(removeBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test("Update All asks confirmation; cancel does nothing, confirm runs (LH-101x)", async ({ page, gotoPage }) => {
+  test("Update All asks confirmation; cancel does nothing, confirm runs", async ({ page, gotoPage }) => {
     await gotoPage("Packages");
     await page.locator('button:has-text("Update All")').click();
     const dialog = page.getByRole("dialog").first();
@@ -102,7 +101,7 @@ test.describe("Packages — Data & Interactions", () => {
     await expect(page.locator("text=updating packages").first()).toBeVisible();
   });
 
-  test("package row opens detail modal (LH-103)", async ({ page, gotoPage }) => {
+  test("package row opens detail modal", async ({ page, gotoPage }) => {
     await gotoPage("Packages");
     const row = page.locator(".cursor-pointer").filter({ hasText: "firefox" }).first();
     await expect(row).toBeVisible({ timeout: 5000 });
@@ -114,7 +113,7 @@ test.describe("Packages — Data & Interactions", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("search is debounced but still filters (LH-103)", async ({ page, gotoPage }) => {
+  test("search is debounced but still filters", async ({ page, gotoPage }) => {
     await gotoPage("Packages");
     const dockerRow = page.locator(".cursor-pointer").filter({ hasText: "docker" }).first();
     await expect(dockerRow).toBeVisible({ timeout: 5000 });
@@ -155,15 +154,14 @@ test.describe("GPU — Data Rendering", () => {
     await expect(page.locator("text=120").first()).toBeVisible();
   });
 
-  test("power renders a single W unit (BF-043, mock shape parity)", async ({ page, gotoPage }) => {
+  test("power renders a single W unit with demo and production shape parity", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
     await expect(page.locator("text=120 / 285 W").first()).toBeVisible({ timeout: 5000 });
   });
 
-  test("shows clock speeds section", async ({ page, gotoPage }) => {
+  test("does not fabricate clock speeds that were not collected", async ({ page, gotoPage }) => {
     await gotoPage("GPU");
-    await expect(page.locator("text=Clock Speeds").first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=2100").first()).toBeVisible();
+    await expect(page.locator("text=Clock Speeds")).toHaveCount(0);
   });
 });
 
@@ -212,7 +210,7 @@ test.describe("Snapshots — Data & Interactions", () => {
 
   test("has create snapshot input", async ({ page, gotoPage }) => {
     await gotoPage("Snapshots");
-    const input = page.locator('input').first();
+    const input = page.locator("input").first();
     await expect(input).toBeVisible({ timeout: 5000 });
   });
 
@@ -224,7 +222,7 @@ test.describe("Snapshots — Data & Interactions", () => {
     await expect.poll(() => deletes.count()).toBeGreaterThanOrEqual(2);
   });
 
-  test("snapshot diff button shows changes (LH-108)", async ({ page, gotoPage }) => {
+  test("snapshot diff button shows changes", async ({ page, gotoPage }) => {
     await gotoPage("Snapshots");
     await page.locator("text=Diff").first().click();
     await expect(page.getByText("/etc/pacman.conf").first()).toBeVisible({ timeout: 5000 });
@@ -328,4 +326,3 @@ test.describe("Passwords — Data & Interactions", () => {
     await expect(page.locator("text=Select an entry").first()).not.toBeVisible();
   });
 });
-

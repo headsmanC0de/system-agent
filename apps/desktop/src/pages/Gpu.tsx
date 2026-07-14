@@ -1,8 +1,8 @@
+import { useHistory, usePolling } from "@project/hooks";
+import type { GpuData } from "@project/types";
+import { Bar, Card, Sparkline, StaleDataNotice } from "@project/ui";
 import { useCallback, useState } from "react";
 import { system } from "../api";
-import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
-import { useHistory, usePolling } from "../lib/hooks";
-import type { GpuData } from "../types";
 
 function tempColor(temp: number): string {
   if (temp >= 85) return "text-destructive";
@@ -18,30 +18,33 @@ function tempBarColor(temp: number): string {
 
 export function GpuPage() {
   const [gpu, setGpu] = useState<GpuData | null>(null);
-  const pushTemp = useHistory();
-  const pushUtil = useHistory();
-  const pushMem = useHistory();
-  const pushFan = useHistory();
-  const [tempHistory, setTempHistory] = useState<number[]>([]);
-  const [utilHistory, setUtilHistory] = useState<number[]>([]);
-  const [memHistory, setMemHistory] = useState<number[]>([]);
-  const [fanHistory, setFanHistory] = useState<number[]>([]);
+  const { history: tempHistory, push: pushTemp } = useHistory();
+  const { history: utilHistory, push: pushUtil } = useHistory();
+  const { history: memHistory, push: pushMem } = useHistory();
+  const { history: fanHistory, push: pushFan } = useHistory();
 
   const refresh = useCallback(async () => {
     const g = await system.gpu();
     setGpu(g);
     if (g) {
       const memPct = g.memTotal ? Math.round((parseFloat(g.memUsed) / parseFloat(g.memTotal)) * 100) : 0;
-      setTempHistory(pushTemp(g.temp));
-      setUtilHistory(pushUtil(g.util));
-      setMemHistory(pushMem(memPct));
-      setFanHistory(pushFan(g.fan));
+      pushTemp(g.temp);
+      pushUtil(g.util);
+      pushMem(memPct);
+      pushFan(g.fan);
     }
   }, [pushTemp, pushUtil, pushMem, pushFan]);
 
-  const { error: pollError } = usePolling(refresh, 1000);
+  const { error: pollError } = usePolling(refresh, 2000);
 
-  if (!gpu) return <div className="text-muted-foreground">No NVIDIA GPU detected or nvidia-smi not available</div>;
+  if (!gpu) {
+    return (
+      <div className="space-y-3">
+        <StaleDataNotice error={pollError} />
+        <div className="text-muted-foreground">GPU telemetry has not been collected.</div>
+      </div>
+    );
+  }
 
   const memPct = gpu.memTotal ? Math.round((parseFloat(gpu.memUsed) / parseFloat(gpu.memTotal)) * 100) : 0;
   const powerPct = gpu.powerLimit ? Math.round((parseFloat(gpu.power) / parseFloat(gpu.powerLimit)) * 100) : 0;
@@ -56,7 +59,7 @@ export function GpuPage() {
             <span>
               {gpu.power} / {gpu.powerLimit} W
             </span>
-            <span>Driver: 570.133.07</span>
+            <span>Driver: {gpu.driverVersion}</span>
           </div>
         </div>
         <Bar label="Power" value={`${gpu.power} / ${gpu.powerLimit} W`} pct={powerPct} />
@@ -128,30 +131,6 @@ export function GpuPage() {
           </div>
         </Card>
       </div>
-
-      <Card className="p-0">
-        <div className="border-b border-border/50 px-4 py-2 text-sm font-medium">Clock Speeds</div>
-        <div className="grid grid-cols-3 divide-x divide-border/30">
-          <div className="px-4 py-3 text-center">
-            <div className="text-xs text-muted-foreground">GPU Core</div>
-            <div className="text-lg font-bold tabular-nums">
-              2100<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
-            </div>
-          </div>
-          <div className="px-4 py-3 text-center">
-            <div className="text-xs text-muted-foreground">Memory</div>
-            <div className="text-lg font-bold tabular-nums">
-              10501<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
-            </div>
-          </div>
-          <div className="px-4 py-3 text-center">
-            <div className="text-xs text-muted-foreground">Video Encode</div>
-            <div className="text-lg font-bold tabular-nums">
-              1620<span className="text-xs font-normal text-muted-foreground ml-0.5">MHz</span>
-            </div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }

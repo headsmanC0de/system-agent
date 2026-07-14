@@ -76,15 +76,9 @@ export interface TimerInfo {
   activates: string;
 }
 
-export interface CronLogEntry {
-  timestamp: string;
-  exitCode: number;
-  duration: string;
-  output: string;
-}
-
 export interface GpuData {
   name: string;
+  driverVersion: string;
   temp: number;
   util: number;
   memUsed: string;
@@ -106,7 +100,7 @@ export interface DiskInfo {
 export interface HardwareSpec {
   category: string;
   model: string;
-  source: "auto" | "manual" | "builtin";
+  source: "auto" | "manual";
 }
 
 export interface LLMModelInfo {
@@ -122,14 +116,14 @@ export interface LLMModelInfo {
 
 export interface LLMInferenceStatus {
   running: boolean;
-  serverUrl: string;
-  model: string;
-  vramUsed: number;
-  vramTotal: number;
-  uptime: number;
-  requestsPerMin: number;
-  avgLatencyMs: number;
-  tokensPerSec: number;
+  serverUrl: string | null;
+  model: string | null;
+  vramUsed: number | null;
+  vramTotal: number | null;
+  uptime: number | null;
+  requestsPerMin: number | null;
+  avgLatencyMs: number | null;
+  tokensPerSec: number | null;
 }
 
 export interface LLMConfig {
@@ -149,6 +143,47 @@ export interface NetConnection {
   local: string;
   peer: string;
   process: string;
+}
+
+export type DataCollectionStatus = "ok" | "partial" | "error";
+
+export type LogPriority = "err" | "warning" | "notice" | "info" | "debug";
+
+export interface SystemLogEntry {
+  priority: LogPriority;
+  timestamp: string;
+  unit: string;
+  message: string;
+}
+
+export interface SystemLogsResult {
+  capturedAt: string;
+  entries: SystemLogEntry[];
+  error: string | null;
+  source: "journalctl";
+  status: DataCollectionStatus;
+}
+
+export interface NetworkTrafficCounter {
+  name: string;
+  rxBytes: number;
+  txBytes: number;
+}
+
+export interface NetworkSummary {
+  capturedAt: string;
+  dns: string[];
+  error: string | null;
+  gateway: string | null;
+  hostname: string;
+  localIp: string | null;
+  publicIp: null;
+  reachability: "unknown";
+  source: "os.networkInterfaces+/proc/net/dev+ip+resolv.conf";
+  status: DataCollectionStatus;
+  totalRx: number | null;
+  totalTx: number | null;
+  traffic: NetworkTrafficCounter[];
 }
 
 export interface TokenUsage {
@@ -262,28 +297,7 @@ export interface EcoFlowTelemetryResult {
   unavailableReason: string | null;
 }
 
-export type PageId =
-  | "dashboard"
-  | "projects"
-  | "packages"
-  | "snapshots"
-  | "services"
-  | "autostart"
-  | "cron"
-  | "hardware"
-  | "gpu"
-  | "disks"
-  | "network"
-  | "rgb"
-  | "logs"
-  | "battery"
-  | "passwords"
-  | "docs"
-  | "chat"
-  | "llm"
-  | "settings";
-
-export type ProjectType = "node" | "rust" | "go" | "python" | "zig" | "unknown";
+export type ProjectType = "node";
 
 export type DepRisk = "patch" | "minor" | "major" | "none";
 
@@ -356,6 +370,25 @@ export interface DocEntry {
   updatedAt: number;
 }
 
+export interface DocsListOptions {
+  category?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export type CreateDocInput = Pick<DocEntry, "title" | "content" | "category" | "tags">;
+export type UpdateDocInput = Partial<CreateDocInput>;
+
+export interface DocsDatabaseHealth {
+  applicationId: number;
+  integrity: "ok";
+  journalMode: string;
+  path: string;
+  schemaVersion: number;
+  sqliteVersion: string;
+}
+
 export interface NetworkInterface {
   name: string;
   ip: string;
@@ -378,20 +411,23 @@ export interface OpenPort {
 }
 
 export interface SystemHealth {
+  capturedAt: string;
+  status: DataCollectionStatus;
+  error: string | null;
   hostname: string;
   kernel: string;
   arch: string;
   uptime: string;
   healthScore: number;
   checks: SystemCheck[];
-  outdatedPackages: number;
-  orphansCount: number;
-  failedServices: number;
-  stoppedCritical: number;
-  snapshotsCount: number;
-  autostartCount: number;
-  diskUsage: number;
-  memoryUsage: number;
+  outdatedPackages: number | null;
+  orphansCount: number | null;
+  failedServices: number | null;
+  stoppedCritical: number | null;
+  snapshotsCount: number | null;
+  autostartCount: number | null;
+  diskUsage: number | null;
+  memoryUsage: number | null;
 }
 
 export interface FanCurvePoint {

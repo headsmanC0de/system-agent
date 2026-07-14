@@ -1,7 +1,8 @@
+import { Badge, Card } from "@project/ui";
 import { Check, Cpu, Eye, EyeOff, Info, Key, Moon, Palette, Plus, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { secrets as secretsApi } from "../api";
-import { Badge, Card } from "../components/ui";
+import { APP_VERSION } from "../lib/app-version";
 import { BRAND_COPYRIGHT, BRAND_NAME, BRAND_URL, ORG_NAME, ORG_URL } from "../lib/branding";
 import {
   type ChatConfig,
@@ -350,7 +351,7 @@ export function SettingsPage() {
               <div className="space-y-1 text-sm text-muted-foreground">
                 <div className="flex justify-between">
                   <span>Version</span>
-                  <span className="font-mono">0.1.0</span>
+                  <span className="font-mono">{APP_VERSION}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Stack</span>

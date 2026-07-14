@@ -1,5 +1,5 @@
 import * as api from "../api";
-import { getStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
+import { getStorageItem, removeStorageItem, STORAGE_KEYS, setStorageItem } from "./storage";
 
 export interface ChatProvider {
   id: string;
@@ -100,8 +100,6 @@ export const PROVIDERS: ChatProvider[] = [
 ];
 
 const DEFAULT_CONFIG: ChatConfig = {
-  // Default to the policy-compliant standard API, not the Coding Plan endpoint
-  // (which z.ai restricts to official tools). Existing users keep their saved config.
   providerId: "zai-standard",
   modelId: "glm-5",
   apiKey: "",
@@ -149,11 +147,10 @@ export function getChatConfig(): ChatConfig {
   try {
     const stored = getStorageItem(STORAGE_KEYS.chatConfig);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.apiKey !== undefined) {
-        // Purge plaintext keys persisted by older builds.
-        delete parsed.apiKey;
-        setStorageItem(STORAGE_KEYS.chatConfig, JSON.stringify(parsed));
+      const parsed = JSON.parse(stored) as Partial<ChatConfig>;
+      if ("apiKey" in parsed || typeof parsed.providerId !== "string" || typeof parsed.modelId !== "string") {
+        removeStorageItem(STORAGE_KEYS.chatConfig);
+        return { ...DEFAULT_CONFIG, apiKey: apiKeyCache };
       }
       return { ...DEFAULT_CONFIG, ...parsed, apiKey: apiKeyCache };
     }
@@ -218,13 +215,6 @@ export function buildRequestBody(cfg: ChatConfig, apiMessages: Record<string, un
   return body;
 }
 
-export interface ToolCallResult {
-  tool_call_id: string;
-  name: string;
-  arguments: string;
-  result: string;
-}
-
 export const SYSTEM_TOOLS = [
   {
     type: "function" as const,
@@ -277,25 +267,6 @@ export const SYSTEM_TOOLS = [
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
-  {
-    type: "function" as const,
-    function: {
-      name: "run_command",
-      description:
-        "Run a shell command and return its output. Use for diagnostics, reading config files, checking logs. DANGEROUS commands (rm, mkfs, dd, format) are blocked.",
-      parameters: {
-        type: "object",
-        properties: {
-          command: {
-            type: "string",
-            description: "The shell command to run, e.g. 'journalctl -u nginx --no-pager -n 20'",
-          },
-          reason: { type: "string", description: "Why you are running this command" },
-        },
-        required: ["command", "reason"],
-      },
-    },
-  },
 ];
 
 export async function executeToolCall(name: string, args: Record<string, unknown>): Promise<string> {
@@ -325,50 +296,6 @@ export async function executeToolCall(name: string, args: Record<string, unknown
     case "get_network_info": {
       const net = await api.system.network();
       return JSON.stringify(net, null, 2);
-    }
-    case "run_command": {
-      const rawCmd = String(args.command || "").trim();
-      const ALLOWED_PREFIXES = [
-        "journalctl",
-        "systemctl status",
-        "systemctl list",
-        "cat /proc/",
-        "free",
-        "df",
-        "uptime",
-        "whoami",
-        "hostname",
-        "uname",
-        "ls ",
-        "ps ",
-        "top -bn1",
-        "nvidia-smi",
-        "sensors",
-        "ip addr",
-        "ip link",
-        "ip route",
-        "ss ",
-        "ping ",
-        "pacman -Q",
-        "pacman -Si",
-        "which ",
-        "echo ",
-      ];
-      const blocked =
-        /\b(rm\s|mkfs|dd\s|format|chmod|chown|curl |wget |nc |ncat|bash |sh |python |node |crontab|shutdown|reboot|init\s|sudo |su )\b/i;
-      if (blocked.test(rawCmd)) {
-        return `BLOCKED: Command contains restricted operations. Run manually in terminal if needed.`;
-      }
-      const allowed = ALLOWED_PREFIXES.some((p) => rawCmd.startsWith(p));
-      if (!allowed) {
-        return `BLOCKED: Command not in allowlist. Allowed: ${ALLOWED_PREFIXES.slice(0, 8).join(", ")}...`;
-      }
-      try {
-        const output = await api.system.journal(50);
-        return `Note: Direct command execution is limited in this environment. Here are recent log entries instead:\n${output}`;
-      } catch {
-        return `Failed to execute: ${rawCmd}. This command may require sudo or may not exist in browser/mock mode.`;
-      }
     }
     default:
       return `Unknown tool: ${name}`;

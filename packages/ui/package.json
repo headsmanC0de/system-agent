@@ -12,9 +12,7 @@
     "./lib/utils": "./src/lib/utils.ts"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "clsx": "*",
-    "tailwind-merge": "*"
+    "react": "^19.0.0"
   },
   "dependencies": {
     "clsx": "^2.1.1",

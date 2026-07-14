@@ -3,9 +3,9 @@ import { createHmac, randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { promisify } from "node:util";
 
-type EcoFlowExtraBattery = import("../types").EcoFlowExtraBattery;
-type EcoFlowDevice = import("../types").EcoFlowDevice;
-type EcoFlowTelemetryResult = import("../types").EcoFlowTelemetryResult;
+type EcoFlowExtraBattery = import("@project/types").EcoFlowExtraBattery;
+type EcoFlowDevice = import("@project/types").EcoFlowDevice;
+type EcoFlowTelemetryResult = import("@project/types").EcoFlowTelemetryResult;
 
 const exec = promisify(execFile);
 const DEFAULT_CLOUD_HOST = "https://api-e.ecoflow.com";

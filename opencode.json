@@ -3,25 +3,20 @@
   "instructions": ["KANBAN.md", "apps/desktop/AGENTS.md"],
   "lsp": {
     "typescript": {
-      "command": ["typescript-language-server", "--stdio"],
+      "command": ["npx", "--no-install", "tsc", "--lsp", "--stdio"],
       "extensions": [".ts", ".tsx"]
     },
     "tailwindcss": {
-      "command": ["tailwindcss-language-server", "--stdio"],
+      "command": ["npx", "--no-install", "tailwindcss-language-server", "--stdio"],
       "extensions": [".css", ".tsx"]
     }
   },
   "mcp": {
-    "filesystem": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."],
-      "enabled": true
-    },
     "zai-mcp-server": {
       "type": "local",
-      "command": ["npx", "-y", "@z_ai/mcp-server"],
-      "enabled": true,
-      "env": {
+      "command": ["npx", "--no-install", "zai-mcp-server"],
+      "enabled": false,
+      "environment": {
         "Z_AI_API_KEY": "{env:Z_AI_API_KEY}",
         "Z_AI_MODE": "ZAI"
       }
@@ -29,7 +24,7 @@
     "web-search-prime": {
       "type": "remote",
       "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
-      "enabled": true,
+      "enabled": false,
       "headers": {
         "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }
@@ -37,20 +32,20 @@
     "web-reader": {
       "type": "remote",
       "url": "https://api.z.ai/api/mcp/web_reader/mcp",
-      "enabled": true,
+      "enabled": false,
       "headers": {
         "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }
     },
     "playwright": {
       "type": "local",
-      "command": ["npx", "-y", "@playwright/mcp@0.0.77", "--no-sandbox"],
+      "command": ["npx", "--no-install", "playwright-mcp", "--isolated"],
       "enabled": true
     },
     "zread": {
       "type": "remote",
       "url": "https://api.z.ai/api/mcp/zread/mcp",
-      "enabled": true,
+      "enabled": false,
       "headers": {
         "Authorization": "Bearer {env:Z_AI_API_KEY}"
       }

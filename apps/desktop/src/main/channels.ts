@@ -1,9 +1,7 @@
-// SSOT for IPC channel names (audit S-4). This is the exact set of channels the
-// renderer invokes (see api.ts); the preload allowlist rejects anything outside it,
-// so a compromised renderer cannot reach arbitrary ipcMain handlers.
-//
-// Derived from `grep -oE '"[a-z]+:[a-z0-9-]+"' src/api.ts`. Keep in sync with api.ts.
-// (projects list/add/remove/scan are renderer-local localStorage — not invoked over IPC.)
+// SSOT for the IPC surface. IpcChannel types every renderer call and main
+// registration; the preload derives its runtime allowlist from this array.
+// Main startup also asserts exhaustive registration, while the demo adapter is
+// compile-time exhaustive. Project catalog operations stay renderer-local.
 export const IPC_CHANNELS = [
   "battery:bt-connect",
   "battery:bt-devices",
@@ -31,6 +29,7 @@ export const IPC_CHANNELS = [
   "password:insert",
   "password:list",
   "password:show",
+  "projects:inspect",
   "projects:outdated",
   "secrets:backend",
   "secrets:get",
@@ -77,6 +76,18 @@ export const IPC_CHANNELS = [
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
+
+export type IpcErrorCode =
+  | "dependency_unavailable"
+  | "internal"
+  | "invalid_argument"
+  | "persistence_failure"
+  | "timeout"
+  | "untrusted_sender";
+
+export type IpcResponse<T> =
+  | { ok: true; value: T; requestId: string }
+  | { ok: false; error: { code: IpcErrorCode; retryable: boolean }; requestId: string };
 
 const ALLOWED = new Set<string>(IPC_CHANNELS);
 

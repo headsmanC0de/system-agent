@@ -1,5 +1,6 @@
-import { BASE, expect, test } from "./fixtures";
 import { BRAND_NAME } from "../src/lib/branding";
+import { PAGE_GROUPS } from "../src/page-registry";
+import { BASE, expect, test } from "./fixtures";
 
 test.describe(`${BRAND_NAME} — Renderer Smoke Tests`, () => {
   test.beforeEach(async ({ page }) => {
@@ -46,26 +47,9 @@ test.describe(`${BRAND_NAME} — Renderer Smoke Tests`, () => {
   });
 });
 
-const PAGES = [
-  { id: "Projects", title: "Projects" },
-  { id: "Packages", title: "Package Manager" },
-  { id: "Hardware", title: "Hardware Monitor" },
-  { id: "GPU", title: "GPU Monitor" },
-  { id: "Snapshots", title: "Btrfs Snapshots" },
-  { id: "Services", title: "System Services" },
-  { id: "Autostart", title: "Autostart Entries" },
-  { id: "Cron & Timers", title: "Cron & Timers" },
-  { id: "Disks", title: "Disk Usage" },
-  { id: "Network", title: "Network Connections" },
-  { id: "Battery & BT", title: "Battery & Bluetooth" },
-  { id: "RGB", title: "RGB Control" },
-  { id: "Logs", title: "System Logs" },
-  { id: "Passwords", title: "Password Vault" },
-  { id: "Agent Chat", title: "AI Assistant" },
-  { id: "Tesseract MoE", title: "Tesseract MoE LLM" },
-  { id: "Docs", title: "Docs" },
-  { id: "Settings", title: "Settings" },
-];
+const PAGES = PAGE_GROUPS.flatMap((group) => group.pages)
+  .filter((page) => page.id !== "dashboard")
+  .map((page) => ({ id: page.navLabel, title: page.title }));
 
 for (const pg of PAGES) {
   test(`navigate to ${pg.id} renders ${pg.title}`, async ({ page, gotoPage }) => {
@@ -76,6 +60,24 @@ for (const pg of PAGES) {
     await expect(mainContent.locator("*").first()).toBeVisible({ timeout: 5000 });
   });
 }
+
+test("keyboard-only navigation exposes focus and changes the active route", async ({ page }) => {
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Dashboard", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Projects", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("header")).toContainText("Projects");
+  await expect(page.getByRole("button", { name: "Projects", exact: true })).toHaveAttribute("aria-current", "page");
+  expect(
+    await page
+      .getByRole("button", { name: "Projects", exact: true })
+      .evaluate((element) => element.matches(":focus-visible")),
+  ).toBe(true);
+});
 
 test.describe("Page-specific UI checks", () => {
   test("Dashboard page shows loading or data", async ({ page }) => {

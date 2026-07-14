@@ -1,4 +1,4 @@
-// Unit tests for the SSE stream parser (audit LH-081) — runs in the Playwright
+// Unit tests for the SSE stream parser — runs in the Playwright
 // Node runner, no browser needed. Covers chunk-boundary splits, tool-call
 // accumulation, usage extraction, [DONE], malformed events, and callbacks.
 import { expect, test } from "@playwright/test";

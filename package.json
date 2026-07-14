@@ -13,15 +13,22 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check-types": "turbo run typecheck",
+    "doctor": "node scripts/tooling-doctor.mjs",
+    "docs:sync": "node scripts/sync-reference-versions.mjs",
+    "docs:check": "node scripts/sync-reference-versions.mjs --check",
     "smoke": "npm run build && npm --workspace @project/desktop run smoke",
     "format": "prettier --write \"**/*.md\"",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
+    "@electron/fuses": "^2.1.3",
+    "@playwright/mcp": "0.0.78",
+    "@tailwindcss/language-server": "0.14.29",
     "@vitejs/plugin-react": "^6.0.3",
-    "prettier": "^3.6.0",
-    "turbo": "^2.9.16",
+    "@z_ai/mcp-server": "0.1.4",
+    "prettier": "^3.9.5",
+    "turbo": "^2.10.5",
     "vite": "^8.1.4"
   },
   "overrides": {

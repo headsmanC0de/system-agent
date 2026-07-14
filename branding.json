@@ -2,9 +2,9 @@
   "name": "System Agent",
   "shortName": "SA",
   "id": "system-agent",
+  "appId": "software.moonrock.system-agent",
   "tagline": "System Manager",
   "storagePrefix": "sa",
-  "legacyStoragePrefixes": ["lh", "la"],
   "organization": {
     "name": "moonrock-software",
     "url": "https://moonrock.software",

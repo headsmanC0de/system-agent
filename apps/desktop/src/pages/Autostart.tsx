@@ -1,8 +1,8 @@
+import { useAsyncData } from "@project/hooks";
+import type { AutostartEntry } from "@project/types";
+import { Badge, Card, Output, SearchInput, StatCard } from "@project/ui";
 import { useState } from "react";
 import { system } from "../api";
-import { Badge, Card, Output, SearchInput, StatCard } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { AutostartEntry } from "../types";
 
 export function AutostartPage() {
   const [entries, setEntries] = useState<AutostartEntry[]>([]);

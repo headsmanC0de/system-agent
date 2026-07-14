@@ -1,9 +1,9 @@
+import { useAsyncData } from "@project/hooks";
+import type { DiskInfo } from "@project/types";
+import { Card, StatCard } from "@project/ui";
 import { AlertTriangle, CheckCircle2, Database, FolderOpen, HardDrive } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
-import { Card, StatCard } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { DiskInfo } from "../types";
 
 function diskStatus(pct: number) {
   if (pct >= 90) return { label: "Critical", cls: "text-destructive", bg: "bg-destructive" };

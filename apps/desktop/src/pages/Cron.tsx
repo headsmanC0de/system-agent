@@ -1,9 +1,9 @@
+import { useAsyncData } from "@project/hooks";
+import type { TimerInfo } from "@project/types";
+import { Badge, Card, Output } from "@project/ui";
 import { Clock, Edit3, FileText, Play, Save, Timer, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { system } from "../api";
-import { Badge, Card, Output } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { TimerInfo } from "../types";
 
 function describeCron(line: string): { schedule: string; command: string; raw: string } | null {
   const trimmed = line.trim();
@@ -113,8 +113,6 @@ export function CronPage() {
   const parsedLines = currentCron.split("\n").map((line) => ({ line, parsed: describeCron(line) }));
   const activeJobs = parsedLines.filter((p) => p.parsed !== null);
   const comments = parsedLines.filter((p) => p.parsed === null && p.line.trim().startsWith("#"));
-  const _emptyLines = parsedLines.filter((p) => !p.line.trim());
-
   return (
     <div className="space-y-3">
       <div className="flex gap-1">

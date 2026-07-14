@@ -1,9 +1,9 @@
+import { useAsyncData } from "@project/hooks";
+import type { DocEntry } from "@project/types";
+import { Badge, Card, Output, SearchInput } from "@project/ui";
 import { BookOpen, FileText, Plus, RefreshCw, Tag, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { docs } from "../api";
-import { Badge, Card, Output, SearchInput } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { DocEntry } from "../types";
 
 const DEFAULT_CATEGORIES = ["Troubleshooting", "Setup", "Config", "Commands", "General"];
 

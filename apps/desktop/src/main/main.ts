@@ -1,52 +1,33 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
-import { app, BrowserWindow, session, shell } from "electron";
-import { BRAND_URL, ORG_URL } from "../lib/branding.js";
-import { initIpc } from "./ipc.js";
+import { app, BrowserWindow, net, protocol, session, shell } from "electron";
+import { BRAND_APP_ID } from "../lib/branding.js";
+import { DEVELOPMENT_CSP, PRODUCTION_CSP } from "../security-policy.js";
+import { closeIpcResources, initIpc } from "./ipc.js";
+import {
+  APP_ORIGIN,
+  APP_SCHEME,
+  isTrustedExternalUrl,
+  isTrustedRendererUrl,
+  resolveRendererAsset,
+} from "./runtime-origin.js";
+import { installFileTelemetry, telemetry } from "./telemetry.js";
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, codeCache: true },
+  },
+]);
 
 // Electron security checklist #15: shell.openExternal only for trusted URLs.
 // Previously ANY http/https window.open was forwarded to the default browser —
 // so even the e2e deny-test (window.open("https://example.com")) popped a real
-// browser tab on every test run (BF-041). Hosts derive from branding (SSOT)
+// browser tab during tests. Hosts derive from branding (SSOT)
 // plus the API-key providers linked from Settings.
-const TRUSTED_EXTERNAL_HOSTS = new Set([
-  new URL(ORG_URL).hostname,
-  new URL(BRAND_URL).hostname,
-  "z.ai",
-  "platform.openai.com",
-]);
-
-function isTrustedExternal(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:" && TRUSTED_EXTERNAL_HOSTS.has(u.hostname);
-  } catch {
-    return false;
-  }
-}
-
-// audit S-2 / LH-063: the Chromium sandbox flags below are ONLY needed for the
-// NVIDIA + Wayland GPU crash. Applying them unconditionally disabled the sandbox for
-// every user. Instead, detect that exact combo and scope the workaround to it, so the
-// OS sandbox is recovered on every other setup. `LH_GPU_WORKAROUND=1|0` force-overrides.
-// Default-applies on the affected combo (no regression for affected users); the e2e
-// covers the recovered-sandbox path.
-function needsGpuSandboxWorkaround(): boolean {
-  const forced = process.env.LH_GPU_WORKAROUND;
-  if (forced === "1") return true;
-  if (forced === "0") return false;
-  if (process.platform !== "linux") return false;
-  const isWayland = process.env.XDG_SESSION_TYPE === "wayland" || !!process.env.WAYLAND_DISPLAY;
-  const isNvidia = existsSync("/proc/driver/nvidia") || existsSync("/dev/nvidia0");
-  return isWayland && isNvidia;
-}
-
 app.disableHardwareAcceleration();
-if (needsGpuSandboxWorkaround()) {
-  app.commandLine.appendSwitch("no-sandbox");
-  app.commandLine.appendSwitch("disable-gpu-sandbox");
-}
+app.enableSandbox();
 app.commandLine.appendSwitch("disable-dev-shm-usage");
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-software-rasterizer");
@@ -66,45 +47,41 @@ function createWindow() {
       preload: join(__dirname, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      // The preload is built as CJS specifically so the sandbox can stay on:
-      // Electron refuses ESM preloads in a sandboxed renderer (BF-035). Only the
-      // NVIDIA+Wayland combo (where the OS sandbox is already off via --no-sandbox)
-      // keeps sandbox: false. Caught by the Electron-mode e2e.
-      sandbox: !needsGpuSandboxWorkaround(),
+      sandbox: true,
     },
   });
 
   win.on("ready-to-show", () => {
     win.show();
   });
+  win.webContents.on("did-fail-load", (_event, errorCode) => telemetry.recordApp("load-failed", errorCode));
+  win.webContents.on("preload-error", () => telemetry.recordApp("preload-failed"));
+  win.webContents.on("render-process-gone", (_event, details) => telemetry.recordApp("renderer-gone", details.reason));
 
   // Navigation hardening (audit S-5): deny all window.open / target=_blank;
   // only allowlisted https hosts are handed to the default browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isTrustedExternal(url)) shell.openExternal(url);
+    if (isTrustedExternalUrl(url)) shell.openExternal(url);
     return { action: "deny" };
   });
   // The renderer is a SPA (client-side routing, no real navigations). Allow only
   // the dev server URL (for HMR full reloads) and block everything else — including
-  // arbitrary file:// paths like file:///etc/passwd (audit S-5, review fix).
+  // arbitrary local paths.
   win.webContents.on("will-navigate", (event, url) => {
-    const devUrl = process.env.ELECTRON_RENDERER_URL;
-    if (!devUrl || !url.startsWith(devUrl)) event.preventDefault();
+    if (!isTrustedRendererUrl(url)) event.preventDefault();
   });
 
   if (is.dev && process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    win.loadFile(join(__dirname, "../renderer/index.html"));
+    win.loadURL(`${APP_ORIGIN}/index.html`);
   }
 }
 
 // Content-Security-Policy (audit S-3). Strict in production (bundled assets are
 // same-origin); relaxed in dev so Vite HMR + React Refresh inline preamble work.
 function installCsp() {
-  const policy = is.dev
-    ? "default-src 'self' 'unsafe-inline' data: blob: http://localhost:* ws://localhost:*; connect-src 'self' http: https: ws: wss:; img-src 'self' data: blob:"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  const policy = is.dev ? DEVELOPMENT_CSP : PRODUCTION_CSP;
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
     cb({
       responseHeaders: {
@@ -113,27 +90,59 @@ function installCsp() {
       },
     });
   });
+  session.defaultSession.setPermissionCheckHandler(() => false);
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+}
+
+function installAppProtocol(): void {
+  const rendererRoot = resolve(__dirname, "../renderer");
+  protocol.handle(APP_SCHEME, (request) => {
+    const target = resolveRendererAsset(rendererRoot, request.url);
+    if (!target) return new Response("Not found", { status: 404 });
+    return net.fetch(pathToFileURL(target).toString());
+  });
 }
 
 app.on("child-process-gone", (_e, details) => {
-  if (details.type === "GPU") {
-    console.error("GPU subprocess exited, running without GPU acceleration");
-  }
+  telemetry.recordApp("child-gone", `${details.type}:${details.reason}`);
 });
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId("com.project.desktop");
-  app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
+process.on("unhandledRejection", () => telemetry.recordApp("unhandled-rejection"));
+process.on("uncaughtExceptionMonitor", () => telemetry.recordApp("uncaught-exception"));
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const window = BrowserWindow.getAllWindows()[0];
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.focus();
   });
-  installCsp();
-  initIpc();
-  createWindow();
-});
+
+  app.whenReady().then(() => {
+    const closeTelemetry = installFileTelemetry(app.getPath("userData"));
+    telemetry.recordApp("started", process.versions.electron);
+    app.once("will-quit", () => {
+      telemetry.recordApp("stopped");
+      closeTelemetry();
+    });
+    electronApp.setAppUserModelId(BRAND_APP_ID);
+    app.on("browser-window-created", (_, window) => {
+      optimizer.watchWindowShortcuts(window);
+    });
+    installCsp();
+    installAppProtocol();
+    initIpc();
+    createWindow();
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+app.on("will-quit", closeIpcResources);
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

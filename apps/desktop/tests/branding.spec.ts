@@ -13,8 +13,11 @@ const builder = createRequire(import.meta.url)(join(desktopRoot, "electron-build
 test("branding metadata derives from the root SSOT", () => {
   expect(rootPackage.name).toBe(branding.id);
   expect(rootPackage.repository.url).toContain(`/${branding.id}.git`);
+  expect(builder.appId).toBe(branding.appId);
   expect(builder.productName).toBe(branding.name);
   expect(builder.executableName).toBe(branding.id);
+  expect(builder.pacman.packageName).toBe(branding.id);
+  expect(builder.linux.syncDesktopName).toBe(true);
   expect(builder.artifactName).toBe(`${branding.id}-\${version}.\${ext}`);
 });
 

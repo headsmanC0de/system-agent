@@ -1,4 +1,4 @@
-import type { ToolCallInfo } from "../types";
+import type { ToolCallInfo } from "@project/types";
 
 export interface StreamChunk {
   content?: string;

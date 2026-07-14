@@ -1,3 +1,6 @@
+import { useAsyncData, usePolling } from "@project/hooks";
+import type { NetConnection, NetworkInterface, NetworkSummary, OpenPort } from "@project/types";
+import { Badge, Card, StaleDataNotice, StatCard } from "@project/ui";
 import {
   Cable,
   Check,
@@ -13,9 +16,6 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { system } from "../api";
-import { Badge, Card, StaleDataNotice, StatCard } from "../components/ui";
-import { useAsyncData, usePolling } from "../lib/hooks";
-import type { NetConnection, NetworkInterface, OpenPort } from "../types";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -67,33 +67,32 @@ function statusVariant(state: string): "success" | "danger" | "default" | "prima
 }
 
 export function NetworkPage() {
-  const [netInfo, setNetInfo] = useState<{
-    publicIp: string;
-    localIp: string;
-    gateway: string;
-    dns: string[];
-    hostname: string;
-    isReachable: boolean;
-    latency: string;
-  } | null>(null);
+  const [netInfo, setNetInfo] = useState<NetworkSummary | null>(null);
   const [ifaces, setIfaces] = useState<NetworkInterface[]>([]);
   const [ports, setPorts] = useState<OpenPort[]>([]);
   const [conns, setConns] = useState<NetConnection[]>([]);
   const [portsOpen, setPortsOpen] = useState(true);
+  const [collectionError, setCollectionError] = useState<Error | null>(null);
 
   const refreshAll = useCallback(async () => {
-    try {
-      const [ni, ifData, portData, connData] = await Promise.all([
-        system.network(),
-        system.networkInterfaces(),
-        system.openPorts(),
-        system.netConnections(),
-      ]);
-      setNetInfo(ni);
-      setIfaces(ifData);
-      setPorts(portData);
-      setConns(connData);
-    } catch {}
+    const [summary, interfaces, openPorts, connections] = await Promise.allSettled([
+      system.network(),
+      system.networkInterfaces(),
+      system.openPorts(),
+      system.netConnections(),
+    ]);
+    const errors: string[] = [];
+    if (summary.status === "fulfilled") {
+      setNetInfo(summary.value);
+      if (summary.value.error) errors.push(summary.value.error);
+    } else errors.push(`network summary: ${String(summary.reason)}`);
+    if (interfaces.status === "fulfilled") setIfaces(interfaces.value);
+    else errors.push(`interfaces: ${String(interfaces.reason)}`);
+    if (openPorts.status === "fulfilled") setPorts(openPorts.value);
+    else errors.push(`open ports: ${String(openPorts.reason)}`);
+    if (connections.status === "fulfilled") setConns(connections.value);
+    else errors.push(`connections: ${String(connections.reason)}`);
+    setCollectionError(errors.length > 0 ? new Error(errors.join("; ")) : null);
   }, []);
 
   const refreshConns = useCallback(async () => {
@@ -111,6 +110,14 @@ export function NetworkPage() {
   return (
     <div className="space-y-3">
       <StaleDataNotice error={pollError} />
+      {collectionError && (
+        <div
+          className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-warning-foreground"
+          role="status"
+        >
+          Network data partially unavailable: {collectionError.message}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -118,11 +125,11 @@ export function NetworkPage() {
             <span>Public IP</span>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-sm font-semibold font-mono">{netInfo?.publicIp ?? "..."}</span>
+            <span className="text-sm font-semibold font-mono">{netInfo?.publicIp ?? "Not collected"}</span>
             {netInfo?.publicIp && <CopyButton text={netInfo.publicIp} />}
           </div>
           <div className="mt-1">
-            {netInfo?.isReachable ? <Badge variant="success">Online</Badge> : <Badge variant="danger">Offline</Badge>}
+            <Badge variant="default">Reachability unknown</Badge>
           </div>
         </Card>
 
@@ -132,10 +139,10 @@ export function NetworkPage() {
             <span>Local IP</span>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-sm font-semibold font-mono">{netInfo?.localIp ?? "..."}</span>
+            <span className="text-sm font-semibold font-mono">{netInfo?.localIp ?? "Unavailable"}</span>
             {netInfo?.localIp && <CopyButton text={netInfo.localIp} />}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">Gateway: {netInfo?.gateway ?? "..."}</div>
+          <div className="mt-1 text-xs text-muted-foreground">Gateway: {netInfo?.gateway ?? "Unavailable"}</div>
         </Card>
 
         <Card className="p-4">
@@ -152,7 +159,7 @@ export function NetworkPage() {
                 </div>
               ))
             ) : (
-              <span className="text-sm text-muted-foreground">...</span>
+              <span className="text-sm text-muted-foreground">Unavailable</span>
             )}
           </div>
         </Card>
@@ -162,8 +169,8 @@ export function NetworkPage() {
             <Signal size={14} className="text-foreground" />
             <span>Connectivity</span>
           </div>
-          <div className="mt-1.5 text-sm font-semibold">{netInfo?.latency ?? "..."}</div>
-          <div className="mt-1 text-xs text-muted-foreground">Hostname: {netInfo?.hostname ?? "..."}</div>
+          <div className="mt-1.5 text-sm font-semibold capitalize">{netInfo?.status ?? "Loading"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">Hostname: {netInfo?.hostname ?? "Unavailable"}</div>
         </Card>
       </div>
 

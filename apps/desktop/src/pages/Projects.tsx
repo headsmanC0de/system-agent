@@ -1,3 +1,14 @@
+import { useAsyncData } from "@project/hooks";
+import type {
+  CheckCategory,
+  DepRisk,
+  ProjectCheck,
+  ProjectDep,
+  ProjectInfo,
+  SystemCheckCategory,
+  SystemHealth,
+} from "@project/types";
+import { Badge, Bar, Card, Output } from "@project/ui";
 import {
   AlertTriangle,
   Boxes,
@@ -18,17 +29,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { projects, system } from "../api";
-import { Badge, Bar, Card, Output } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type {
-  CheckCategory,
-  DepRisk,
-  ProjectCheck,
-  ProjectDep,
-  ProjectInfo,
-  SystemCheckCategory,
-  SystemHealth,
-} from "../types";
 
 type ProjectTab = "readiness" | "deps" | "workspaces" | "system";
 
@@ -294,10 +294,10 @@ export function ProjectsPage() {
     }
   };
 
-  const checkOutdated = async (id: string) => {
+  const checkOutdated = async (project: ProjectInfo) => {
     try {
-      const deps = await projects.outdated(id);
-      setOutdatedDeps((prev) => ({ ...prev, [id]: deps }));
+      const deps = await projects.outdated(project.path);
+      setOutdatedDeps((prev) => ({ ...prev, [project.id]: deps }));
     } catch (err) {
       setOutput(err instanceof Error ? err.message : String(err));
     }
@@ -431,7 +431,7 @@ export function ProjectsPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      checkOutdated(p.id);
+                      checkOutdated(p);
                     }}
                     className="mt-1 btn-ghost text-xs px-2 py-1 rounded"
                   >

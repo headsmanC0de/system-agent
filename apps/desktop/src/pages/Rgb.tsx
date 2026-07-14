@@ -1,6 +1,6 @@
+import { Badge, Button, Card, Output } from "@project/ui";
 import { useEffect, useState } from "react";
 import { system } from "../api";
-import { Badge, Button, Card, Output } from "../components/ui";
 
 interface RgbDevice {
   idx: number;

@@ -1,9 +1,9 @@
+import { useAsyncData, useDebounced } from "@project/hooks";
+import type { OutdatedPackage, PackageInfo } from "@project/types";
+import { Card, Modal, Output, SearchInput, StatCard } from "@project/ui";
 import { Package } from "lucide-react";
 import { useRef, useState } from "react";
 import { system } from "../api";
-import { Card, Modal, Output, SearchInput, StatCard } from "../components/ui";
-import { useAsyncData, useDebounced } from "../lib/hooks";
-import type { OutdatedPackage, PackageInfo } from "../types";
 
 export function PackagesPage() {
   const [pkgs, setPkgs] = useState<PackageInfo[]>([]);

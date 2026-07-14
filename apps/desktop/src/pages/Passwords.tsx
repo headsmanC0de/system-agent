@@ -1,9 +1,9 @@
+import { useAsyncData } from "@project/hooks";
+import type { PasswordDetail, PasswordEntry } from "@project/types";
+import { Badge, Card, Output, SearchInput } from "@project/ui";
 import { Copy, Eye, EyeOff, FolderLock, KeyRound, Plus, RefreshCw, Shield, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { passwords } from "../api";
-import { Badge, Card, Output, SearchInput } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { PasswordDetail, PasswordEntry } from "../types";
 
 export function PasswordsPage() {
   const [entries, setEntries] = useState<PasswordEntry[]>([]);

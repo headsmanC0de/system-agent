@@ -36,6 +36,7 @@ yarn-error.log*
 
 # turbo
 .turbo
+.zig-cache/
 
 # ui
 dist/
@@ -46,3 +47,4 @@ dist/
 # screenshots
 *.png
 !packages/ui/src/**/*.png
+!apps/desktop/tests/**/*-snapshots/*.png

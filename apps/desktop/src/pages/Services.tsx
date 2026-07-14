@@ -1,8 +1,8 @@
+import { useAsyncData } from "@project/hooks";
+import type { FailedService, ServiceInfo } from "@project/types";
+import { Card, Output, SearchInput, StatCard } from "@project/ui";
 import { useMemo, useState } from "react";
 import { system } from "../api";
-import { Card, Output, SearchInput, StatCard } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { FailedService, ServiceInfo } from "../types";
 
 type Tab = "all" | "running" | "failed" | "inactive";
 

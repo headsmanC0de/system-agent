@@ -6,7 +6,7 @@ System Agent is an Electron desktop application for observing and managing an Ar
 
 - `branding.json` is the branding and application-identity SSOT.
 - `apps/desktop/src/lib/branding.ts` exposes that data to the application.
-- `apps/desktop/src/lib/storage.ts` owns namespaced browser storage and migrates legacy `lh-*`/`la-*` keys.
+- `apps/desktop/src/lib/storage.ts` owns the current `sa-*` browser-storage namespace.
 - `apps/desktop/src/main/channels.ts` is the IPC allowlist SSOT.
 - `biome.json` is the lint and formatting SSOT.
 - `docs/TESTING.md` is the testing standard.

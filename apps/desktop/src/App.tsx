@@ -1,141 +1,27 @@
-import {
-  Battery,
-  BookOpen,
-  Bot,
-  Brain,
-  Camera,
-  ChevronLeft,
-  Clock,
-  Cpu,
-  FileText,
-  FolderGit2,
-  FolderLock,
-  HardDrive,
-  LayoutDashboard,
-  Lightbulb,
-  Menu,
-  Monitor,
-  Moon,
-  Package,
-  Play,
-  Settings2,
-  Sun,
-  Wifi,
-  Wrench,
-} from "lucide-react";
+import { ChevronLeft, Menu, Moon, Sun } from "lucide-react";
 import { Activity, useEffect, useState } from "react";
-import { isElectron } from "./api";
+import { isDemoMode } from "./api";
 import BrandLogo from "./components/brand-logo";
 import PoweredByBadge from "./components/powered-by-badge";
-import { BRAND_NAME } from "./lib/branding";
+import { BRAND_NAME, BRAND_TAGLINE } from "./lib/branding";
 import type { ThemeMode } from "./lib/theme";
 import { applyMode, getStoredMode, initTheme } from "./lib/theme";
-import { AutostartPage } from "./pages/Autostart";
-import { BatteryPage } from "./pages/Battery";
-import { ChatPage } from "./pages/Chat";
-import { CronPage } from "./pages/Cron";
-import { DashboardPage } from "./pages/Dashboard";
-import { DisksPage } from "./pages/Disks";
-import { DocsPage } from "./pages/Docs";
-import { GpuPage } from "./pages/Gpu";
-import { HardwarePage } from "./pages/Hardware";
-import { LlmPage } from "./pages/Llm";
-import { LogsPage } from "./pages/Logs";
-import { NetworkPage } from "./pages/Network";
-import { PackagesPage } from "./pages/Packages";
-import { PasswordsPage } from "./pages/Passwords";
-import { ProjectsPage } from "./pages/Projects";
-import { RgbPage } from "./pages/Rgb";
-import { ServicesPage } from "./pages/Services";
-import { SettingsPage } from "./pages/Settings";
-import { SnapshotsPage } from "./pages/Snapshots";
-import type { PageId } from "./types";
+import { PAGE_BY_ID, PAGE_GROUPS, type PageId } from "./page-registry";
 
-const NAV_GROUPS: { label: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
-  {
-    label: "Overview",
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-      { id: "projects", label: "Projects", icon: <FolderGit2 size={18} /> },
-      { id: "packages", label: "Packages", icon: <Package size={18} /> },
-      { id: "hardware", label: "Hardware", icon: <Cpu size={18} /> },
-      { id: "gpu", label: "GPU", icon: <Monitor size={18} /> },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { id: "snapshots", label: "Snapshots", icon: <Camera size={18} /> },
-      { id: "services", label: "Services", icon: <Settings2 size={18} /> },
-      { id: "autostart", label: "Autostart", icon: <Play size={18} /> },
-      { id: "cron", label: "Cron & Timers", icon: <Clock size={18} /> },
-    ],
-  },
-  {
-    label: "Peripherals",
-    items: [
-      { id: "disks", label: "Disks", icon: <HardDrive size={18} /> },
-      { id: "network", label: "Network", icon: <Wifi size={18} /> },
-      { id: "battery", label: "Battery & BT", icon: <Battery size={18} /> },
-      { id: "rgb", label: "RGB", icon: <Lightbulb size={18} /> },
-      { id: "logs", label: "Logs", icon: <FileText size={18} /> },
-    ],
-  },
-  {
-    label: "Assistant",
-    items: [
-      { id: "chat", label: "Agent Chat", icon: <Bot size={18} /> },
-      { id: "llm", label: "Tesseract MoE", icon: <Brain size={18} /> },
-      { id: "passwords", label: "Passwords", icon: <FolderLock size={18} /> },
-      { id: "docs", label: "Docs", icon: <BookOpen size={18} /> },
-      { id: "settings", label: "Settings", icon: <Wrench size={18} /> },
-    ],
-  },
-];
+const KEYBOARD_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-const PAGES: Record<PageId, React.FC> = {
-  dashboard: DashboardPage,
-  projects: ProjectsPage,
-  packages: PackagesPage,
-  snapshots: SnapshotsPage,
-  services: ServicesPage,
-  autostart: AutostartPage,
-  cron: CronPage,
-  hardware: HardwarePage,
-  gpu: GpuPage,
-  disks: DisksPage,
-  docs: DocsPage,
-  network: NetworkPage,
-  rgb: RgbPage,
-  logs: LogsPage,
-  battery: BatteryPage,
-  chat: ChatPage,
-  llm: LlmPage,
-  passwords: PasswordsPage,
-  settings: SettingsPage,
-};
+function LiveClock({ dateOnly = false }: { dateOnly?: boolean }) {
+  const [now, setNow] = useState(() => new Date());
 
-const PAGE_TITLES: Record<PageId, string> = {
-  dashboard: "Dashboard",
-  projects: "Projects",
-  packages: "Package Manager",
-  snapshots: "Btrfs Snapshots",
-  services: "System Services",
-  autostart: "Autostart Entries",
-  cron: "Cron & Timers",
-  hardware: "Hardware Monitor",
-  gpu: "GPU Monitor",
-  disks: "Disk Usage",
-  docs: "Docs",
-  network: "Network Connections",
-  rgb: "RGB Control",
-  logs: "System Logs",
-  battery: "Battery & Bluetooth",
-  chat: "AI Assistant",
-  llm: "Tesseract MoE LLM",
-  passwords: "Password Vault",
-  settings: "Settings",
-};
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), dateOnly ? 60_000 : 1_000);
+    return () => clearInterval(id);
+  }, [dateOnly]);
+
+  return dateOnly
+    ? now.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
 
 export function App() {
   const [page, setPage] = useState<PageId>("dashboard");
@@ -149,16 +35,10 @@ export function App() {
     setVisited((v) => (v.has(id) ? v : new Set(v).add(id)));
     setPage(id);
   };
-  const [time, setTime] = useState(new Date());
   const [mode, setMode] = useState<ThemeMode>(getStoredMode());
 
   useEffect(() => {
     initTheme();
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
   }, []);
 
   const toggleMode = () => {
@@ -184,13 +64,14 @@ export function App() {
               </div>
               <div>
                 <div className="text-sm font-semibold leading-tight">{BRAND_NAME}</div>
-                <div className="text-xs text-muted-foreground">System Manager</div>
+                <div className="text-xs text-muted-foreground">{BRAND_TAGLINE}</div>
               </div>
             </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors ${KEYBOARD_FOCUS}`}
           >
             {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
           </button>
@@ -198,7 +79,7 @@ export function App() {
 
         {/* Nav Groups */}
         <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {NAV_GROUPS.map((group) => (
+          {PAGE_GROUPS.map((group) => (
             <div key={group.label} className="mb-4">
               {!collapsed && (
                 <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
@@ -206,19 +87,22 @@ export function App() {
                 </div>
               )}
               <div className="space-y-0.5">
-                {group.items.map((item) => (
+                {group.pages.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => navigate(item.id)}
-                    title={collapsed ? item.label : undefined}
+                    aria-current={page === item.id ? "page" : undefined}
+                    title={collapsed ? item.navLabel : undefined}
                     className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
                       page === item.id
                         ? "bg-muted text-foreground font-medium"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    } ${collapsed ? "justify-center" : ""}`}
+                    } ${collapsed ? "justify-center" : ""} ${KEYBOARD_FOCUS}`}
                   >
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    {!collapsed && item.label}
+                    <span className="flex-shrink-0">
+                      <item.icon size={18} />
+                    </span>
+                    {!collapsed && item.navLabel}
                   </button>
                 ))}
               </div>
@@ -232,14 +116,14 @@ export function App() {
             <div className="flex items-center justify-between gap-2">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground font-mono">
-                  {time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                  <LiveClock />
                 </span>
                 <span className="text-xs text-muted-foreground">Arch Linux</span>
               </div>
               <button
                 onClick={toggleMode}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                title={mode === "dark" ? "Switch to light mode" : "Switch to light mode"}
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors ${KEYBOARD_FOCUS}`}
+                title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               >
                 {mode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
               </button>
@@ -248,13 +132,13 @@ export function App() {
             <div className="flex flex-col items-center gap-2">
               <button
                 onClick={toggleMode}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors ${KEYBOARD_FOCUS}`}
                 title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               >
                 {mode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
               </button>
               <span className="text-xs text-muted-foreground font-mono">
-                {time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                <LiveClock />
               </span>
             </div>
           )}
@@ -266,9 +150,9 @@ export function App() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
         <header className="flex h-12 flex-shrink-0 items-center justify-between border-b border-border bg-card px-6">
-          <h2 className="text-sm font-semibold">{PAGE_TITLES[page]}</h2>
+          <h2 className="text-sm font-semibold">{PAGE_BY_ID[page].title}</h2>
           <div className="flex items-center gap-3">
-            {!isElectron && (
+            {isDemoMode && (
               <span
                 data-testid="mock-mode-banner"
                 title="Not running inside the Electron app — showing mock data, not your real system."
@@ -278,7 +162,7 @@ export function App() {
               </span>
             )}
             <span className="text-xs text-muted-foreground font-mono">
-              {time.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+              <LiveClock dateOnly />
             </span>
           </div>
         </header>
@@ -292,7 +176,7 @@ export function App() {
             {[...visited]
               .sort((a, b) => (a === page ? -1 : b === page ? 1 : 0))
               .map((id) => {
-                const PageComponent = PAGES[id];
+                const PageComponent = PAGE_BY_ID[id].component;
                 return (
                   <Activity key={id} mode={id === page ? "visible" : "hidden"}>
                     <PageComponent />

@@ -1,4 +1,4 @@
-// Shared Playwright fixtures (LH-111): nav + localStorage seeding, replacing the
+// Shared Playwright fixtures: navigation and localStorage seeding replace
 // per-spec navigateTo copies and sleep-based waits (waitForTimeout is an
 // anti-pattern per the official best-practices guide — web-first assertions
 // auto-retry, actions auto-wait).
@@ -15,7 +15,7 @@ export const test = base.extend<Fixtures>({
   gotoPage: async ({ page }, use) => {
     await use(async (name: string) => {
       await page.goto(BASE, { waitUntil: "domcontentloaded" });
-      await page.locator(`text=${name}`).first().click();
+      await page.getByRole("button", { name, exact: true }).click();
     });
   },
   seedStorage: async ({ page }, use) => {

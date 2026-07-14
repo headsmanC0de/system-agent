@@ -1,10 +1,10 @@
+import { useAsyncData, useCpuHistory, useCpuUsage, usePolling } from "@project/hooks";
+import type { FanCurvePoint, FanInfo } from "@project/types";
+import { Bar, Button, Card, Sparkline, StaleDataNotice } from "@project/ui";
 import { Cpu, Fan, MemoryStick, Thermometer } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { fans as fansApi, system } from "../api";
-import { Bar, Button, Card, Sparkline, StaleDataNotice } from "../components/ui";
-import { useAsyncData, useCpuHistory, useCpuUsage, usePolling } from "../lib/hooks";
 import { getStorageItem, STORAGE_KEYS, setStorageItem } from "../lib/storage";
-import type { FanCurvePoint, FanInfo } from "../types";
 
 interface SensorReading {
   chip: string;
@@ -280,7 +280,7 @@ export function HardwarePage() {
     }
   }, [updateCpu, updateCpuHistory]);
 
-  const { error: pollError } = usePolling(refresh, 1000);
+  const { error: pollError } = usePolling(refresh, 2000);
 
   const allReadings = useMemo(() => parseSensors(sensorsRaw), [sensorsRaw]);
   const temps = allReadings.filter((r) => r.type === "temp");

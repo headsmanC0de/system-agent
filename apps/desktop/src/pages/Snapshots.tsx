@@ -1,9 +1,9 @@
+import { useAsyncData } from "@project/hooks";
+import type { SnapshotInfo } from "@project/types";
+import { Badge, Card, Output, SearchInput, StatCard } from "@project/ui";
 import { Camera, GitCompare, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { system } from "../api";
-import { Badge, Card, Output, SearchInput, StatCard } from "../components/ui";
-import { useAsyncData } from "../lib/hooks";
-import type { SnapshotInfo } from "../types";
 
 type TabFilter = "all" | "single" | "pre/post" | "timeline";
 

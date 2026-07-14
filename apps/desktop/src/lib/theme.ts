@@ -133,7 +133,9 @@ export function getStoredMode(): ThemeMode {
 }
 
 export function getPreset(id: string): ThemePreset {
-  return THEME_PRESETS.find((p) => p.id === id) || THEME_PRESETS[1]!;
+  return (
+    THEME_PRESETS.find((preset) => preset.id === id) ?? THEME_PRESETS.find((preset) => preset.id === DEFAULT_ACCENT)!
+  );
 }
 
 export function getPresetColor(id: string): string {

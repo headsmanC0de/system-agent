@@ -1,3 +1,4 @@
+import type { ChatMessage, ToolCallInfo } from "@project/types";
 import { Bot, Brain, Cpu, Loader2, Send, Settings2, User, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatToolbar } from "../components/ChatToolbar";
@@ -15,7 +16,6 @@ import {
 } from "../lib/chat";
 import type { ChatSession, ChatTopic } from "../lib/sessions";
 import {
-  calculateContextUsage,
   compressSession,
   createSession,
   createTopic,
@@ -24,7 +24,6 @@ import {
   deleteTopic,
   getActiveSessionId,
   getSessions,
-  getSessionTokenSummary,
   getTopics,
   needsCompression,
   setActiveSessionId,
@@ -32,7 +31,6 @@ import {
   updateTopic,
 } from "../lib/sessions";
 import { parseSSEStream } from "../lib/sse";
-import type { ChatMessage, ToolCallInfo } from "../types";
 
 export function ChatPage() {
   const [topics, setTopics] = useState<ChatTopic[]>([DEFAULT_TOPIC]);
@@ -72,12 +70,6 @@ export function ChatPage() {
   useEffect(() => {
     if (activeSessionId) setActiveSessionId(activeSessionId);
   }, [activeSessionId]);
-
-  const _persistSessions = useCallback((updated: ChatSession[]) => {
-    setSessions(updated);
-    const { saveSessions } = require("../lib/sessions");
-    saveSessions(updated);
-  }, []);
 
   const toggleThinking = (id: string) => setShowThinking((p) => ({ ...p, [id]: !p[id] }));
   const toggleToolCalls = (id: string) => setShowToolCalls((p) => ({ ...p, [id]: !p[id] }));
@@ -317,8 +309,6 @@ export function ChatPage() {
     ];
   }
 
-  const _contextInfo = activeSession ? calculateContextUsage(activeSession) : null;
-  const _tokenSummary = activeSession ? getSessionTokenSummary(activeSession) : null;
   const [chatConfig, setChatConfig] = useState<ChatConfig>(getChatConfig());
 
   useEffect(() => {

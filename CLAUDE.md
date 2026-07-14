@@ -1,101 +1,49 @@
-# CLAUDE.md
+# System Agent contributor guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## What this is
-
-System Agent — an Electron desktop app for managing an Arch Linux system (packages, snapshots, services, hardware/GPU, network, RGB, password vault, cron, an AI agent chat, etc.). All pages are backed by shell commands run in the Electron main process over a typed IPC bus. Product identity lives in the root `branding.json`; `src/lib/branding.ts` is its runtime adapter and `src/lib/storage.ts` owns namespaced local-storage migration.
-
-## Monorepo layout
-
-Turborepo + npm workspaces. Node >= 20.19, npm 11.
-
-- `apps/desktop` — the Electron app (`@project/desktop`). All real work happens here.
-- `packages/types` (`@project/types`) — shared pure-data interfaces, no logic.
-- `packages/hooks` (`@project/hooks`) — shared React hooks.
-- `packages/ui` (`@project/ui`) — shared React component library (Card, Badge, Button, StatCard, Bar, Sparkline, SearchInput, PageHeader, Output) + `globals.css`.
-- `packages/config` (`@project/config`) — shared `tsconfig` bases.
-
-`turbo.json` enforces dependency **boundaries**: `config` ← `types` ← `ui`/`hooks` ← `app`. The app may depend on types/ui/hooks; packages may not depend on the app or sideways across peers except as listed. Respect this when adding imports.
-
-Note: `apps/desktop/src/components/ui.tsx` is a pure re-export from `@project/ui` (same for `src/lib/hooks.ts` → `@project/hooks`, `src/types.ts` → `@project/types`). Component changes belong in the shared packages.
+System Agent is a private Electron application for observing and administering this Arch Linux
+workstation. Product identity is defined once in `branding.json`. Shared process-boundary data types
+live in `packages/types`; reusable hooks and UI live in their corresponding workspace packages.
 
 ## Commands
 
-Root (runs across workspaces via turbo):
-- `npm run dev` — start everything in dev (electron-vite dev for the app).
-- `npm run build` / `npm run lint` / `npm run check-types`
-- `npm run format` — prettier on md/ts at root.
+Run from the repository root:
 
-Inside `apps/desktop/` (the common case):
-- `npm run dev` — electron-vite dev (HMR renderer + hot-reload main).
-- `npm run build` — electron-vite build. Outputs `out/main/main.js`, `out/preload/preload.cjs` (CJS so the sandboxed renderer can load it — do not switch back to ESM), `out/renderer/`.
-- `npm run preview` — run the production build.
-- `npm run typecheck` — `tsc --noEmit`.
-- `npm run lint` / `npm run lint:fix` / `npm run format` — **Biome monorepo** (root `biome.json` is the SSOT; package configs are `{"root": false, "extends": "//"}`). All workspaces lint via `turbo run lint`; prettier only formats markdown.
-- `npm run test` — Playwright (browser mode); `npm run test:e2e` — real-Electron e2e (builds first). **Any change to `electron.vite.config.ts`, `main.ts` webPreferences, or the preload must be verified with `test:e2e`** — this class of bug (BF-035/038/039) is invisible to browser tests. CI (`.github/workflows/ci.yml`) runs both suites on push/PR.
+- `npm run check-types` — strict TypeScript checks across workspaces.
+- `npm run lint` — Biome checks across workspaces.
+- `npm run build` — production build through Turborepo.
+- `npm run doctor` — pinned MCP/LSP configuration and version checks.
+- `npm run smoke` — the complete release gate.
+- `npm --workspace @project/desktop run package` — AppImage and pacman artifacts.
 
-### Tests
+## Architecture invariants
 
-Playwright, **browser mode against the mock data layer** (not a real Electron run). Config: `apps/desktop/playwright.config.ts` — it auto-starts `vite --port 5173` and points `baseURL` at `http://127.0.0.1:5173`.
+- Renderer code never reads the operating system or filesystem directly. It uses the preload
+  allowlist and typed IPC client.
+- `apps/desktop/src/main/channels.ts` is the SSOT for IPC channel names.
+- `packages/types` is the SSOT for payload contracts shared across processes.
+- SQLite and raw SQL are allowed only inside `apps/desktop/src/main/*-repository.ts`. See
+  `docs/architecture/persistence.md`.
+- Browser demo data must be explicitly enabled for tests and visibly identified. A production build
+  without the Electron bridge must fail closed, never fabricate system state.
+- Errors and unavailable telemetry are shown as unknown/error with provenance; they are never
+  converted to zero, healthy, online, or a current timestamp.
+- API keys never enter localStorage. Electron `safeStorage` owns provider secrets.
+- No compatibility migrations or historical prefixes are retained. Only current `sa-*` keys exist.
+- String literals follow `docs/architecture/ssot.md`; external metadata and cross-module contracts
+  are centralized, while unique presentation copy stays local.
 
-- `npm run test` from `apps/desktop/` runs all specs.
-- Single file: `npx playwright test tests/functional.spec.ts`
-- Single test: `npx playwright test -g "test name substring"`
+## Change discipline
 
-Specs: `renderer.spec.ts` (smoke/nav), `functional.spec.ts` (data render, interactions, security), `projects.spec.ts`, `screenshots.spec.ts`.
+Prefer the smallest domain change that closes a verified outcome. Add a regression test for every
+bug and test the lowest layer that can prove the behavior. Main/preload/security changes require the
+real Electron E2E suite. Visual or cross-platform behavior additionally requires Playwright.
 
-## Architecture
+The active board is `KANBAN.md`; it contains unfinished work only. Current package/language/tooling
+references and official sources are indexed at `docs/reference/INDEX.md`. App-specific details live
+in `apps/desktop/AGENTS.md`; the testing contract lives in `docs/TESTING.md`.
 
-### IPC bus (the core pattern)
+## Current external security action
 
-The renderer never touches the OS directly. Every system action is a typed round trip:
-
-```
-src/main/ipc.ts     ipcMain.handle("system:overview", ...)   (~55 handlers: pacman, systemctl,
-                                                               nvidia-smi, snapper, upower,
-                                                               bluetoothctl, pass, llm, etc.)
-        ↕ (contextBridge in src/main/preload.ts, via @electron-toolkit/preload)
-src/api.ts          system.overview()  →  invokes "system:overview"
-src/pages/*.tsx     call api methods through hooks
-```
-
-Convention: `ipcMain.handle("ns:action")` in `ipc.ts` maps to `api.ns.action()` in `api.ts`. In `ipc.ts`, use `execFile` for simple commands and `bash -c` for pipes; commands have timeout + buffer limits.
-
-### Mock data layer
-
-`api.ts` checks `isElectron = !!window.electronAPI`. Outside Electron (i.e. the Playwright/browser environment), each method falls back to a `MOCK` record instead of IPC. This is what lets all pages render and all tests run in a plain browser. **When you add an api method or IPC handler, add a matching MOCK entry** or browser/tests break.
-
-### Renderer
-
-- `src/main.tsx` → `src/App.tsx` — collapsible sidebar (4 nav groups), page routing via a `PageId` union, theme init.
-- `src/types.ts` — all interfaces + the `PageId` union (one entry per page).
-- `src/pages/*.tsx` — one component per page.
-- `src/lib/theme.ts` — 12 accent presets, light/dark, persisted in `localStorage["lh-theme"]`.
-- `src/lib/hooks.ts` — `usePolling(fn, ms)` for live pages (Dashboard/GPU/Hardware/Network), `useAsyncData(fn)` for one-shot loads, `useCpuUsage()` for CPU deltas. Hooks are ref-based — safe with unmemoized callbacks.
-- `src/lib/chat.ts` + `src/lib/sessions.ts` — AI provider registry (z.ai / OpenAI / Ollama / Tesseract / Custom), SSE streaming, model picker; provider config persisted in `localStorage["lh-chat-config"]`.
-- `src/index.css` — Tailwind v4 `@theme inline`, CSS variable semantic colors, noise texture.
-
-### Native (incomplete)
-
-`src/native/*.zig` is a planned native helper layer — **pending a Zig API migration, not wired in.** Ignore unless explicitly working on it.
-
-## Conventions (renderer)
-
-- **Shared components, not local re-definitions.** Pages must use `Card` / `StatCard` / `Bar` / `Badge` / `SearchInput` / `Output` / `PageHeader` — never inline `rounded-lg border border-border bg-card`, raw `<h1>`, ad-hoc search inputs, or `<pre>` for command output.
-- **Semantic colors only.** Use CSS variables: `text-success-foreground`, `bg-warning`, `text-info-foreground`, `text-destructive`, etc. Never hardcode `green-500`/`yellow-500`/`blue-500`/`red-500`/`orange-500`. (`purple` has no token yet — Tailwind class is fine.)
-- **Search filters: lowercase both sides.** `.toLowerCase()` on the query and the field — a past bug class on Services/Autostart.
-- No code comments unless asked.
-
-## Reference docs
-
-- `BLUEPRINT.md` — architecture rationale; maps each pattern (IPC bus, command wrapper, runtime abstraction, build-target config) to its Ghostty source. Read before large structural changes.
-- `KANBAN.md` — task board / what's done and planned.
-- `docs/TESTING.md` — the testing standard (pyramid, invariants, turbo config, Playwright-MCP audit procedure). The `qa-audit` agent (`.claude/agents/qa-audit.md`) executes it.
-- `apps/desktop/AGENTS.md` — per-app agent notes (refreshed 2026-06-12: Biome, CJS preload, secrets, e2e rule).
-
-## Known issues / gotchas
-
-- **NVIDIA + Wayland GPU crash** — worked around with `app.disableHardwareAcceleration()` (software rendering) in `main.ts`.
-- Privilege escalation uses `pkexec` (polkit GUI prompt) for snapper mutations; snapshot listing runs unprivileged via snapperd (add your user to `ALLOW_USERS` in the snapper config to see data).
-- Browser/test runs depend entirely on the mock layer; a missing MOCK entry shows up as a broken page only outside Electron.
+An old Z.AI credential appeared in previous Git history. It must be considered compromised: revoke
+it in Z.AI and scrub/replace affected remote history. Repository configs contain no credential and
+keep Z.AI MCP endpoints disabled until an environment-provided key is deliberately enabled.

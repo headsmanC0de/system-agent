@@ -1,9 +1,12 @@
-import { BASE, expect, test } from "./fixtures";
+import { createRequire } from "node:module";
 import { BRAND_NAME } from "../src/lib/branding";
 import { STORAGE_KEYS, storageKey } from "../src/lib/storage";
+import { BASE, expect, test } from "./fixtures";
+
+const APP_VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 test.describe("Hardware — Data Rendering", () => {
-  test("memory totals render in GiB magnitude, not MiB (BF-042)", async ({ page, gotoPage }) => {
+  test("memory totals render in GiB magnitude, not MiB", async ({ page, gotoPage }) => {
     await gotoPage("Hardware");
     await expect(page.locator("text=/62\\.\\d GB total/").first()).toBeVisible({ timeout: 5000 });
   });
@@ -22,7 +25,7 @@ test.describe("Hardware — Data Rendering", () => {
     }
   });
 
-  test("fan curves card lists hwmon fans (LH-104a)", async ({ page, gotoPage }) => {
+  test("fan curves card lists hwmon fans", async ({ page, gotoPage }) => {
     await gotoPage("Hardware");
     await expect(page.locator("text=Fan Curves").first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=CPU Fan").first()).toBeVisible();
@@ -31,7 +34,7 @@ test.describe("Hardware — Data Rendering", () => {
     ).toBeVisible();
   });
 
-  test("fan curve preset updates sliders and enable applies (LH-104a)", async ({ page, gotoPage }) => {
+  test("fan curve preset updates sliders and enable applies", async ({ page, gotoPage }) => {
     await gotoPage("Hardware");
     await expect(page.locator("text=Fan Curves").first()).toBeVisible({ timeout: 5000 });
     await page.locator("button", { hasText: "Silent" }).first().click();
@@ -51,14 +54,26 @@ test.describe("Logs — Data Rendering", () => {
     await expect(main).toBeVisible();
     const content = await main.textContent();
     expect(content!.length).toBeGreaterThan(0);
+    await expect(main.getByText(/Failed to start container webapp/).first()).toBeVisible();
   });
 
   test("has count selector and refresh button", async ({ page, gotoPage }) => {
     await gotoPage("Logs");
     const selects = page.locator("select");
-    if (await selects.count() > 0) {
+    if ((await selects.count()) > 0) {
       await expect(selects.first()).toBeVisible({ timeout: 5000 });
     }
+  });
+});
+
+test.describe("Network — Truthful Collection State", () => {
+  test("does not claim internet reachability or a public IP without collecting them", async ({ page, gotoPage }) => {
+    await gotoPage("Network");
+    await expect(page.locator("header")).toContainText("Network Connections", { timeout: 5000 });
+    await expect(page.getByText("Not collected").first()).toBeVisible();
+    await expect(page.getByText("Reachability unknown").first()).toBeVisible();
+    await expect(page.getByText("Offline", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Online", { exact: true })).toHaveCount(0);
   });
 });
 
@@ -238,7 +253,7 @@ test.describe("Settings — Interactions", () => {
     await gotoPage("Settings");
     const aboutBtn = page.locator('button:has-text("About")');
     await aboutBtn.click();
-    await expect(page.locator("text=0.1.0").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(APP_VERSION, { exact: true }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator("text=Private").first()).toBeVisible();
   });
 
@@ -246,7 +261,7 @@ test.describe("Settings — Interactions", () => {
     await gotoPage("Settings");
     const tabs = page.locator("button");
     const providerTab = tabs.filter({ hasText: /AI Provider|Provider/ });
-    if (await providerTab.count() > 0) {
+    if ((await providerTab.count()) > 0) {
       await providerTab.first().click();
     }
     const main = page.locator("main");
@@ -335,20 +350,18 @@ test.describe("Security Checks", () => {
   });
 });
 
-test.describe("Chat secrets & base URL validation (audit LH-072/LH-073)", () => {
+test.describe("Chat secrets and base URL validation", () => {
   async function openAiProvider(page: any, gotoPage: (name: string) => Promise<void>) {
     await gotoPage("Settings");
     await page.locator('button:has-text("AI Provider")').first().click();
   }
 
-  test("API key is never persisted to the plaintext chat config", async ({ page, gotoPage }) => {
+  test("demo API key remains memory-only and outside the chat config", async ({ page, gotoPage }) => {
     await openAiProvider(page, gotoPage);
     const keyInput = page.locator('input[placeholder*="API key"]');
     await keyInput.fill("sk-test-secret-value");
     const secretKey = storageKey("secret-chat-api-key");
-    await expect
-      .poll(() => page.evaluate((key) => localStorage.getItem(key), secretKey))
-      .toBe("sk-test-secret-value");
+    await expect.poll(() => keyInput.inputValue()).toBe("sk-test-secret-value");
     const stored = await page.evaluate(
       ({ configKey, secretKey }) => ({
         config: localStorage.getItem(configKey),
@@ -359,27 +372,24 @@ test.describe("Chat secrets & base URL validation (audit LH-072/LH-073)", () => 
     expect(stored.config).not.toBeNull();
     expect(JSON.parse(stored.config!)).not.toHaveProperty("apiKey");
     expect(stored.config).not.toContain("sk-test-secret-value");
-    expect(stored.secret).toBe("sk-test-secret-value");
+    expect(stored.secret).toBeNull();
   });
 
-  test("legacy plaintext apiKey is purged from stored config on load", async ({ page, gotoPage }) => {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 15000 });
-    await page.evaluate(() => {
-      localStorage.setItem("lh-chat-config", JSON.stringify({ providerId: "zai-standard", apiKey: "leaked-old-key" }));
+  test("rejects legacy chat config containing a plaintext API key instead of migrating it", async ({
+    page,
+    gotoPage,
+    seedStorage,
+  }) => {
+    await seedStorage({
+      [STORAGE_KEYS.chatConfig]: JSON.stringify({ providerId: "openai", modelId: "gpt-4o", apiKey: "legacy-secret" }),
     });
     await openAiProvider(page, gotoPage);
-    await expect
-      .poll(() => page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.chatConfig))
-      .not.toContain("leaked-old-key");
-    await expect.poll(() => page.evaluate(() => localStorage.getItem("lh-chat-config"))).toBeNull();
+    expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.chatConfig)).toBeNull();
   });
 
-  test("keyring warning shown when secrets backend is basic_text (LH-112)", async ({ page, gotoPage }) => {
-    // mock secrets:backend returns "basic_text" — honest, since browser mode
-    // stores the key in plain localStorage
+  test("memory-only demo backend does not claim plaintext persistence", async ({ page, gotoPage }) => {
     await openAiProvider(page, gotoPage);
-    await expect(page.getByTestId("keyring-warning")).toBeVisible();
-    await expect(page.getByTestId("keyring-warning")).toContainText("not encrypted");
+    await expect(page.getByTestId("keyring-warning")).toHaveCount(0);
   });
 
   test("custom provider warns on non-https base URL and accepts https/localhost", async ({ page, gotoPage }) => {

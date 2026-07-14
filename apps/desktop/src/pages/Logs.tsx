@@ -1,14 +1,8 @@
+import { usePolling } from "@project/hooks";
+import type { SystemLogsResult } from "@project/types";
+import { Badge, Card, SearchInput, StatCard } from "@project/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { system } from "../api";
-import { Badge, Card, SearchInput, StatCard } from "../components/ui";
-import { usePolling } from "../lib/hooks";
-
-interface LogEntry {
-  priority: string;
-  timestamp: string;
-  unit: string;
-  message: string;
-}
 
 const PRIORITY_ORDER = ["err", "warning", "notice", "info", "debug"] as const;
 
@@ -29,7 +23,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export function LogsPage() {
-  const [rawLogs, setRawLogs] = useState<string>("");
+  const [result, setResult] = useState<SystemLogsResult | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [unitFilter, setUnitFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -40,11 +34,17 @@ export function LogsPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await system.logs(200);
-      setRawLogs(data);
-      setLastUpdated(new Date().toLocaleTimeString());
-    } catch {
-      setRawLogs("[]");
+      const next = await system.logs(200);
+      setResult(next);
+      setLastUpdated(new Date(next.capturedAt).toLocaleTimeString());
+    } catch (error) {
+      setResult({
+        capturedAt: new Date().toISOString(),
+        entries: [],
+        error: error instanceof Error ? error.message : String(error),
+        source: "journalctl",
+        status: "error",
+      });
     }
   }, []);
 
@@ -54,15 +54,9 @@ export function LogsPage() {
     if (follow && logEndRef.current) {
       logEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [rawLogs, follow, priorityFilter, unitFilter, search]);
+  }, [result, follow, priorityFilter, unitFilter, search]);
 
-  const entries: LogEntry[] = useMemo(() => {
-    try {
-      return JSON.parse(rawLogs || "[]");
-    } catch {
-      return [];
-    }
-  }, [rawLogs]);
+  const entries = result?.entries ?? [];
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: entries.length };
@@ -95,6 +89,14 @@ export function LogsPage() {
 
   return (
     <div className="space-y-3">
+      {result?.status === "error" && (
+        <div
+          className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          role="alert"
+        >
+          System logs unavailable from {result.source}: {result.error || "unknown collection error"}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Entries" value={counts.all} accent />
         <StatCard label="Errors" value={counts.err} accent variant={counts.err > 0 ? "destructive" : "default"} />
@@ -162,7 +164,9 @@ export function LogsPage() {
       <Card className="overflow-hidden">
         <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">No log entries match filters</div>
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              {result?.status === "error" ? "Logs could not be collected" : "No log entries match filters"}
+            </div>
           ) : (
             filtered.map((entry, i) => {
               const isExpanded = expandedIdx === i;

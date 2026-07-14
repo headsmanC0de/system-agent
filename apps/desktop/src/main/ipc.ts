@@ -1,20 +1,123 @@
-import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import os from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
+import { basename, isAbsolute, join } from "node:path";
+import type {
+  CreateDocInput,
+  DocsListOptions,
+  LogPriority,
+  NetworkSummary,
+  ProjectDep,
+  ProjectInfo,
+  SystemCheck,
+  SystemLogEntry,
+  SystemLogsResult,
+  UpdateDocInput,
+} from "@project/types";
 import { app, ipcMain, Notification } from "electron";
-import initSqlJs, { type Database } from "sql.js";
+import { IPC_CHANNELS, type IpcChannel } from "./channels";
+import { CommandRunner } from "./command-runner";
+import { DocsRepository } from "./docs-repository";
 import { readEcoFlowDevices } from "./ecoflow";
+import { isTrustedRendererUrl } from "./runtime-origin";
+import { IpcFault, telemetry } from "./telemetry";
 
-const exec = promisify(execFile);
+const commands = new CommandRunner(telemetry);
+
+function dependencyRisk(current: string, latest: string): ProjectDep["risk"] {
+  const currentParts = current.match(/\d+/g)?.map(Number) ?? [];
+  const latestParts = latest.match(/\d+/g)?.map(Number) ?? [];
+  if (currentParts[0] !== latestParts[0]) return "major";
+  if (currentParts[1] !== latestParts[1]) return "minor";
+  if (currentParts[2] !== latestParts[2]) return "patch";
+  return "none";
+}
+
+async function inspectNodeProject(inputPath: string): Promise<ProjectInfo> {
+  if (!isAbsolute(inputPath) || inputPath.includes("\0")) throw new TypeError("Project path must be absolute");
+  const path = await realpath(inputPath);
+  const manifest = JSON.parse(await readFile(join(path, "package.json"), "utf8")) as Record<string, unknown>;
+  const dependencies = (manifest.dependencies ?? {}) as Record<string, string>;
+  const devDependencies = (manifest.devDependencies ?? {}) as Record<string, string>;
+  const lock = await readFile(join(path, "package-lock.json"), "utf8")
+    .then((value) => JSON.parse(value) as { packages?: Record<string, { version?: string }> })
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+  const outdatedRaw =
+    (await commands.run({
+      operation: "projects.npm-outdated",
+      executable: "npm",
+      args: ["outdated", "--json"],
+      cwd: path,
+      timeoutMs: 30_000,
+      maxBufferBytes: 2 * 1024 * 1024,
+      allowedExitCodes: [1],
+    })) || "{}";
+  const outdated = JSON.parse(outdatedRaw) as Record<string, { current?: string; latest?: string }>;
+  const deps = Object.entries({ ...dependencies, ...devDependencies }).map(([name, declared]) => {
+    const current = lock?.packages?.[`node_modules/${name}`]?.version ?? declared;
+    const latest = outdated[name]?.latest ?? current;
+    return {
+      name,
+      current,
+      latest,
+      type: name in devDependencies ? ("dev" as const) : ("prod" as const),
+      risk: dependencyRisk(current, latest),
+    };
+  });
+  const hasLock = lock !== null;
+  const checks = [
+    {
+      id: "manifest",
+      label: "Package manifest",
+      status: "pass" as const,
+      message: "package.json parsed successfully",
+      category: "deps" as const,
+    },
+    {
+      id: "lockfile",
+      label: "Reproducible dependency lock",
+      status: hasLock ? ("pass" as const) : ("warn" as const),
+      message: hasLock ? "package-lock.json parsed successfully" : "package-lock.json is missing",
+      category: "deps" as const,
+      ...(!hasLock && { fix: "Generate and commit package-lock.json" }),
+    },
+  ];
+  const workspaces = Array.isArray(manifest.workspaces) ? manifest.workspaces : [];
+  return {
+    id: path,
+    name: typeof manifest.name === "string" ? manifest.name : basename(path),
+    path,
+    isMonorepo: workspaces.length > 0,
+    monorepoTool: workspaces.length > 0 ? "npm workspaces" : null,
+    types: ["node"],
+    lastScanned: new Date().toISOString(),
+    totalDeps: deps.length,
+    outdatedDeps: deps.filter((dependency) => dependency.risk !== "none").length,
+    healthScore: hasLock ? 100 : 50,
+    deps,
+    workspaces: [],
+    checks,
+  };
+}
 
 let batteryWatchInterval: NodeJS.Timeout | null = null;
 const notifiedDevices = new Map<string, number>();
+let docsRepository: DocsRepository | null = null;
+
+function getDocsRepository(): DocsRepository {
+  docsRepository ??= new DocsRepository(join(app.getPath("userData"), "docs.db"));
+  return docsRepository;
+}
+
+export function closeIpcResources(): void {
+  docsRepository?.close();
+  docsRepository = null;
+}
 
 async function getBatteryDevices(): Promise<Array<{ mac: string; name: string; batteryLevel: number }>> {
-  const raw = await exec("bluetoothctl", ["devices"], { timeout: 10000 }).catch(() => ({ stdout: "" }) as any);
-  const stdout = typeof raw === "string" ? raw : (raw as any).stdout?.trim() || "";
+  const stdout = await cmd("bluetoothctl", ["devices"]);
   if (!stdout) return [];
   const devices: Array<{ mac: string; name: string; batteryLevel: number }> = [];
   const lines = stdout.split("\n").filter(Boolean);
@@ -23,54 +126,71 @@ async function getBatteryDevices(): Promise<Array<{ mac: string; name: string; b
     const mac = parts[1] || "";
     const name = parts.slice(2).join(" ");
     if (!mac) continue;
-    try {
-      const info = await exec("bluetoothctl", ["info", mac], { timeout: 10000 }).catch(() => ({ stdout: "" }) as any);
-      const infoStdout = typeof info === "string" ? info : (info as any).stdout || "";
-      const battMatch = infoStdout.match(/Battery Percentage.*?(\d+)/);
-      if (battMatch) {
-        devices.push({ mac, name: name || mac, batteryLevel: parseInt(battMatch[1]!, 10) });
-      }
-    } catch {}
+    const info = await cmd("bluetoothctl", ["info", mac]);
+    const battMatch = info.match(/Battery Percentage.*?(\d+)/);
+    if (battMatch) devices.push({ mac, name: name || mac, batteryLevel: parseInt(battMatch[1]!, 10) });
   }
   return devices;
 }
 
 function checkBatteryLevels() {
-  try {
-    getBatteryDevices()
-      .then((devices) => {
-        for (const device of devices) {
-          if (device.batteryLevel < 25 && device.batteryLevel > 0) {
-            const lastNotified = notifiedDevices.get(device.mac);
-            if (!lastNotified || lastNotified >= 25) {
-              const n = new Notification({
-                title: "Battery Low",
-                body: `${device.name} battery low: ${device.batteryLevel}%`,
-              });
-              n.show();
-              notifiedDevices.set(device.mac, device.batteryLevel);
-            }
-          } else if (device.batteryLevel >= 25) {
-            notifiedDevices.delete(device.mac);
+  getBatteryDevices()
+    .then((devices) => {
+      for (const device of devices) {
+        if (device.batteryLevel < 25 && device.batteryLevel > 0) {
+          const lastNotified = notifiedDevices.get(device.mac);
+          if (!lastNotified || lastNotified >= 25) {
+            const n = new Notification({
+              title: "Battery Low",
+              body: `${device.name} battery low: ${device.batteryLevel}%`,
+            });
+            n.show();
+            notifiedDevices.set(device.mac, device.batteryLevel);
           }
+        } else if (device.batteryLevel >= 25) {
+          notifiedDevices.delete(device.mac);
         }
-      })
-      .catch(() => {});
-  } catch {}
+      }
+    })
+    .catch(() => {});
 }
 
 function cmd(command: string, args: string[] = []) {
-  return exec(command, args, { timeout: 15000, maxBuffer: 1024 * 1024 }).then(({ stdout }) => stdout.trim());
+  return commands.run({ operation: `system.${command}`, executable: command, args });
 }
 
-function shell(script: string) {
-  return exec("bash", ["-c", script], { timeout: 15000, maxBuffer: 1024 * 1024 }).then(({ stdout }) => stdout.trim());
+function cmdAllowNoMatches(command: string, args: string[]) {
+  return commands.run({
+    operation: `system.${command}.query`,
+    executable: command,
+    args,
+    allowedExitCodes: [1],
+  });
+}
+
+function shell(operation: string, script: string) {
+  return commands.run({ operation, executable: "bash", args: ["-c", script] });
+}
+
+function journalPriority(value: unknown): LogPriority {
+  const priority = Number(value);
+  if (priority <= 3) return "err";
+  if (priority === 4) return "warning";
+  if (priority === 5) return "notice";
+  if (priority === 7) return "debug";
+  return "info";
 }
 
 // pkexec pops a graphical polkit auth dialog — the user may take a while to type
 // their password, so the regular 15s cmd() timeout would kill the prompt mid-entry.
-function authCmd(args: string[], timeout = 120000) {
-  return exec("pkexec", args, { timeout, maxBuffer: 10 * 1024 * 1024 }).then(({ stdout }) => stdout.trim());
+function authCmd(operation: string, args: string[], timeout = 120000) {
+  return commands.run({
+    operation,
+    executable: "pkexec",
+    args,
+    timeoutMs: timeout,
+    maxBufferBytes: 10 * 1024 * 1024,
+  });
 }
 
 const PKG_NAME_RE = /^[a-zA-Z0-9@._+-]+$/;
@@ -81,33 +201,37 @@ const BT_MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
 const PASS_PATH_RE = /^[a-zA-Z0-9_/.-]+$/;
 
 function assertServiceName(unit: string) {
-  if (!SERVICE_NAME_RE.test(unit)) throw new Error(`Invalid service name: ${unit}`);
+  if (!SERVICE_NAME_RE.test(unit)) throw new TypeError(`Invalid service name: ${unit}`);
 }
 
 function assertBtMac(mac: string) {
-  if (!BT_MAC_RE.test(mac)) throw new Error(`Invalid MAC address: ${mac}`);
+  if (!BT_MAC_RE.test(mac)) throw new TypeError(`Invalid MAC address: ${mac}`);
 }
 
 function assertPassPath(p: string) {
-  if (!PASS_PATH_RE.test(p)) throw new Error(`Invalid pass path: ${p}`);
+  if (!PASS_PATH_RE.test(p)) throw new TypeError(`Invalid pass path: ${p}`);
 }
 
 // Electron security checklist #17: validate the sender of every IPC message.
 // The app is a single locked-down window, but a compromised/hijacked frame must
 // still never reach handlers that shell out. Trusted senders: the bundled
-// file:// renderer (prod) or the dev-server URL (electron-vite dev).
+// custom-protocol renderer (prod) or the exact dev-server origin.
 const rawHandle = ipcMain.handle.bind(ipcMain);
+const registeredChannels = new Set<IpcChannel>();
 
 function trustedSender(frame: Electron.WebFrameMain | null): boolean {
   if (!frame) return false;
-  const devUrl = process.env.ELECTRON_RENDERER_URL;
-  return frame.url.startsWith("file://") || (!!devUrl && frame.url.startsWith(devUrl));
+  return isTrustedRendererUrl(frame.url);
 }
 
-function handle(channel: string, listener: (e: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) {
+function handle(channel: IpcChannel, listener: (e: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) {
+  if (registeredChannels.has(channel)) throw new Error(`Duplicate IPC registration: ${channel}`);
+  registeredChannels.add(channel);
   rawHandle(channel, (e, ...args) => {
-    if (!trustedSender(e.senderFrame)) throw new Error(`Untrusted IPC sender for ${channel}`);
-    return listener(e, ...args);
+    return telemetry.runIpcResult(channel, () => {
+      if (!trustedSender(e.senderFrame)) throw new IpcFault("untrusted_sender");
+      return listener(e, ...args);
+    });
   });
 }
 
@@ -118,11 +242,11 @@ export function initIpc() {
       cmd("uname", ["-r"]),
       cmd("uname", ["-m"]),
       cmd("uptime", ["-p"]),
-      shell("cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | xargs"),
-      shell("nproc"),
-      shell("free -h | awk '/^Mem:/ {print $2}'"),
+      shell("overview.cpu-model", "cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | xargs"),
+      shell("overview.cpu-count", "nproc"),
+      shell("overview.memory-total", "free -h | awk '/^Mem:/ {print $2}'"),
       // GNU df has no --no-header flag; drop the header line via tail instead.
-      shell("df -h / --output=size,used,avail,pcent | tail -n +2"),
+      shell("overview.root-disk", "df -h / --output=size,used,avail,pcent | tail -n +2"),
       cmd("uptime").then((o) => o.replace(/.*load average: /, "")),
     ]);
     return { hostname, kernel, arch, uptime, cpuModel: cpuModel.trim(), cpuCores, totalMem, disk: disk.trim(), load };
@@ -143,7 +267,7 @@ export function initIpc() {
   });
 
   handle("system:cpu-usage", async () => {
-    const raw = await shell("cat /proc/stat | head -1");
+    const raw = await shell("cpu.stat", "cat /proc/stat | head -1");
     const vals = raw.split(/\s+/).slice(1).map(Number);
     const idle = vals[3]! + (vals[4] || 0);
     const total = vals.reduce((a, b) => a + b, 0);
@@ -152,6 +276,7 @@ export function initIpc() {
 
   handle("system:top-processes", async () => {
     const raw = await shell(
+      "processes.memory-top",
       "ps aux --sort=-%mem | head -30 | awk '{printf \"%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n\", $1,$2,$3,$4,$6,$11}'",
     );
     const lines = raw.split("\n").slice(1);
@@ -162,8 +287,8 @@ export function initIpc() {
   });
 
   handle("system:kill-process", async (_e, pid: number) => {
-    if (typeof pid !== "number" || pid <= 1 || pid > 4194304) throw new Error("Invalid PID");
-    return cmd("kill", [String(pid)]).catch(() => "failed");
+    if (typeof pid !== "number" || pid <= 1 || pid > 4194304) throw new RangeError("Invalid PID");
+    return cmd("kill", [String(pid)]);
   });
 
   handle("system:packages", async () => {
@@ -175,7 +300,7 @@ export function initIpc() {
   });
 
   handle("system:outdated", async () => {
-    const raw = await cmd("pacman", ["-Qu", "--color", "never"]).catch(() => "");
+    const raw = await cmdAllowNoMatches("pacman", ["-Qu", "--color", "never"]);
     if (!raw) return [];
     return raw
       .split("\n")
@@ -187,39 +312,36 @@ export function initIpc() {
   });
 
   handle("system:orphans", async () => {
-    const raw = await shell("pacman -Qdtq 2>/dev/null || echo ''");
+    const raw = await cmdAllowNoMatches("pacman", ["-Qdtq", "--color", "never"]);
     return raw ? raw.split("\n").filter(Boolean) : [];
   });
 
   // Explicit user actions → pkexec (polkit GUI prompt), same model as snapper.
   // --noconfirm is required (no TTY); the UI shows a confirmation modal first.
   handle("system:remove-orphans", async () => {
-    const raw = await shell("pacman -Qdtq 2>/dev/null || echo ''");
+    const raw = await cmdAllowNoMatches("pacman", ["-Qdtq", "--color", "never"]);
     const orphans = raw.split("\n").filter(Boolean);
     if (orphans.length === 0) return "no orphans to remove";
     if (orphans.some((o) => !PKG_NAME_RE.test(o))) throw new Error("Unexpected package name in orphan list");
-    return authCmd(["pacman", "-Rns", "--noconfirm", ...orphans], 300000).catch((e) => `error: ${e}`);
+    return authCmd("packages.remove-orphans", ["pacman", "-Rns", "--noconfirm", ...orphans], 300000);
   });
 
   handle("system:package-info", async (_e, name: string) => {
-    const raw = await cmd("pacman", ["-Qi", name]).catch(() => "");
-    return raw || `Package ${name} not found`;
+    return cmd("pacman", ["-Qi", name]);
   });
 
   handle("system:update-packages", async () => {
-    return authCmd(["pacman", "-Syu", "--noconfirm"], 600000).catch((e) => `error: ${e}`);
+    return authCmd("packages.update", ["pacman", "-Syu", "--noconfirm"], 600000);
   });
 
-  // Snapper privilege model (LH-110, replaces sudo):
+  // Snapper privilege model:
   // - listing runs as the plain user via snapperd's own D-Bus/polkit path — works
   //   once the user is in ALLOW_USERS of the snapper config (standard practice);
   //   prompting a GUI auth dialog on every page load would be hostile.
   // - mutations are explicit user actions → pkexec (graphical polkit prompt);
   //   the app never sees or handles a password.
   handle("system:snapshots", async () => {
-    const raw = await shell(
-      "snapper list --type all --columns number,type,date,user,description 2>/dev/null || echo ''",
-    );
+    const raw = await cmd("snapper", ["list", "--type", "all", "--columns", "number,type,date,user,description"]);
     const lines = raw.split("\n").slice(2).filter(Boolean);
     return lines.map((l) => {
       const parts = l.split("|").map((s) => s.trim());
@@ -229,12 +351,12 @@ export function initIpc() {
 
   handle("system:create-snapshot", async (_e, desc: string) => {
     const safeDesc = String(desc).replace(/[^a-zA-Z0-9 _.-]/g, "");
-    return authCmd(["snapper", "create", "-d", safeDesc]).catch((e) => `error: ${e}`);
+    return authCmd("snapshots.create", ["snapper", "create", "-d", safeDesc]);
   });
 
   handle("system:delete-snapshot", async (_e, num: string) => {
-    if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
-    return authCmd(["snapper", "delete", String(num)]).catch((e) => `error: ${e}`);
+    if (!/^\d+$/.test(String(num))) throw new TypeError("Invalid snapshot number");
+    return authCmd("snapshots.delete", ["snapper", "delete", String(num)]);
   });
 
   handle("system:services", async () => {
@@ -266,17 +388,18 @@ export function initIpc() {
   });
 
   handle("system:service-action", async (_e, action: string, unit: string) => {
-    if (!VALID_SERVICE_ACTIONS.includes(action)) throw new Error(`Invalid action: ${action}`);
+    if (!VALID_SERVICE_ACTIONS.includes(action)) throw new TypeError(`Invalid action: ${action}`);
     assertServiceName(unit);
-    return cmd("systemctl", [action, unit]).catch((e) => `error: ${e}`);
+    return cmd("systemctl", [action, unit]);
   });
 
   handle("system:autostart-list", async () => {
     const [systemdUser, xdgRaw] = await Promise.all([
       shell(
+        "autostart.systemd-user-list",
         "systemctl list-unit-files --state=enabled --type=service --user --no-pager --no-legend 2>/dev/null || echo ''",
       ),
-      shell("ls /etc/xdg/autostart/ 2>/dev/null; ls ~/.config/autostart/ 2>/dev/null || echo ''"),
+      shell("autostart.xdg-list", "ls /etc/xdg/autostart/ 2>/dev/null; ls ~/.config/autostart/ 2>/dev/null || echo ''"),
     ]);
     const services = systemdUser
       .split("\n")
@@ -297,21 +420,24 @@ export function initIpc() {
 
   handle("system:autostart-toggle", async (_e, name: string, enable: boolean) => {
     assertServiceName(name);
-    return cmd("systemctl", ["--user", enable ? "enable" : "disable", name]).catch(() => "failed");
+    return cmd("systemctl", ["--user", enable ? "enable" : "disable", name]);
   });
 
   handle("system:cron-list", async () => {
     const [user, system] = await Promise.all([
-      shell("crontab -l 2>/dev/null || echo 'no user crontab'"),
+      shell("cron.user-list", "crontab -l 2>/dev/null || echo 'no user crontab'"),
       // /etc/cron.d files are world-readable (644) on a standard install — no
       // privilege escalation needed just to display them.
-      shell("ls /etc/cron.d/ 2>/dev/null && echo '---' && cat /etc/cron.d/* 2>/dev/null || echo 'no system cron'"),
+      shell(
+        "cron.system-list",
+        "ls /etc/cron.d/ 2>/dev/null && echo '---' && cat /etc/cron.d/* 2>/dev/null || echo 'no system cron'",
+      ),
     ]);
     return { user, system };
   });
 
   handle("system:cron-save", async (_e, content: string) => {
-    return shell(`echo '${content.replace(/'/g, "'\\''")}' | crontab - 2>&1`);
+    return shell("cron.user-save", `echo '${content.replace(/'/g, "'\\''")}' | crontab - 2>&1`);
   });
 
   handle("system:timers", async () => {
@@ -334,12 +460,24 @@ export function initIpc() {
 
   handle("system:gpu", async () => {
     const raw = await cmd("nvidia-smi", [
-      "--query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed",
+      "--query-gpu=name,driver_version,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed",
       "--format=csv,noheader,nounits",
-    ]).catch(() => "");
-    if (!raw) return null;
-    const [name, temp, util, memUsed, memTotal, power, powerLimit, fan] = raw.split(",").map((s) => s.trim());
-    return { name, temp: Number(temp), util: Number(util), memUsed, memTotal, power, powerLimit, fan: Number(fan) };
+    ]);
+    if (!raw) throw new Error("nvidia-smi returned no GPU row");
+    const [name, driverVersion, temp, util, memUsed, memTotal, power, powerLimit, fan] = raw
+      .split(",")
+      .map((s) => s.trim());
+    return {
+      name,
+      driverVersion,
+      temp: Number(temp),
+      util: Number(util),
+      memUsed,
+      memTotal,
+      power,
+      powerLimit,
+      fan: Number(fan),
+    };
   });
 
   handle("system:sensors", async () => {
@@ -347,7 +485,7 @@ export function initIpc() {
   });
 
   handle("system:disk", async () => {
-    const raw = await shell("df -h -x tmpfs -x devtmpfs -x squashfs | tail -n +2");
+    const raw = await shell("disk.list", "df -h -x tmpfs -x devtmpfs -x squashfs | tail -n +2");
     return raw
       .split("\n")
       .filter(Boolean)
@@ -376,11 +514,11 @@ export function initIpc() {
   });
 
   handle("system:rgb-devices", async () => {
-    return cmd("openrgb", ["--list-devices"]).catch(() => "");
+    return cmd("openrgb", ["--list-devices"]);
   });
 
   handle("system:rgb-set", async (_e, args: string[]) => {
-    return cmd("openrgb", args).catch((e) => `error: ${e}`);
+    return cmd("openrgb", args);
   });
 
   handle("system:journal", async (_e, count: number) => {
@@ -389,13 +527,41 @@ export function initIpc() {
   });
 
   // Full journal (all priorities) — the Logs page filters by priority client-side.
-  handle("system:logs", async (_e, count: number) => {
+  handle("system:logs", async (_e, count: number): Promise<SystemLogsResult> => {
     const n = Math.max(1, Math.min(10000, Number(count) || 200));
-    return cmd("journalctl", ["-n", String(n), "--no-pager"]).catch(() => "");
+    const capturedAt = new Date().toISOString();
+    try {
+      const raw = await cmd("journalctl", ["-n", String(n), "--no-pager", "--output=json"]);
+      const entries: SystemLogEntry[] = raw
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as Record<string, unknown>)
+        .map((entry) => {
+          const timestampMicros = Number(entry.__REALTIME_TIMESTAMP);
+          const timestamp = Number.isFinite(timestampMicros)
+            ? new Date(timestampMicros / 1000).toISOString()
+            : capturedAt;
+          return {
+            priority: journalPriority(entry.PRIORITY),
+            timestamp,
+            unit: String(entry._SYSTEMD_UNIT || entry.SYSLOG_IDENTIFIER || entry._COMM || "unknown"),
+            message: String(entry.MESSAGE || ""),
+          };
+        });
+      return { capturedAt, entries, error: null, source: "journalctl", status: "ok" };
+    } catch {
+      return {
+        capturedAt,
+        entries: [],
+        error: "journal collection unavailable",
+        source: "journalctl",
+        status: "error",
+      };
+    }
   });
 
   handle("system:open-ports", async () => {
-    const raw = await cmd("ss", ["-tulnp", "--no-header"]).catch(() => "");
+    const raw = await cmd("ss", ["-tulnp", "--no-header"]);
     return raw
       .split("\n")
       .filter(Boolean)
@@ -418,20 +584,16 @@ export function initIpc() {
   });
 
   handle("system:network-interfaces", async () => {
-    const raw = await cmd("ip", ["-j", "addr"]).catch(() => "[]");
-    let parsed: Array<Record<string, unknown>> = [];
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = [];
-    }
-    const dev = await shell("cat /proc/net/dev").catch(() => "");
+    const raw = await cmd("ip", ["-j", "addr"]);
+    const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
+    if (!Array.isArray(parsed)) throw new TypeError("ip returned a non-array payload");
+    const dev = await readFile("/proc/net/dev", "utf8");
     const counters = new Map<string, { rx: number; tx: number }>();
     for (const line of dev.split("\n")) {
       const mm = line.trim().match(/^([^:]+):\s+(\d+)(?:\s+\d+){7}\s+(\d+)/);
       if (mm) counters.set(mm[1]!.trim(), { rx: Number(mm[2]), tx: Number(mm[3]) });
     }
-    const typeOf = (name: string): import("../types").NetworkInterface["type"] => {
+    const typeOf = (name: string): import("@project/types").NetworkInterface["type"] => {
       if (name === "lo") return "loopback";
       if (/^(en|eth)/.test(name)) return "ethernet";
       if (/^(wl|wlan|wlp)/.test(name)) return "wifi";
@@ -455,39 +617,43 @@ export function initIpc() {
         type: typeOf(name),
         rxBytes: c.rx,
         txBytes: c.tx,
-      } as import("../types").NetworkInterface;
+      } as import("@project/types").NetworkInterface;
     });
   });
 
   handle("system:hardware-specs", async () => {
-    const [cpu, gpu, board, boardVendor] = await Promise.all([
-      shell("grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs").catch(() => ""),
-      shell("lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -1 | cut -d: -f3 | xargs").catch(() => ""),
-      shell("cat /sys/devices/virtual/dmi/id/board_name 2>/dev/null").catch(() => ""),
-      shell("cat /sys/devices/virtual/dmi/id/board_vendor 2>/dev/null").catch(() => ""),
+    const optionalSystemFile = (file: string) =>
+      readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      });
+    const [board, boardVendor] = await Promise.all([
+      optionalSystemFile("/sys/devices/virtual/dmi/id/board_name"),
+      optionalSystemFile("/sys/devices/virtual/dmi/id/board_vendor"),
     ]);
-    const specs: import("../types").HardwareSpec[] = [];
-    if (cpu) specs.push({ category: "cpu", model: cpu, source: "auto" });
-    if (gpu) specs.push({ category: "gpu", model: gpu, source: "auto" });
-    if (board) specs.push({ category: "motherboard", model: `${boardVendor} ${board}`.trim(), source: "auto" });
+    const specs: import("@project/types").HardwareSpec[] = [];
+    const cpu = os.cpus()[0]?.model;
+    if (!cpu) throw new Error("CPU model unavailable from the operating system");
+    specs.push({ category: "cpu", model: cpu, source: "auto" });
+    if (board.trim()) {
+      specs.push({ category: "motherboard", model: `${boardVendor.trim()} ${board.trim()}`.trim(), source: "auto" });
+    }
     return specs;
   });
 
   handle("system:rollback-snapshot", async (_e, num: string) => {
-    if (!/^\d+$/.test(String(num))) throw new Error("Invalid snapshot number");
-    return authCmd(["snapper", "rollback", String(num)]).catch((e) => `error: ${e}`);
+    if (!/^\d+$/.test(String(num))) throw new TypeError("Invalid snapshot number");
+    return authCmd("snapshots.rollback", ["snapper", "rollback", String(num)]);
   });
 
   // Read-only diff between two snapshots — same unprivileged snapperd path as
-  // listing (LH-110); degrades to a readable message without ALLOW_USERS.
+  // Listing degrades to a readable message without ALLOW_USERS.
   handle("system:snapshot-diff", async (_e, from: string, to: string) => {
-    if (!/^\d+$/.test(String(from)) || !/^\d+$/.test(String(to))) throw new Error("Invalid snapshot number");
-    return cmd("snapper", ["status", `${from}..${to}`]).catch(
-      () => "snapper status unavailable — add your user to ALLOW_USERS in the snapper config",
-    );
+    if (!/^\d+$/.test(String(from)) || !/^\d+$/.test(String(to))) throw new TypeError("Invalid snapshot number");
+    return cmd("snapper", ["status", `${from}..${to}`]);
   });
 
-  // Fan curves (LH-104b). Direct sysfs writes only — no privilege prompts in a
+  // Fan curves use direct sysfs writes only — no privilege prompts in a
   // polling loop. If pwm files aren't writable the UI shows the udev hint; the
   // original pwm_enable mode is saved before the first write and restored on
   // disable and on app quit (kill-switch).
@@ -498,30 +664,40 @@ export function initIpc() {
     curves: {},
   };
   let fanLoop: NodeJS.Timeout | null = null;
+  let fanControlError: string | null = null;
   const pwmEnableRestore = new Map<string, string>();
 
-  const readNum = async (p: string) => {
+  const readOptional = async (path: string): Promise<string | null> => {
     try {
-      return Number.parseInt(await readFile(p, "utf8"), 10);
-    } catch {
-      return null;
+      return await readFile(path, "utf8");
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+      throw error;
     }
+  };
+
+  const readNum = async (path: string) => {
+    const raw = await readOptional(path);
+    if (raw === null) return null;
+    const value = Number.parseInt(raw, 10);
+    if (!Number.isFinite(value)) throw new Error("Invalid hwmon numeric value");
+    return value;
   };
 
   async function listFans() {
     const fs = await import("node:fs/promises");
     const fans: import("@project/types").FanInfo[] = [];
-    const hwmons = await fs.readdir(HWMON).catch(() => [] as string[]);
+    const hwmons = await fs.readdir(HWMON);
     for (const hw of hwmons) {
       const dir = join(HWMON, hw);
-      const chip = (await readFile(join(dir, "name"), "utf8").catch(() => hw)).trim();
-      const entries = await fs.readdir(dir).catch(() => [] as string[]);
+      const chip = (await readOptional(join(dir, "name")))?.trim() || hw;
+      const entries = await fs.readdir(dir);
       const tempPath = entries.includes("temp1_input") ? join(dir, "temp1_input") : null;
       for (const entry of entries) {
         if (!/^pwm\d+$/.test(entry)) continue;
         const n = entry.slice(3);
         const labelFile = join(dir, `fan${n}_label`);
-        const label = (await readFile(labelFile, "utf8").catch(() => `${chip} fan ${n}`)).trim();
+        const label = (await readOptional(labelFile))?.trim() || `${chip} fan ${n}`;
         const rpm = await readNum(join(dir, `fan${n}_input`));
         const tempRaw = tempPath ? await readNum(tempPath) : null;
         const pwmRaw = await readNum(join(dir, entry));
@@ -574,13 +750,13 @@ export function initIpc() {
       const enablePath = join(dir, `${pwm}_enable`);
       try {
         if (!pwmEnableRestore.has(id)) {
-          const orig = await readFile(enablePath, "utf8").catch(() => "");
+          const orig = await readFile(enablePath, "utf8");
           if (orig) pwmEnableRestore.set(id, orig.trim());
-          await fs.writeFile(enablePath, "1").catch(() => {});
+          await fs.writeFile(enablePath, "1");
         }
         await fs.writeFile(join(dir, pwm), String(Math.round((duty / 100) * 255)));
       } catch {
-        // not writable — surfaced via fans:list writable flag
+        fanControlError = "Fan control write failed";
       }
     }
   }
@@ -589,7 +765,11 @@ export function initIpc() {
     const fs = await import("node:fs/promises");
     for (const [id, mode] of pwmEnableRestore) {
       const [hw, pwm] = id.split(":") as [string, string];
-      await fs.writeFile(join(HWMON, hw, `${pwm}_enable`), mode).catch(() => {});
+      try {
+        await fs.writeFile(join(HWMON, hw, `${pwm}_enable`), mode);
+      } catch {
+        fanControlError = "Fan auto-mode restore failed";
+      }
     }
     pwmEnableRestore.clear();
   }
@@ -605,16 +785,17 @@ export function initIpc() {
   handle("fans:list", async () => listFans());
 
   handle("fans:set-config", async (_e, cfg: typeof fanConfig) => {
-    if (typeof cfg?.enabled !== "boolean" || typeof cfg?.curves !== "object") throw new Error("Invalid fan config");
+    if (typeof cfg?.enabled !== "boolean" || typeof cfg?.curves !== "object") throw new TypeError("Invalid fan config");
     for (const [id, points] of Object.entries(cfg.curves)) {
-      if (!FAN_ID_RE.test(id)) throw new Error(`Invalid fan id: ${id}`);
+      if (!FAN_ID_RE.test(id)) throw new TypeError(`Invalid fan id: ${id}`);
       if (
         !Array.isArray(points) ||
         points.some((p) => typeof p.temp !== "number" || typeof p.duty !== "number" || p.duty < 0 || p.duty > 100)
       )
-        throw new Error("Invalid curve points");
+        throw new RangeError("Invalid curve points");
     }
     fanConfig = cfg;
+    fanControlError = null;
     stopFanLoop();
     if (cfg.enabled && Object.keys(cfg.curves).length > 0) {
       void applyFanTick();
@@ -623,7 +804,7 @@ export function initIpc() {
     return fanConfig.enabled ? "fan curves active" : "fan curves disabled (auto mode restored)";
   });
 
-  handle("fans:status", async () => ({ enabled: fanConfig.enabled, fans: await listFans() }));
+  handle("fans:status", async () => ({ enabled: fanConfig.enabled, error: fanControlError, fans: await listFans() }));
 
   handle("system:save-report", async (_e, content: string, suggestedName: string) => {
     const { dialog } = await import("electron");
@@ -645,36 +826,37 @@ export function initIpc() {
       cmd("uptime", ["-p"]),
     ]);
 
-    const [outdatedRaw, orphansRaw, failedRaw, snapshotsRaw, autostartRaw] = await Promise.all([
-      shell("pacman -Qu 2>/dev/null | wc -l").catch(() => "0"),
-      shell("pacman -Qdt 2>/dev/null | wc -l").catch(() => "0"),
-      shell("systemctl list-units --failed --no-legend 2>/dev/null | wc -l").catch(() => "0"),
-      shell("ls /var/snapshots 2>/dev/null | wc -l").catch(() => "0"),
-      shell("ls ~/.config/autostart 2>/dev/null | wc -l").catch(() => "0"),
+    const probes = await Promise.allSettled([
+      cmdAllowNoMatches("pacman", ["-Qu", "--color", "never"]),
+      cmdAllowNoMatches("pacman", ["-Qdtq", "--color", "never"]),
+      cmd("systemctl", ["list-units", "--failed", "--no-legend", "--no-pager"]),
+      cmd("df", ["/", "--output=pcent"]),
     ]);
+    const countLines = (index: number): number | null => {
+      const probe = probes[index];
+      if (!probe || probe.status === "rejected") return null;
+      return probe.value ? probe.value.split("\n").filter(Boolean).length : 0;
+    };
+    const outdatedPackages = countLines(0);
+    const orphansCount = countLines(1);
+    const failedServices = countLines(2);
+    const diskProbe = probes[3];
+    const diskUsage = diskProbe?.status === "fulfilled" ? Number(diskProbe.value.match(/\d+/)?.[0]) || null : null;
+    const totalMemory = os.totalmem();
+    const memoryUsage = totalMemory > 0 ? Math.round(((totalMemory - os.freemem()) / totalMemory) * 100) : null;
+    const checks: SystemCheck[] = [];
 
-    const outdatedPackages = parseInt(outdatedRaw, 10) || 0;
-    const orphansCount = parseInt(orphansRaw, 10) || 0;
-    const failedServices = parseInt(failedRaw, 10) || 0;
-    const snapshotsCount = parseInt(snapshotsRaw, 10) || 0;
-    const autostartCount = parseInt(autostartRaw, 10) || 0;
+    const unavailable = (id: string, label: string, category: SystemCheck["category"]): SystemCheck => ({
+      id,
+      label,
+      status: "na",
+      message: "Collection failed; no health claim was made",
+      category,
+    });
 
-    const diskRaw = await shell("df -h / --output=pcent --no-header 2>/dev/null || echo '0'");
-    const diskUsage = parseInt(diskRaw.trim(), 10) || 0;
-
-    const memRaw = await shell("free | awk '/^Mem:/ {printf \"%d\", ($3/$2)*100}' 2>/dev/null || echo '0'");
-    const memoryUsage = parseInt(memRaw, 10) || 0;
-
-    const checks: Array<{
-      id: string;
-      label: string;
-      status: string;
-      message: string;
-      category: string;
-      fix?: string;
-    }> = [];
-
-    if (outdatedPackages > 0) {
+    if (outdatedPackages === null) {
+      checks.push(unavailable("os-updates", "OS Updates", "os"));
+    } else if (outdatedPackages > 0) {
       checks.push({
         id: "os-updates",
         label: "OS Updates",
@@ -693,7 +875,9 @@ export function initIpc() {
       });
     }
 
-    if (orphansCount > 0) {
+    if (orphansCount === null) {
+      checks.push(unavailable("os-orphans", "Orphan Packages", "os"));
+    } else if (orphansCount > 0) {
       checks.push({
         id: "os-orphans",
         label: "Orphan Packages",
@@ -712,26 +896,9 @@ export function initIpc() {
       });
     }
 
-    if (snapshotsCount > 0) {
-      checks.push({
-        id: "os-snapshots",
-        label: "Snapshots",
-        status: "pass",
-        message: `${snapshotsCount} btrfs snapshots`,
-        category: "os",
-      });
-    } else {
-      checks.push({
-        id: "os-snapshots",
-        label: "Snapshots",
-        status: "warn",
-        message: "No snapshots found",
-        category: "os",
-        fix: "Configure btrfs snapshots with snapper",
-      });
-    }
-
-    if (failedServices > 0) {
+    if (failedServices === null) {
+      checks.push(unavailable("svc-failed", "Failed Services", "services"));
+    } else if (failedServices > 0) {
       checks.push({
         id: "svc-failed",
         label: "Failed Services",
@@ -750,23 +917,9 @@ export function initIpc() {
       });
     }
 
-    checks.push({
-      id: "svc-critical",
-      label: "Critical Services",
-      status: "pass",
-      message: "All critical services running",
-      category: "services",
-    });
-
-    checks.push({
-      id: "pkg-security",
-      label: "Security Packages",
-      status: "pass",
-      message: "Core packages up to date",
-      category: "security",
-    });
-
-    if (diskUsage > 90) {
+    if (diskUsage === null) {
+      checks.push(unavailable("disk-health", "Disk Usage", "storage"));
+    } else if (diskUsage > 90) {
       checks.push({
         id: "disk-health",
         label: "Disk Usage",
@@ -792,7 +945,9 @@ export function initIpc() {
       });
     }
 
-    if (memoryUsage > 90) {
+    if (memoryUsage === null) {
+      checks.push(unavailable("mem-health", "Memory", "storage"));
+    } else if (memoryUsage > 90) {
       checks.push({
         id: "mem-health",
         label: "Memory",
@@ -818,11 +973,15 @@ export function initIpc() {
       });
     }
 
-    const passed = checks.filter((c) => c.status === "pass").length;
-    const total = checks.length;
-    const healthScore = total > 0 ? Math.round((passed / total) * 100) : 100;
+    const scoredChecks = checks.filter((check) => check.status !== "na");
+    const passed = scoredChecks.filter((check) => check.status === "pass").length;
+    const healthScore = scoredChecks.length > 0 ? Math.round((passed / scoredChecks.length) * 100) : 0;
+    const failedProbeCount = probes.filter((probe) => probe.status === "rejected").length;
 
     return {
+      capturedAt: new Date().toISOString(),
+      status: failedProbeCount === 0 ? "ok" : failedProbeCount === probes.length ? "error" : "partial",
+      error: failedProbeCount === 0 ? null : `${failedProbeCount} of ${probes.length} health probes failed`,
       hostname,
       kernel,
       arch,
@@ -831,9 +990,9 @@ export function initIpc() {
       outdatedPackages,
       orphansCount,
       failedServices,
-      stoppedCritical: 0,
-      snapshotsCount,
-      autostartCount,
+      stoppedCritical: null,
+      snapshotsCount: null,
+      autostartCount: null,
       diskUsage,
       memoryUsage,
       checks,
@@ -841,7 +1000,7 @@ export function initIpc() {
   });
 
   handle("password:list", async () => {
-    const raw = await shell("pass ls 2>/dev/null || echo ''").catch(() => "");
+    const raw = await cmd("pass", ["ls"]);
     if (!raw) return [];
     const lines = raw.split("\n").filter(Boolean);
     return lines.map((l) => {
@@ -857,7 +1016,7 @@ export function initIpc() {
 
   handle("password:show", async (_e, path: string) => {
     assertPassPath(path);
-    const raw = await cmd("pass", ["show", path]).catch(() => "");
+    const raw = await cmd("pass", ["show", path]);
     if (!raw) return null;
     const lines = raw.split("\n");
     const password = lines[0] || "";
@@ -880,7 +1039,7 @@ export function initIpc() {
   handle("password:generate", async (_e, path: string, length: number) => {
     assertPassPath(path);
     const len = Math.max(8, Math.min(128, Number(length) || 20));
-    return cmd("pass", ["generate", "-c", path, String(len)]).catch((e) => `error: ${e}`);
+    return cmd("pass", ["generate", "-c", path, String(len)]);
   });
 
   handle("password:insert", async (_e, path: string, content: string) => {
@@ -898,28 +1057,28 @@ export function initIpc() {
       });
       proc.stdin.write(content);
       proc.stdin.end();
-      let out = "";
-      proc.stdout.on("data", (d: Buffer) => (out += d));
-      proc.stderr.on("data", (d: Buffer) => (out += d));
-      proc.on("close", () => {
+      proc.stdout.resume();
+      proc.stderr.resume();
+      proc.on("close", (code) => {
         clearTimeout(timer);
-        resolve(out.trim() || "inserted");
+        if (code === 0) resolve("inserted");
+        else reject(Object.assign(new Error("pass insert failed"), { code }));
       });
     });
   });
 
   handle("password:delete", async (_e, path: string) => {
     assertPassPath(path);
-    return cmd("pass", ["rm", "-f", path]).catch((e) => `error: ${e}`);
+    return cmd("pass", ["rm", "-f", path]);
   });
 
   handle("password:copy", async (_e, path: string) => {
     assertPassPath(path);
-    return cmd("pass", ["-c", path]).catch((e) => `error: ${e}`);
+    return cmd("pass", ["-c", path]);
   });
 
   handle("battery:upower-devices", async () => {
-    const raw = await shell("upower -e 2>/dev/null").catch(() => "");
+    const raw = await cmd("upower", ["-e"]);
     if (!raw) return [];
     const paths = raw
       .split("\n")
@@ -939,8 +1098,7 @@ export function initIpc() {
       connection: string;
     }> = [];
     for (const p of paths) {
-      const info = await cmd("upower", ["-i", p]).catch(() => "");
-      if (!info) continue;
+      const info = await cmd("upower", ["-i", p]);
       const get = (key: string) => {
         const m = info.match(new RegExp(`${key}:\\s+(.+)`));
         return m ? m[1]!.trim() : "";
@@ -967,7 +1125,7 @@ export function initIpc() {
   });
 
   handle("battery:bt-devices", async () => {
-    const raw = await shell("bluetoothctl devices 2>/dev/null").catch(() => "");
+    const raw = await cmd("bluetoothctl", ["devices"]);
     if (!raw) return [];
     const devices: Array<{
       mac: string;
@@ -984,7 +1142,7 @@ export function initIpc() {
       const mac = parts[1] || "";
       const name = parts.slice(2).join(" ");
       if (!mac) continue;
-      const info = await cmd("bluetoothctl", ["info", mac]).catch(() => "");
+      const info = await cmd("bluetoothctl", ["info", mac]);
       const paired = info.includes("Paired: yes");
       const connected = info.includes("Connected: yes");
       const iconMatch = info.match(/Icon:\s+(.+)/);
@@ -1007,12 +1165,12 @@ export function initIpc() {
 
   handle("battery:bt-connect", async (_e, mac: string) => {
     assertBtMac(mac);
-    return cmd("bluetoothctl", ["connect", mac]).catch((e) => `error: ${e}`);
+    return cmd("bluetoothctl", ["connect", mac]);
   });
 
   handle("battery:bt-disconnect", async (_e, mac: string) => {
     assertBtMac(mac);
-    return cmd("bluetoothctl", ["disconnect", mac]).catch((e) => `error: ${e}`);
+    return cmd("bluetoothctl", ["disconnect", mac]);
   });
 
   handle("system:battery-watch", async (_e, action) => {
@@ -1029,8 +1187,17 @@ export function initIpc() {
     }
   });
 
-  handle("system:network", async () => {
-    const raw = await shell("cat /proc/net/dev").catch(() => "");
+  handle("system:network", async (): Promise<NetworkSummary> => {
+    const capturedAt = new Date().toISOString();
+    const errors: string[] = [];
+    const [deviceResult, routeResult, resolvResult] = await Promise.allSettled([
+      readFile("/proc/net/dev", "utf8"),
+      cmd("ip", ["-j", "route", "show", "default"]),
+      readFile("/etc/resolv.conf", "utf8"),
+    ]);
+
+    const raw = deviceResult.status === "fulfilled" ? deviceResult.value : "";
+    if (deviceResult.status === "rejected") errors.push("interface counters unavailable");
     const lines = raw.split("\n").slice(2).filter(Boolean);
     const interfaces: Array<{ name: string; rxBytes: number; txBytes: number }> = [];
     let totalRx = 0;
@@ -1046,298 +1213,160 @@ export function initIpc() {
       totalTx += txBytes;
       interfaces.push({ name, rxBytes, txBytes });
     }
-    return { totalRx, totalTx, interfaces };
-  });
 
-  handle("projects:outdated", async (_e, id: string) => {
-    const projectsRaw = await shell(
-      "find /home -maxdepth 4 -name 'package.json' -not -path '*/node_modules/*' 2>/dev/null",
-    ).catch(() => "");
-    const paths = projectsRaw.split("\n").filter(Boolean);
-    for (const pkgPath of paths) {
-      const dir = pkgPath.replace("/package.json", "");
-      const info = await readFile(pkgPath, "utf8").catch(() => "");
-      if (!info) continue;
+    let gateway: string | null = null;
+    if (routeResult.status === "fulfilled") {
       try {
-        const pkg = JSON.parse(info);
-        const projId = pkg.name || dir.split("/").pop() || "";
-        if (projId !== id) continue;
-        // npm outdated exits non-zero when updates exist; its JSON is still on stdout.
-        const npmJson = await exec("npm", ["outdated", "--json"], { cwd: dir, timeout: 15000, maxBuffer: 1024 * 1024 })
-          .then(({ stdout }) => stdout.trim() || "{}")
-          .catch((e: { stdout?: string }) => e?.stdout?.trim() || "{}");
-        let outdatedDeps: Array<{
-          name: string;
-          current: string;
-          latest: string;
-          type: "prod" | "dev";
-          risk: "patch" | "minor" | "major" | "none";
-        }> = [];
-        try {
-          const npmData = JSON.parse(npmJson);
-          for (const [name, info] of Object.entries(
-            npmData as Record<string, { current: string; latest: string; type: string }>,
-          )) {
-            const current = info.current || "";
-            const latest = info.latest || "";
-            const type = (info.type === "devDependencies" ? "dev" : "prod") as "prod" | "dev";
-            const currentParts = current.split(".").map(Number);
-            const latestParts = latest.split(".").map(Number);
-            let risk: "patch" | "minor" | "major" | "none" = "none";
-            if (latestParts[0] !== currentParts[0]) risk = "major";
-            else if (latestParts[1] !== currentParts[1]) risk = "minor";
-            else if (latestParts[2] !== currentParts[2]) risk = "patch";
-            outdatedDeps.push({ name, current, latest, type, risk });
-          }
-        } catch {
-          outdatedDeps = [];
-        }
-        return outdatedDeps.filter((d) => d.risk !== "none");
-      } catch {}
+        const routes = JSON.parse(routeResult.value) as Array<{ gateway?: unknown }>;
+        gateway = routes[0]?.gateway ? String(routes[0].gateway) : null;
+      } catch {
+        errors.push("default route response malformed");
+      }
+    } else {
+      errors.push("default route unavailable");
     }
-    return [];
+
+    const dns: string[] = [];
+    if (resolvResult.status === "fulfilled") {
+      for (const line of resolvResult.value.split("\n")) {
+        const match = line.match(/^\s*nameserver\s+(\S+)/);
+        if (match?.[1] && !dns.includes(match[1])) dns.push(match[1]);
+      }
+    } else {
+      errors.push("DNS configuration unavailable");
+    }
+
+    const addresses = Object.values(os.networkInterfaces())
+      .flatMap((entries) => entries ?? [])
+      .filter((address) => address.family === "IPv4" && !address.internal);
+    const localIp = addresses[0]?.address ?? null;
+    const criticalFailure = deviceResult.status === "rejected";
+    return {
+      capturedAt,
+      dns,
+      error: errors.length > 0 ? errors.join("; ") : null,
+      gateway,
+      hostname: os.hostname(),
+      localIp,
+      publicIp: null,
+      reachability: "unknown",
+      source: "os.networkInterfaces+/proc/net/dev+ip+resolv.conf",
+      status: criticalFailure ? "error" : errors.length > 0 ? "partial" : "ok",
+      totalRx: criticalFailure ? null : totalRx,
+      totalTx: criticalFailure ? null : totalTx,
+      traffic: interfaces,
+    };
   });
 
-  let docsDb: Database | null = null;
-  const docsDbPath = () => join(app.getPath("userData"), "docs.db");
+  handle("projects:inspect", async (_e, path: string) => inspectNodeProject(path));
 
-  async function initDocsDb() {
-    if (docsDb) return docsDb;
-    const SQL = await initSqlJs();
-    const path = docsDbPath();
-    try {
-      const { readFileSync, existsSync } = await import("node:fs");
-      let data: Uint8Array | undefined;
-      if (existsSync(path)) {
-        data = readFileSync(path);
-      }
-      docsDb = data ? new SQL.Database(data) : new SQL.Database();
-      docsDb.run(
-        `CREATE TABLE IF NOT EXISTS docs (id TEXT PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, category TEXT NOT NULL, tags TEXT, created_at INTEGER, updated_at INTEGER)`,
-      );
-      saveDocsDb();
-    } catch {
-      docsDb = new SQL.Database();
-      docsDb.run(
-        `CREATE TABLE IF NOT EXISTS docs (id TEXT PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, category TEXT NOT NULL, tags TEXT, created_at INTEGER, updated_at INTEGER)`,
-      );
-    }
-    return docsDb;
-  }
-
-  function saveDocsDb() {
-    if (!docsDb) return;
-    try {
-      const { writeFileSync } = require("node:fs");
-      writeFileSync(docsDbPath(), docsDb.export());
-    } catch {}
-  }
-
-  function docFromRow(row: unknown[]): import("../types").DocEntry {
-    return {
-      id: row[0] as string,
-      title: row[1] as string,
-      content: row[2] as string,
-      category: row[3] as string,
-      tags: row[4] ? JSON.parse(row[4] as string) : [],
-      createdAt: row[5] as number,
-      updatedAt: row[6] as number,
-    };
-  }
+  handle("projects:outdated", async (_e, path: string) => {
+    const project = await inspectNodeProject(path);
+    return project.deps.filter((dependency) => dependency.risk !== "none");
+  });
 
   handle("docs:init", async () => {
-    await initDocsDb();
-    const result = docsDb!.exec("SELECT DISTINCT category FROM docs ORDER BY category");
-    return result.length > 0 ? result[0].values.map((r: unknown[]) => r[0] as string) : [];
+    return telemetry.runRepository("docs.categories", () => getDocsRepository().categories());
   });
 
-  handle("docs:list", async (_e, opts?: { category?: string; search?: string; limit?: number; offset?: number }) => {
-    await initDocsDb();
-    const limit = opts?.limit ?? 50;
-    const offset = opts?.offset ?? 0;
-    let sql = "SELECT * FROM docs WHERE 1=1";
-    const params: unknown[] = [];
-    if (opts?.category) {
-      sql += " AND category = ?";
-      params.push(opts.category);
-    }
-    if (opts?.search) {
-      sql += " AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)";
-      const s = `%${opts.search}%`;
-      params.push(s, s, s);
-    }
-    sql += " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
-    params.push(limit, offset);
-    const result = docsDb!.exec(sql, params);
-    if (result.length === 0) return [];
-    return result[0].values.map(docFromRow);
+  handle("docs:list", async (_e, options?: DocsListOptions) => {
+    return telemetry.runRepository("docs.list", () => getDocsRepository().list(options));
   });
 
-  handle("docs:create", async (_e, doc: Partial<import("../types").DocEntry>) => {
-    await initDocsDb();
-    const id = crypto.randomUUID();
-    const now = Date.now();
-    const title = doc.title ?? "Untitled";
-    const content = doc.content ?? "";
-    const category = doc.category ?? "General";
-    const tags = JSON.stringify(doc.tags ?? []);
-    docsDb!.run(
-      "INSERT INTO docs (id, title, content, category, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [id, title, content, category, tags, now, now],
-    );
-    saveDocsDb();
-    const result = docsDb!.exec("SELECT * FROM docs WHERE id = ?", [id]);
-    return docFromRow(result[0].values[0]);
+  handle("docs:create", async (_e, input: CreateDocInput) => {
+    return telemetry.runRepository("docs.create", () => getDocsRepository().create(input));
   });
 
-  handle("docs:update", async (_e, id: string, doc: Partial<import("../types").DocEntry>) => {
-    await initDocsDb();
-    const now = Date.now();
-    const fields: string[] = [];
-    const params: unknown[] = [];
-    if (doc.title !== undefined) {
-      fields.push("title = ?");
-      params.push(doc.title);
-    }
-    if (doc.content !== undefined) {
-      fields.push("content = ?");
-      params.push(doc.content);
-    }
-    if (doc.category !== undefined) {
-      fields.push("category = ?");
-      params.push(doc.category);
-    }
-    if (doc.tags !== undefined) {
-      fields.push("tags = ?");
-      params.push(JSON.stringify(doc.tags));
-    }
-    fields.push("updated_at = ?");
-    params.push(now);
-    params.push(id);
-    docsDb!.run(`UPDATE docs SET ${fields.join(", ")} WHERE id = ?`, params);
-    saveDocsDb();
-    const result = docsDb!.exec("SELECT * FROM docs WHERE id = ?", [id]);
-    return docFromRow(result[0].values[0]);
+  handle("docs:update", async (_e, id: string, input: UpdateDocInput) => {
+    return telemetry.runRepository("docs.update", () => getDocsRepository().update(id, input));
   });
 
   handle("docs:delete", async (_e, id: string) => {
-    await initDocsDb();
-    docsDb!.run("DELETE FROM docs WHERE id = ?", [id]);
-    saveDocsDb();
+    await telemetry.runRepository("docs.delete", () => getDocsRepository().delete(id));
   });
 
   handle("docs:categories", async () => {
-    await initDocsDb();
-    const result = docsDb!.exec("SELECT DISTINCT category FROM docs ORDER BY category");
-    return result.length > 0 ? result[0].values.map((r: unknown[]) => r[0] as string) : [];
+    return telemetry.runRepository("docs.categories", () => getDocsRepository().categories());
   });
 
   handle("llm:model-info", async () => {
-    try {
-      const raw = await shell("cat /etc/tesseract/model.json 2>/dev/null || echo '{}'");
-      const parsed = JSON.parse(raw || "{}");
-      return {
-        name: parsed.name || "Tesseract MoE LLM",
-        architecture: parsed.architecture || "Mixture of Experts",
-        parameters: parsed.parameters || "Unknown",
-        quantization: parsed.quantization || "N/A",
-        contextLength: parsed.contextLength || 32768,
-        experts: parsed.experts || 16,
-        activeExperts: parsed.activeExperts || 4,
-        license: parsed.license || "MIT",
-      };
-    } catch {
-      return {
-        name: "Tesseract MoE LLM",
-        architecture: "Mixture of Experts",
-        parameters: "Unknown",
-        quantization: "N/A",
-        contextLength: 32768,
-        experts: 16,
-        activeExperts: 4,
-        license: "MIT",
-      };
-    }
+    const parsed = JSON.parse(await readFile("/etc/tesseract/model.json", "utf8")) as Record<string, unknown>;
+    const requiredString = (key: string) => {
+      const value = parsed[key];
+      if (typeof value !== "string" || !value.trim()) throw new Error(`Invalid LLM model metadata: ${key}`);
+      return value;
+    };
+    const requiredNumber = (key: string) => {
+      const value = parsed[key];
+      if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+        throw new Error(`Invalid LLM model metadata: ${key}`);
+      }
+      return value;
+    };
+    return {
+      name: requiredString("name"),
+      architecture: requiredString("architecture"),
+      parameters: requiredString("parameters"),
+      quantization: requiredString("quantization"),
+      contextLength: requiredNumber("contextLength"),
+      experts: requiredNumber("experts"),
+      activeExperts: requiredNumber("activeExperts"),
+      license: requiredString("license"),
+    };
   });
 
   handle("llm:inference-status", async () => {
-    try {
-      const gpuRaw = await shell(
-        "nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo '0,0'",
-      );
-      const [vramUsed, vramTotal] = gpuRaw
-        .trim()
-        .split(",")
-        .map((s: string) => parseFloat(s.trim()));
-      const pidRaw = await shell("pgrep -f 'tesseract-moe' || echo ''");
-      const running = pidRaw.trim().length > 0;
-      return {
-        running,
-        serverUrl: "http://localhost:8080",
-        model: "tesseract-moe",
-        vramUsed: vramUsed / 1024 || 0,
-        vramTotal: vramTotal / 1024 || 0,
-        uptime: 0,
-        requestsPerMin: 0,
-        avgLatencyMs: 0,
-        tokensPerSec: 0,
-      };
-    } catch {
+    const running = await cmd("pgrep", ["-f", "tesseract-moe"]).then(
+      (value) => value.length > 0,
+      () => false,
+    );
+    if (!running) {
       return {
         running: false,
-        serverUrl: "http://localhost:8080",
-        model: "tesseract-moe",
-        vramUsed: 0,
-        vramTotal: 0,
-        uptime: 0,
-        requestsPerMin: 0,
-        avgLatencyMs: 0,
-        tokensPerSec: 0,
+        serverUrl: null,
+        model: null,
+        vramUsed: null,
+        vramTotal: null,
+        uptime: null,
+        requestsPerMin: null,
+        avgLatencyMs: null,
+        tokensPerSec: null,
       };
     }
+    const gpuRaw = await cmd("nvidia-smi", ["--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"]);
+    const [vramUsed, vramTotal] = gpuRaw.split(",").map((value) => Number(value.trim()) / 1024);
+    return {
+      running: true,
+      serverUrl: null,
+      model: null,
+      vramUsed: Number.isFinite(vramUsed) ? vramUsed : null,
+      vramTotal: Number.isFinite(vramTotal) ? vramTotal : null,
+      uptime: null,
+      requestsPerMin: null,
+      avgLatencyMs: null,
+      tokensPerSec: null,
+    };
   });
 
   handle("llm:config", async () => {
-    try {
-      const raw = await shell("cat ~/.config/tesseract/config.json 2>/dev/null || echo '{}'");
-      return JSON.parse(raw || "{}");
-    } catch {
-      return {
-        serverUrl: "http://localhost:8080",
-        modelPath: "",
-        contextLength: 32768,
-        gpuLayers: 43,
-        threads: 8,
-        temperature: 0.7,
-        topP: 0.9,
-        repeatPenalty: 1.1,
-      };
-    }
+    return JSON.parse(await readFile(join(os.homedir(), ".config", "tesseract", "config.json"), "utf8"));
   });
 
   handle("llm:start", async () => {
-    return "Starting Tesseract MoE inference server requires sudo. Configure in Settings.";
+    throw new Error("LLM server start is not implemented for this installation");
   });
 
   handle("llm:stop", async () => {
-    try {
-      await shell("pkill -f 'tesseract-moe' 2>/dev/null || true");
-      return "Tesseract MoE inference server stopped";
-    } catch {
-      return "Failed to stop server";
-    }
+    await shell("llm.stop", "pkill -f 'tesseract-moe'");
+    return "Tesseract MoE inference server stopped";
   });
 
   handle("llm:save-config", async (_e, cfg: Record<string, unknown>) => {
-    try {
-      const configDir = join(os.homedir(), ".config", "tesseract");
-      const fs = await import("node:fs/promises");
-      await fs.mkdir(configDir, { recursive: true });
-      await fs.writeFile(join(configDir, "config.json"), JSON.stringify(cfg, null, 2));
-      return "Configuration saved";
-    } catch {
-      return "Failed to save configuration";
-    }
+    const configDir = join(os.homedir(), ".config", "tesseract");
+    const fs = await import("node:fs/promises");
+    await fs.mkdir(configDir, { recursive: true });
+    await fs.writeFile(join(configDir, "config.json"), JSON.stringify(cfg, null, 2));
+    return "Configuration saved";
   });
 
   const SECRET_NAME_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -1356,15 +1385,29 @@ export function initIpc() {
 
   async function readSecrets(): Promise<Record<string, string>> {
     try {
-      return JSON.parse(await readFile(secretsFile(), "utf8"));
-    } catch {
-      return {};
+      const parsed: unknown = JSON.parse(await readFile(secretsFile(), "utf8"));
+      if (
+        !parsed ||
+        Array.isArray(parsed) ||
+        typeof parsed !== "object" ||
+        Object.values(parsed).some((value) => typeof value !== "string")
+      ) {
+        throw new TypeError("Invalid secrets store");
+      }
+      return parsed as Record<string, string>;
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return {};
+      throw new IpcFault("persistence_failure");
     }
   }
 
   async function writeSecrets(secrets: Record<string, string>) {
     const fs = await import("node:fs/promises");
-    await fs.writeFile(secretsFile(), JSON.stringify(secrets), { mode: 0o600 });
+    const target = secretsFile();
+    const temporary = `${target}.tmp`;
+    await fs.writeFile(temporary, JSON.stringify(secrets), { mode: 0o600 });
+    await fs.rename(temporary, target);
+    await fs.chmod(target, 0o600);
   }
 
   // basic_text means no unlocked keyring — the value is only obfuscated, not
@@ -1375,7 +1418,7 @@ export function initIpc() {
   });
 
   handle("secrets:get", async (_e, name: string) => {
-    if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
+    if (!SECRET_NAME_RE.test(name)) throw new TypeError(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
     const stored = (await readSecrets())[name];
     if (!stored) return "";
@@ -1388,12 +1431,12 @@ export function initIpc() {
       }
       return dec.result;
     } catch {
-      return "";
+      throw new IpcFault("persistence_failure");
     }
   });
 
   handle("secrets:set", async (_e, name: string, value: string) => {
-    if (!SECRET_NAME_RE.test(name)) throw new Error(`Invalid secret name: ${name}`);
+    if (!SECRET_NAME_RE.test(name)) throw new TypeError(`Invalid secret name: ${name}`);
     const safeStorage = await getSafeStorage();
     const secrets = await readSecrets();
     if (value) {
@@ -1403,4 +1446,7 @@ export function initIpc() {
     }
     await writeSecrets(secrets);
   });
+
+  const missing = IPC_CHANNELS.filter((channel) => !registeredChannels.has(channel));
+  if (missing.length > 0) throw new Error(`Missing IPC registrations: ${missing.join(", ")}`);
 }

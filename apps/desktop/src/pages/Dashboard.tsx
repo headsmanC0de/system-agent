@@ -1,3 +1,6 @@
+import { ema, useCpuHistory, usePolling } from "@project/hooks";
+import type { HardwareSpec, OverviewData, ProcessInfo } from "@project/types";
+import { Bar, Card, Sparkline, StaleDataNotice } from "@project/ui";
 import {
   Activity,
   Box,
@@ -28,10 +31,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { system } from "../api";
-import { Bar, Card, Sparkline, StaleDataNotice } from "../components/ui";
-import { ema, useCpuHistory, usePolling } from "../lib/hooks";
 import { getStorageItem, STORAGE_KEYS, setStorageItem } from "../lib/storage";
-import type { HardwareSpec, OverviewData, ProcessInfo } from "../types";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   cpu: Cpu,
@@ -117,15 +117,16 @@ export function DashboardPage() {
     return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(parseInt(bytes, 10) / (1024 * 1024)).toFixed(0)} MB`;
   };
 
-  const refresh = useCallback(async () => {
-    const [o, p, cpu, memRaw] = await Promise.all([
-      system.overview(),
-      system.topProcesses(),
-      system.cpuUsage(),
-      system.memory(),
-    ]);
-    setOverview(o);
-    setProcs(p);
+  const refreshOverview = useCallback(async () => {
+    setOverview(await system.overview());
+  }, []);
+
+  const refreshProcesses = useCallback(async () => {
+    setProcs(await system.topProcesses());
+  }, []);
+
+  const refreshMetrics = useCallback(async () => {
+    const [cpu, memRaw] = await Promise.all([system.cpuUsage(), system.memory()]);
     updateCpu(cpu);
     const mt = parseInt(memRaw.mem.total, 10);
     const mu = parseInt(memRaw.mem.used, 10);
@@ -138,16 +139,10 @@ export function DashboardPage() {
     setMemHistory((h) => [...h.slice(-59), mp]);
   }, [updateCpu]);
 
-  const TESSERACT_SPEC: HardwareSpec = {
-    category: "LLM",
-    model: "Tesseract MoE LLM",
-    source: "builtin",
-  };
-
   const loadSpecs = useCallback(async () => {
     const auto = await system.hardwareSpecs();
     const manual: HardwareSpec[] = JSON.parse(getStorageItem(STORAGE_KEYS.manualSpecs) || "[]");
-    setSpecs([TESSERACT_SPEC, ...auto, ...manual]);
+    setSpecs([...auto, ...manual]);
   }, []);
 
   useEffect(() => {
@@ -173,7 +168,10 @@ export function DashboardPage() {
     loadSpecs();
   };
 
-  const { error: pollError } = usePolling(refresh, 1000);
+  const { error: overviewError } = usePolling(refreshOverview, 30_000);
+  const { error: processError } = usePolling(refreshProcesses, 5_000);
+  const { error: metricsError } = usePolling(refreshMetrics, 2_000);
+  const pollError = overviewError ?? processError ?? metricsError;
 
   useEffect(() => {
     const close = () => setActionPid(null);
@@ -183,7 +181,7 @@ export function DashboardPage() {
 
   const kill = async (pid: number) => {
     await system.killProcess(pid);
-    refresh();
+    refreshProcesses();
   };
 
   const [exportStatus, setExportStatus] = useState("");
